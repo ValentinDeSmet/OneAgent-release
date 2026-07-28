@@ -1,241 +1,236 @@
-# Guide d'installation de OneAgent
+# OneAgent Installation Guide
 
-Ce guide est destiné à tous les utilisateurs, sans connaissance technique
-particulière. Suis simplement les étapes dans l'ordre.
+This guide is intended for everyone. No technical knowledge is required—just
+follow the steps in order.
 
-## Ce qui va être installé
+## What you will install
 
-OneAgent utilise trois éléments :
+OneAgent uses three components:
 
-1. **OneAgent**, l'extension qui s'affiche dans Visual Studio Code ;
-2. **oMLX**, une petite application qui exécute les recherches intelligentes
-   directement sur le Mac ;
-3. **BGE-M3**, le modèle local utilisé par oMLX pour comprendre le sens des
-   textes.
+1. **OneAgent**, the extension displayed inside Visual Studio Code;
+2. **oMLX**, a small application that runs intelligent searches directly on
+   your Mac;
+3. **BGE-M3**, the local model used by oMLX to understand the meaning of text.
 
-Tout fonctionne localement : les documents, la base OneAgent et les embeddings
-ne sont pas envoyés sur Internet.
+Everything runs locally. Your documents, OneAgent database, and embeddings are
+not sent over the Internet.
 
-## Avant de commencer
+## Before you begin
 
-Vérifie les points suivants :
+Check that:
 
-- tu utilises un Mac avec une puce Apple M1, M2, M3, M4 ou plus récente ;
-- ton Mac utilise macOS 15 ou une version plus récente ;
-- Visual Studio Code 1.101 ou plus récent est installé ;
-- environ 2 Go d'espace disque sont disponibles ;
-- tu disposes d'une connexion Internet pendant l'installation.
+- you are using a Mac with an Apple M1, M2, M3, M4, or newer chip;
+- your Mac is running macOS 15 or later;
+- Visual Studio Code 1.101 or later is installed;
+- you have approximately 2 GB of free disk space;
+- you have an Internet connection during installation.
 
-Pour vérifier la puce et la version de macOS, ouvre le menu ** → À propos de ce
-Mac**.
+To check your chip and macOS version, open ** → About This Mac**.
 
-> oMLX ne fonctionne pas sur les Mac Intel ou sur Windows. Dans ce cas, OneAgent
-> reste utilisable avec la recherche par mots-clés, mais les recherches
-> sémantiques locales ne seront pas disponibles.
+> oMLX does not run on Intel Macs or Windows. OneAgent can still work with
+> keyword search on those systems, but local semantic search will not be
+> available.
 
-## Étape 1 — Installer OneAgent dans Visual Studio Code
+## Step 1 — Install OneAgent in Visual Studio Code
 
-### Télécharger l'extension
+### Download the extension
 
-1. Ouvre la page de la
-   [dernière version de OneAgent](https://github.com/ValentinDeSmet/OneAgent-release/releases/latest).
-2. En bas de la version, ouvre la section **Assets** si elle est repliée.
-3. Télécharge le fichier dont le nom se termine uniquement par `.vsix`.
+1. Open the
+   [latest OneAgent release](https://github.com/ValentinDeSmet/OneAgent-release/releases/latest).
+2. At the bottom of the release, expand **Assets** if it is collapsed.
+3. Download the file whose name ends with `.vsix`.
 
-Exemple :
+Example:
 
 ```text
 work-memory-vscode-extension-0.1.115.vsix
 ```
 
-Ne télécharge pas le fichier qui se termine par `.sha256` : il sert uniquement
-au contrôle de sécurité automatique.
+Do not download the file ending in `.sha256`. It is only used for the automatic
+security check.
 
-### Installer le fichier
+### Install the file
 
-1. Ouvre **Visual Studio Code**.
-2. Clique sur l'icône **Extensions** dans la barre verticale de gauche.
-3. Clique sur le bouton **…** en haut de la vue Extensions.
-4. Choisis **Install from VSIX…** ou **Installer à partir d'un VSIX…**.
-5. Sélectionne le fichier `.vsix` téléchargé.
-6. Attends le message confirmant l'installation.
-7. Clique sur **Reload** ou **Recharger** si Visual Studio Code le propose.
+1. Open **Visual Studio Code**.
+2. Click the **Extensions** icon in the left-hand activity bar.
+3. Click the **…** button at the top of the Extensions view.
+4. Select **Install from VSIX…**.
+5. Select the `.vsix` file you downloaded.
+6. Wait for the installation confirmation.
+7. Click **Reload** if Visual Studio Code asks you to reload.
 
-Après le rechargement, **OneAgent** doit apparaître dans la liste des extensions
-installées et dans la barre d'activité de Visual Studio Code.
+After reloading, **OneAgent** should appear in the list of installed extensions
+and in the Visual Studio Code activity bar.
 
-## Étape 2 — Installer oMLX
+## Step 2 — Install oMLX
 
-oMLX doit rester actif pendant l'utilisation de OneAgent. Il fonctionne en
-arrière-plan depuis la barre de menus du Mac.
+oMLX must be running while you use OneAgent. It works in the background from
+your Mac menu bar.
 
-1. Ouvre les [versions officielles de oMLX](https://github.com/jundot/omlx/releases).
-2. Ouvre la dernière version stable.
-3. Dans **Assets**, télécharge le fichier `.dmg`.
-4. Ouvre le fichier téléchargé.
-5. Fais glisser **oMLX** dans le dossier **Applications**.
-6. Ouvre le dossier Applications, puis lance **oMLX**.
+1. Open the [official oMLX releases](https://github.com/jundot/omlx/releases).
+2. Open the latest stable release.
+3. Under **Assets**, download the `.dmg` file.
+4. Open the downloaded file.
+5. Drag **oMLX** into the **Applications** folder.
+6. Open Applications, then launch **oMLX**.
 
-Si macOS bloque le premier lancement :
+If macOS blocks oMLX the first time you open it:
 
-1. ouvre **Réglages Système → Confidentialité et sécurité** ;
-2. repère le message concernant oMLX ;
-3. clique sur **Ouvrir quand même** ;
-4. confirme le lancement.
+1. open **System Settings → Privacy & Security**;
+2. find the message about oMLX;
+3. click **Open Anyway**;
+4. confirm that you want to open it.
 
-Au premier démarrage, l'assistant oMLX demande où conserver les modèles. Tu peux
-garder le dossier proposé par défaut :
+The oMLX welcome screen asks where your models should be stored. You can keep
+the suggested default folder:
 
 ```text
 ~/.omlx/models
 ```
 
-Clique ensuite sur **Start Server** ou **Démarrer le serveur**. L'état du serveur
-doit devenir **Running**, **Started** ou apparaître en vert.
+Next, click **Start Server**. The server status should change to **Running**,
+**Started**, or appear in green.
 
-Le tableau de bord oMLX est accessible depuis son menu avec **Open Dashboard**,
-ou directement à cette adresse :
+You can open the oMLX dashboard from its menu by clicking **Open Dashboard**, or
+open it directly at
 [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin).
 
-## Étape 3 — Télécharger le modèle local BGE-M3
+## Step 3 — Download the local BGE-M3 model
 
-Le nom exact du modèle recommandé par OneAgent est :
+The exact model recommended by OneAgent is:
 
 ```text
 mlx-community/bge-m3-mlx-fp16
 ```
 
-1. Dans le tableau de bord oMLX, ouvre **Models**, **Browse Models** ou
-   **Parcourir les modèles**.
-2. Dans la zone de recherche, colle :
+1. In the oMLX dashboard, open **Models** or **Browse Models**.
+2. Paste the following name into the search box:
 
    ```text
    mlx-community/bge-m3-mlx-fp16
    ```
 
-3. Sélectionne bien la variante **fp16**. N'utilise pas les variantes `4bit`,
-   `6bit` ou `8bit` pour cette première installation.
-4. Clique sur **Download** ou **Télécharger**.
-5. Attends la fin complète du téléchargement. Le modèle occupe environ 1,1 Go ;
-   cette étape peut prendre plusieurs minutes.
-6. Vérifie que le modèle apparaît maintenant dans la liste des modèles
-   installés.
+3. Select the **fp16** version. Do not use the `4bit`, `6bit`, or `8bit`
+   versions for this initial installation.
+4. Click **Download**.
+5. Wait until the download is fully complete. The model uses approximately
+   1.1 GB, so this may take several minutes.
+6. Check that the model now appears in your list of installed models.
 
-oMLX doit reconnaître BGE-M3 comme un modèle de type **Embedding**. S'il
-n'apparaît pas immédiatement, arrête puis redémarre le serveur depuis le menu
+oMLX should identify BGE-M3 as an **Embedding** model. If it does not appear
+immediately, stop and restart the server from the oMLX menu.
+
+You can confirm the model name and details on its
+[Hugging Face page](https://huggingface.co/mlx-community/bge-m3-mlx-fp16).
+
+## Step 4 — Start OneAgent for the first time
+
+1. Return to Visual Studio Code.
+2. Open the folder where you want to use OneAgent with
+   **File → Open Folder…**.
+3. Click the **OneAgent** icon in the left-hand activity bar.
+4. Open the OneAgent **Settings** page.
+5. Under the **Runtime** actions, click **Diagnose**.
+
+The installation is working when the Runtime section shows:
+
+- the `omlx` provider;
+- the `bge-m3-mlx-fp16` model;
+- an available, `ok`, or green status.
+
+When you open OneAgent for the first time, it automatically creates a hidden
+`.work-memory` folder inside your workspace. No manual configuration is
+required.
+
+## Everyday use
+
+Before using OneAgent's intelligent search:
+
+1. check that oMLX is visible in your Mac menu bar;
+2. check that its server is running;
+3. then open Visual Studio Code and your workspace.
+
+The BGE-M3 model is loaded automatically when a search or indexing operation
+needs it.
+
+## Update OneAgent
+
+OneAgent automatically checks for a new stable version once a day. The
+downloaded file is verified before it is installed.
+
+To check immediately:
+
+1. open **OneAgent → Settings**;
+2. click **Check for updates**;
+3. wait for the download and installation to finish;
+4. click **Reload Window** when OneAgent asks you to reload.
+
+After reloading, the new version is displayed in the **Version** card in
+Settings.
+
+## Fix common problems
+
+### OneAgent does not appear in Visual Studio Code
+
+1. Open the **Extensions** view.
+2. Search for `OneAgent`.
+3. Check that the extension is marked as **Installed** and **Enabled**.
+4. Open the Command Palette with `Cmd + Shift + P`.
+5. Run **Developer: Reload Window**.
+
+### OneAgent displays `Embeddings down`
+
+1. Check that the oMLX icon is visible in your Mac menu bar.
+2. Open oMLX and click **Start Server**.
+3. Check that
+   [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin) opens.
+4. Return to **OneAgent → Settings** and click **Diagnose**.
+
+You can also use the **Start backend** button displayed by OneAgent to start
 oMLX.
 
-Tu peux vérifier le nom et les informations du modèle sur sa
-[page Hugging Face](https://huggingface.co/mlx-community/bge-m3-mlx-fp16).
+### OneAgent displays `Model not found`
 
-## Étape 4 — Premier lancement de OneAgent
+1. Open the oMLX dashboard.
+2. Check that `bge-m3-mlx-fp16` appears in the installed models.
+3. Check that the download is fully complete.
+4. Restart the oMLX server.
+5. Run **Diagnose** again in OneAgent.
 
-1. Reviens dans Visual Studio Code.
-2. Ouvre le dossier dans lequel tu souhaites utiliser OneAgent avec
-   **File → Open Folder…** ou **Fichier → Ouvrir le dossier…**.
-3. Clique sur l'icône **OneAgent** dans la barre verticale de gauche.
-4. Ouvre la page **Settings** de OneAgent.
-5. Dans les actions **Runtime**, clique sur **Diagnose**.
-
-L'installation est réussie lorsque la section Runtime indique :
-
-- le fournisseur `omlx` ;
-- le modèle `bge-m3-mlx-fp16` ;
-- un état disponible, `ok` ou affiché en vert.
-
-Lors du premier lancement, OneAgent crée automatiquement un dossier caché
-`.work-memory` dans le dossier de travail. Aucune configuration manuelle n'est
-nécessaire.
-
-## Utilisation quotidienne
-
-Avant d'utiliser la recherche intelligente de OneAgent :
-
-1. vérifie que oMLX est lancé dans la barre de menus du Mac ;
-2. vérifie que son serveur est démarré ;
-3. ouvre ensuite Visual Studio Code et ton dossier de travail.
-
-Le modèle BGE-M3 est chargé automatiquement lorsqu'une recherche ou une
-indexation en a besoin.
-
-## Mettre OneAgent à jour
-
-OneAgent recherche automatiquement une nouvelle version stable une fois par
-jour. Le fichier téléchargé est vérifié avant d'être installé.
-
-Pour lancer la vérification immédiatement :
-
-1. ouvre **OneAgent → Settings** ;
-2. clique sur **Check for updates** ;
-3. attends la fin du téléchargement et de l'installation ;
-4. clique sur **Reload Window** lorsque OneAgent le propose.
-
-Après le rechargement, la nouvelle version est visible dans la carte
-**Version** des Settings.
-
-## Résoudre les problèmes courants
-
-### OneAgent n'apparaît pas dans Visual Studio Code
-
-1. Ouvre la vue **Extensions**.
-2. Recherche `OneAgent`.
-3. Vérifie que l'extension est indiquée comme **Installed** et **Enabled**.
-4. Ouvre la palette avec `Cmd + Shift + P`.
-5. lance **Developer: Reload Window**.
-
-### OneAgent affiche `Embeddings down`
-
-1. Vérifie que l'icône oMLX est présente dans la barre de menus du Mac.
-2. Ouvre oMLX et clique sur **Start Server**.
-3. Vérifie que
-   [http://127.0.0.1:8000/admin](http://127.0.0.1:8000/admin) s'ouvre.
-4. Reviens dans **OneAgent → Settings** et clique sur **Diagnose**.
-
-Le bouton **Start backend** affiché par OneAgent peut également démarrer oMLX.
-
-### OneAgent affiche `Model not found`
-
-1. Ouvre le tableau de bord oMLX.
-2. Vérifie que `bge-m3-mlx-fp16` figure dans les modèles installés.
-3. Vérifie que le téléchargement est entièrement terminé.
-4. Redémarre le serveur oMLX.
-5. Relance **Diagnose** dans OneAgent.
-
-Si le modèle est présent sous un autre nom, ouvre ses réglages dans oMLX et
-définis l'alias :
+If the model is installed under a different name, open its settings in oMLX and
+set this alias:
 
 ```text
 bge-m3-mlx-fp16
 ```
 
-### Certaines sources n'ont pas d'embedding
+### Some sources do not have embeddings
 
-Cela peut arriver si des documents ont été ajoutés pendant que oMLX était
-arrêté.
+This can happen if documents were added while oMLX was not running.
 
-1. Démarre oMLX.
-2. Ouvre les diagnostics OneAgent.
-3. Clique sur **Embed missing**.
-4. Laisse Visual Studio Code et oMLX ouverts jusqu'à la fin de l'opération.
+1. Start oMLX.
+2. Open the OneAgent diagnostics.
+3. Click **Embed missing**.
+4. Keep Visual Studio Code and oMLX open until the operation finishes.
 
-Les documents n'ont pas besoin d'être réimportés.
+You do not need to import the documents again.
 
-### Le problème persiste
+### The problem continues
 
-Dans Visual Studio Code :
+In Visual Studio Code:
 
-1. ouvre **View → Output** ou **Affichage → Sortie** ;
-2. choisis **OneAgent** dans la liste à droite du panneau ;
-3. copie le dernier message d'erreur pour le transmettre au support.
+1. open **View → Output**;
+2. select **OneAgent** from the list on the right side of the panel;
+3. copy the latest error message and send it to your support contact.
 
-## Installation avancée en ligne de commande
+## Advanced command-line installation
 
-Cette section n'est pas nécessaire pour l'installation normale.
+This section is not required for the normal installation.
 
 <details>
-<summary>Afficher les commandes avancées</summary>
+<summary>Show advanced commands</summary>
 
-Installer et démarrer oMLX avec Homebrew :
+Install and start oMLX with Homebrew:
 
 ```bash
 brew tap jundot/omlx https://github.com/jundot/omlx
@@ -243,7 +238,7 @@ brew install omlx
 omlx start
 ```
 
-Télécharger le modèle avec le client Hugging Face :
+Download the model with the Hugging Face client:
 
 ```bash
 brew install hf
@@ -252,33 +247,33 @@ hf download mlx-community/bge-m3-mlx-fp16 \
 omlx restart
 ```
 
-Vérifier le serveur et le modèle :
+Check the server and model:
 
 ```bash
 curl http://127.0.0.1:8000/v1/models
 ```
 
-Tester la création d'un embedding :
+Test embedding generation:
 
 ```bash
 curl http://127.0.0.1:8000/v1/embeddings \
   -H "Content-Type: application/json" \
-  -d '{"model":"bge-m3-mlx-fp16","input":"Test OneAgent"}'
+  -d '{"model":"bge-m3-mlx-fp16","input":"OneAgent test"}'
 ```
 
-Si l'authentification API est activée dans oMLX, OneAgent lit automatiquement la
-clé dans `~/.omlx/settings.json`. La variable d'environnement `OMLX_API_KEY`
-peut également être utilisée.
+If API authentication is enabled in oMLX, OneAgent automatically reads the key
+from `~/.omlx/settings.json`. You can also use the `OMLX_API_KEY` environment
+variable.
 
 </details>
 
-## Confidentialité
+## Privacy
 
-OneAgent est local-first. Les dossiers de travail, captures, index SQLite et
-embeddings restent sur le Mac, sauf si un service externe est configuré
-explicitement.
+OneAgent is local-first. Your workspaces, captures, SQLite indexes, and
+embeddings stay on your Mac unless you explicitly configure an external
+service.
 
-## Licence
+## License
 
-OneAgent est un logiciel propriétaire. Son utilisation, sa redistribution et sa
-modification nécessitent l'accord du détenteur des droits.
+OneAgent is proprietary software. Its use, redistribution, and modification
+require permission from the copyright holder.
