@@ -43,7 +43,7 @@ To check your chip and macOS version, open ** → About This Mac**.
 Example:
 
 ```text
-work-memory-vscode-extension-0.1.115.vsix
+work-memory-vscode-extension-0.1.116.vsix
 ```
 
 Do not download the file ending in `.sha256`. It is only used for the automatic
