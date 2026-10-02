@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.4.0 : panneau Priorités, installation par catalogue GitHub, choix des mises à jour et
+Version 0.5.0 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -13,7 +13,7 @@ ou VS Code n’est nécessaire sur le poste cible.
 
 ### Installation par URL (recommandée)
 
-Ce parcours devient disponible après la première publication du catalogue 0.4.0
+Ce parcours devient disponible après la première publication du catalogue 0.5.0
 dans le dépôt de releases. Le build local ne publie rien sur GitHub.
 
 Dans l’application, ouvrir **Customize → Plugins**, ajouter le catalogue :
@@ -35,12 +35,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.4.0.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.5.0.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.4.0/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.5.0/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -194,7 +194,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.4.0.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.5.0.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.
@@ -216,10 +216,10 @@ Les tests de mise à jour utilisent un catalogue HTTP et un gestionnaire de plug
 simulés ; ils ne remplacent pas un essai avec l’hôte Copilot réel.
 
 Une nouvelle note attend son ingestion/curation avant d’apparaître dans la recherche ;
-elle est immédiatement disponible via les outils de notes. Le canvas Priorités est inclus ; pas encore
-de parité de curation/édition, de publication Git ou de score BMAD. Les filtres de
-recherche ne remplacent pas une politique stricte d’accès par session. La mémoire
-locale n’est pas automatiquement disponible dans les sessions cloud.
+elle est immédiatement disponible via les outils de notes. Le cockpit utilise désormais
+le même contrôleur que VS Code pour les notes, le graphe, la curation, les tâches,
+le score BMAD et les vues de contexte. La mémoire locale n’est pas automatiquement
+disponible dans les sessions cloud.
 
 Références officielles vérifiées le 1er octobre 2026 :
 
@@ -227,6 +227,48 @@ Références officielles vérifiées le 1er octobre 2026 :
 - [Référence des plugins Copilot](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference)
 - [Spécification Agent Plugins 1.0](https://github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md)
 
+
+## Le cockpit commun aux deux applications
+
+Demander **« Ouvre le cockpit OneAgent »** pour ouvrir **OneAgent · Cockpit**.
+La première ouverture propose de créer ou connecter une mémoire si nécessaire.
+Pour retrouver les mêmes données que dans VS Code sur le même Mac, connecter
+son fichier de configuration existant. Le plugin et la mémoire restent séparés.
+
+Le paquet contient l’interface complète, son graphe 2D/3D et le contrôleur commun :
+
+| Vue | Fonctions communes |
+| --- | --- |
+| Graphe | Navigation, filtres, entités, relations, contexte actif, vues enregistrées et Context Packs |
+| Notes | Création, édition, questions, archives, rattachement et curation |
+| Priorités et tâches | Demandeurs, échéances, suivi, statuts, liens et affectations |
+| Inbox | Captures, observations, propositions, preuves et validation humaine |
+| Sources | Consultation du contenu et des fichiers référencés |
+| Today | Tableau quotidien, missions, OKR, KPI et mesures |
+| Réglages et aide | Thème, organisation, diagnostic, documentation et mises à jour |
+
+Dans Copilot, les dialogues et aperçus de fichiers s’affichent dans le canvas.
+Les fichiers Markdown/texte de la mémoire et de ses dépôts configurés peuvent
+être édités avec contrôle de révision. Un clonage nécessitant une authentification
+interactive propose la commande à exécuter dans Terminal. Le bouton de mise à
+jour utilise le catalogue Copilot, tandis que VS Code conserve son mécanisme VSIX.
+
+Les passes de curation utilisent les mêmes prompts, outils et règles que VS Code,
+via une session isolée du SDK Copilot. Seuls les outils OneAgent autorisés sont
+exposés à cette passe ; l’acceptation humaine des propositions reste dans l’Inbox.
+L’accès au modèle dépend de l’authentification Copilot du poste. Une indisponibilité
+est signalée sans transformer une tentative en succès. Les outils et paramètres
+BMAD de la conversation principale restent inchangés.
+
+Le paquet est vérifié automatiquement contre le renderer et le contrôleur source
+VS Code. L’ouverture effective du canvas et l’accès au modèle sur l’application
+macOS installée restent à valider sur le poste utilisateur ; aucun navigateur
+ni plugin installé localement n’a été utilisé pour ces vérifications.
+
+Références SDK consultées le 2 octobre 2026 :
+[canvas](https://github.com/github/copilot-sdk/blob/main/nodejs/src/canvas.ts),
+[session](https://github.com/github/copilot-sdk/blob/main/nodejs/src/session.ts),
+[restriction des outils](https://github.com/github/copilot-sdk/blob/main/nodejs/src/types.ts).
 
 ## Priorités : suivre les sollicitations
 
@@ -250,8 +292,8 @@ utilisent la date locale du Mac. Actualisation automatique chaque minute hors
 Les demandes sont des tâches natives assignées à « me », conservées dans la
 mémoire choisie lors de l’onboarding, sans projet obligatoire. Les propositions
 de l’Inbox ne deviennent pas automatiquement des engagements. Les tâches et
-leurs identités sont communes à VS Code ; ce nouvel écran est livré d’abord
-pour Copilot. L’export privé passe au format 3 et conserve la lecture des
+leurs identités sont communes à VS Code ; cet écran est également accessible
+dans le cockpit VS Code depuis la version 0.1.126. L’export privé passe au format 3 et conserve la lecture des
 formats 1 et 2. Une ancienne version du plugin ne sait pas lire le format 3.
 
 Pour le chat : **« Ajoute une demande de Claire pour préparer le point vendredi,

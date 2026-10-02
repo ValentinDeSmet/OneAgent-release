@@ -1,0 +1,1852 @@
+{
+  "name": "work-memory-vscode-extension",
+  "displayName": "OneAgent",
+  "description": "Local-first product knowledge, curation, readiness, tasks, and graph context for VS Code.",
+  "publisher": "oneagent",
+  "version": "0.1.126",
+  "private": true,
+  "license": "UNLICENSED",
+  "icon": "media/marketplace-icon.png",
+  "keywords": [
+    "knowledge-management",
+    "product-management",
+    "local-first",
+    "tasks",
+    "graph",
+    "copilot"
+  ],
+  "galleryBanner": {
+    "color": "#0f4c5c",
+    "theme": "dark"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "type": "commonjs",
+  "main": "./src/extension.js",
+  "engines": {
+    "vscode": "^1.101.0"
+  },
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:workMemory.showContext",
+    "onCommand:workMemory.refresh",
+    "onCommand:workMemory.openInbox",
+    "onCommand:workMemory.openCockpit",
+    "onCommand:workMemory.openHelp",
+    "onCommand:workMemory.refreshGraphify",
+    "onCommand:workMemory.setConfigPath",
+    "onCommand:workMemory.useFixtureConfig",
+    "onCommand:workMemory.addProduct",
+    "onCommand:workMemory.upsertEntity",
+    "onCommand:workMemory.deleteEntity",
+    "onCommand:workMemory.upsertEntityLink",
+    "onCommand:workMemory.deleteEntityLink",
+    "onCommand:workMemory.createTask",
+    "onCommand:workMemory.createNote",
+    "onCommand:workMemory.captureMemory",
+    "onCommand:workMemory.resetMemory",
+    "onCommand:workMemory.diagnoseRuntime",
+    "onCommand:workMemory.runIngestionSmokeTest",
+    "onCommand:workMemory.checkForUpdates",
+    "onCommand:workMemory.syncRepositories",
+    "onCommand:workMemory.addRepository",
+    "onCommand:workMemory.reindexRepository",
+    "onCommand:workMemory.ingestCurrentFile",
+    "onCommand:workMemory.curatePending",
+    "onCommand:workMemory.lintWiki",
+    "onCommand:workMemory.searchMemory",
+    "onCommand:workMemory.openWikiPage",
+    "onCommand:workMemory.reindexWikiPage",
+    "onCommand:workMemory.showRelatedGraph",
+    "onCommand:workMemory.previewProposal",
+    "onCommand:workMemory.acceptProposal",
+    "onCommand:workMemory.rejectProposal",
+    "onView:workMemory.cockpit"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "OneAgent",
+      "properties": {
+        "workMemory.projectRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the OneAgent project root."
+        },
+        "workMemory.configPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the shared OneAgent memory configuration. Use an absolute path in User Settings to reuse the same memory across product folders. Overrides ONEAGENT_CONFIG; when neither is set, OneAgent uses the current workspace."
+        },
+        "workMemory.nodePath": {
+          "type": "string",
+          "default": "node",
+          "description": "Node executable used to run the local OneAgent CLI. When 'node' is unavailable from VS Code's PATH, OneAgent automatically uses the compatible runtime embedded in VS Code."
+        },
+        "workMemory.useDaemon": {
+          "type": "boolean",
+          "default": true,
+          "description": "Route CLI calls through a long-lived OneAgent daemon process (much faster cockpit and Copilot tools). Falls back to one-shot CLI executions automatically if the daemon fails."
+        },
+        "workMemory.autoCurate": {
+          "type": "boolean",
+          "default": true,
+          "description": "After capturing memory, let the Copilot agent extract exact, sourced observations into a reviewable curation package. It never mutates the graph or wiki autonomously. Requires a signed-in language model; if unavailable the capture is still saved and indexed."
+        },
+        "workMemory.agentModel": {
+          "type": "string",
+          "default": "",
+          "description": "Language model used by the OneAgent agent passes (auto-curation, wiki lint). Matched against the Copilot model family, id or name (e.g. 'gpt-4o', 'claude-sonnet-4', 'o4-mini'); leave empty to use the first available Copilot model. Falls back to the default model if no match is found."
+        },
+        "workMemory.contextTokenBudget": {
+          "type": "number",
+          "default": 64000,
+          "minimum": 1000,
+          "maximum": 1000000,
+          "description": "Default token budget for OneAgent Context Packs. Context views with a custom token budget keep their own value. Delivery is still bounded by the selected language model's input capacity."
+        },
+        "workMemory.graphMaxNodes": {
+          "type": "number",
+          "default": 500,
+          "description": "Maximum number of nodes the cockpit graph renders at once. The cockpit preloads additional graph data for search and filtering. Raise it for large organizations; lower it if the graph feels slow."
+        },
+        "workMemory.graphMaxEdges": {
+          "type": "number",
+          "default": 1200,
+          "description": "Maximum number of edges the cockpit graph renders at once. The cockpit preloads additional edges for search and filtering."
+        },
+        "workMemory.graphifyCommand": {
+          "type": "string",
+          "default": "",
+          "description": "Optional Graphify executable. If empty, OneAgent auto-detects .work-memory/graphify-venv/bin/graphify."
+        },
+        "workMemory.dailyRepositorySync": {
+          "type": "boolean",
+          "default": true,
+          "description": "Once every 24 hours while VS Code is running (or at the next startup), validate product dependencies, fast-forward clean linked GitHub repositories, and reindex updated products. Local changes and divergent histories are never overwritten."
+        },
+        "workMemory.automaticUpdates": {
+          "type": "boolean",
+          "default": true,
+          "description": "Once every 24 hours while VS Code is running (or at the next startup), download, verify, and install the latest stable OneAgent VSIX published on the public GitHub release repository. A reload confirmation is shown after installation."
+        }
+      }
+    },
+    "languageModelTools": [
+      {
+        "name": "workMemory_search",
+        "tags": [
+          "work-memory",
+          "memory",
+          "search"
+        ],
+        "toolReferenceName": "workMemorySearch",
+        "displayName": "OneAgent Search",
+        "modelDescription": "Search OneAgent across accepted knowledge, weak signals, active indexed sources and history. Use accepted knowledge for validated facts, signals for unvalidated background information, history for rejected or superseded context, sources for current raw content, and all when the right plane is not known yet. Results include provenance, status, revision, linked entity and ranking reason. The tool is read-only. When an agent context scope is active it constrains the results to the selected entities; the response reports it under contextScope, including an instruction you must follow. In strict mode the scope cannot be bypassed and you must not fall back to reading workspace files; in guided mode extra results may be returned flagged outOfScope and anything you use from outside the scope must be flagged to the user.",
+        "userDescription": "Search indexed OneAgent sources.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(search)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Natural language search query. Keep it focused on the product, concept, decision, risk or task being investigated."
+            },
+            "plane": {
+              "type": "string",
+              "enum": [
+                "all",
+                "accepted",
+                "signals",
+                "sources",
+                "history"
+              ],
+              "description": "Knowledge plane: accepted for validated observations, signals for captured/proposed observations, sources for active raw content, history for rejected/superseded content, or all to search every plane.",
+              "default": "all"
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio",
+                "product",
+                "dependencies",
+                "manual"
+              ],
+              "description": "Search scope. Use portfolio by default, product for one product, dependencies for one product plus direct dependencies, or manual with includeProductIds.",
+              "default": "portfolio"
+            },
+            "productId": {
+              "type": "string",
+              "description": "Product id used when scope is product or dependencies."
+            },
+            "includeProductIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Explicit product ids used when scope is manual."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of search results to return.",
+              "default": 8
+            },
+            "contextScope": {
+              "type": "boolean",
+              "description": "Honor the active agent context scope (entity-based retrieval boundary). True by default; set false to search the full scope. Ignored when the scope mode is strict: a strict scope cannot be bypassed.",
+              "default": true
+            }
+          },
+          "required": [
+            "query"
+          ]
+        }
+      },
+      {
+        "name": "workMemory_expand",
+        "tags": [
+          "work-memory",
+          "memory",
+          "expand"
+        ],
+        "toolReferenceName": "workMemoryExpand",
+        "displayName": "OneAgent Expand",
+        "modelDescription": "Expand a OneAgent search hit into its full text. Provide a sourceId to read the whole source document (its ordered chunks joined together, bounded by maxChars) or a chunkId to read a single chunk in full. Use this after workMemory_search when a 420-character snippet is not enough to ground an answer or quote precisely. Read-only.",
+        "userDescription": "Read the full text of a OneAgent source or chunk.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(unfold)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "sourceId": {
+              "type": "string",
+              "description": "Source id (from a search result) to expand into its full document text."
+            },
+            "chunkId": {
+              "type": "string",
+              "description": "Chunk id (from a search result) to expand into the full chunk text. Ignored when sourceId is provided."
+            },
+            "maxChars": {
+              "type": "number",
+              "description": "Maximum characters of source content to return when expanding a source.",
+              "default": 8000
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_context",
+        "tags": [
+          "work-memory",
+          "memory",
+          "context"
+        ],
+        "toolReferenceName": "workMemoryContext",
+        "displayName": "OneAgent Context",
+        "modelDescription": "Read the active OneAgent context, configured products, dependencies, repositories, active scope and local runtime settings. Use before answering product-context questions or when deciding which memory scope should be queried. The tool is read-only.",
+        "userDescription": "Read active OneAgent context and products.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(target)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio",
+                "product",
+                "dependencies",
+                "manual"
+              ],
+              "description": "Context scope to resolve.",
+              "default": "portfolio"
+            },
+            "productId": {
+              "type": "string",
+              "description": "Product id used when scope is product or dependencies."
+            },
+            "includeProductIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Explicit product ids used when scope is manual."
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_readiness",
+        "tags": [
+          "work-memory",
+          "bmad",
+          "readiness"
+        ],
+        "toolReferenceName": "workMemoryReadiness",
+        "displayName": "BMAD Readiness",
+        "modelDescription": "Read the BMAD readiness report for the selected OneAgent scope, including pending inbox items, open questions, candidate decisions, risks, open tasks, unvalidated concepts, unreviewed sources, candidate wiki pages and score. Use before saying a product area is ready or blocked. The tool is read-only.",
+        "userDescription": "Read BMAD readiness score and signals.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(pulse)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio",
+                "product",
+                "dependencies",
+                "manual"
+              ],
+              "description": "Readiness scope.",
+              "default": "portfolio"
+            },
+            "productId": {
+              "type": "string",
+              "description": "Product id used when scope is product or dependencies."
+            },
+            "includeProductIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Explicit product ids used when scope is manual."
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_tasks",
+        "tags": [
+          "work-memory",
+          "tasks"
+        ],
+        "toolReferenceName": "workMemoryTasks",
+        "displayName": "OneAgent Tasks",
+        "modelDescription": "Read the task read model for the selected OneAgent scope. Use when the user asks what remains to do, what is blocked, or what tasks are open. The tool is read-only.",
+        "userDescription": "Read OneAgent tasks.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(checklist)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio",
+                "product",
+                "dependencies",
+                "manual"
+              ],
+              "description": "Task scope.",
+              "default": "portfolio"
+            },
+            "productId": {
+              "type": "string",
+              "description": "Product id used when scope is product or dependencies."
+            },
+            "includeProductIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Explicit product ids used when scope is manual."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of tasks to return.",
+              "default": 20
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_createTask",
+        "tags": [
+          "work-memory",
+          "tasks",
+          "write"
+        ],
+        "toolReferenceName": "workMemoryCreateTask",
+        "displayName": "OneAgent Create Task",
+        "modelDescription": "Create an explicit OneAgent task for the selected workspace. Use when the user asks to add, create, track, assign or schedule a task. The task is stored in OneAgent and appears in the Tasks cockpit with editable status, priority, assignee, deadline and notes.",
+        "userDescription": "Create a OneAgent task.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(add)",
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "title"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "description": "Short task title."
+            },
+            "body": {
+              "type": "string",
+              "description": "Task description."
+            },
+            "productId": {
+              "type": "string",
+              "description": "Product id. Omit only when the workspace has a single active product."
+            },
+            "sourceId": {
+              "type": "string",
+              "description": "Optional source id attached to the task."
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "open",
+                "blocked",
+                "ready",
+                "done"
+              ],
+              "description": "Initial task status.",
+              "default": "open"
+            },
+            "priority": {
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high",
+                "critical"
+              ],
+              "description": "Task priority.",
+              "default": "medium"
+            },
+            "assignee": {
+              "type": "string",
+              "enum": [
+                "me",
+                "agent"
+              ],
+              "description": "Task assignee.",
+              "default": "me"
+            },
+            "deadline": {
+              "type": "string",
+              "description": "Optional deadline in YYYY-MM-DD format."
+            },
+            "notes": {
+              "type": "string",
+              "description": "Operational notes."
+            },
+            "links": {
+              "type": "array",
+              "description": "Typed links from the task to OneAgent entities.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "relationType",
+                  "targetKind",
+                  "targetId"
+                ],
+                "properties": {
+                  "relationType": {
+                    "type": "string",
+                    "description": "Relation type such as requested_by, needed_for or related_to."
+                  },
+                  "targetKind": {
+                    "type": "string",
+                    "description": "Target entity kind, for example product, feature, team, person or source."
+                  },
+                  "targetId": {
+                    "type": "string",
+                    "description": "Target entity id."
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "Optional display label."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_updateTask",
+        "tags": [
+          "work-memory",
+          "tasks",
+          "write"
+        ],
+        "toolReferenceName": "workMemoryUpdateTask",
+        "displayName": "OneAgent Update Task",
+        "modelDescription": "Update or archive an existing OneAgent task. Use to change status, priority, assignee, deadline, notes, product/source ids, description, title, or typed links such as requested_by, needed_for and related_to.",
+        "userDescription": "Update a OneAgent task.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(edit)",
+        "inputSchema": {
+          "type": "object",
+          "required": [
+            "taskId"
+          ],
+          "properties": {
+            "taskId": {
+              "type": "string",
+              "description": "Task id."
+            },
+            "title": {
+              "type": "string",
+              "description": "Short task title."
+            },
+            "body": {
+              "type": "string",
+              "description": "Task description."
+            },
+            "productId": {
+              "type": "string",
+              "description": "Product id, or empty/none to clear."
+            },
+            "sourceId": {
+              "type": "string",
+              "description": "Source id, or empty/none to clear."
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "open",
+                "blocked",
+                "ready",
+                "done",
+                "archived"
+              ],
+              "description": "Task status."
+            },
+            "priority": {
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high",
+                "critical"
+              ],
+              "description": "Task priority."
+            },
+            "assignee": {
+              "type": "string",
+              "enum": [
+                "me",
+                "agent"
+              ],
+              "description": "Task assignee."
+            },
+            "deadline": {
+              "type": "string",
+              "description": "Optional deadline in YYYY-MM-DD format, or none to clear."
+            },
+            "notes": {
+              "type": "string",
+              "description": "Operational notes."
+            },
+            "archive": {
+              "type": "boolean",
+              "description": "Archive the task so it disappears from active task boards."
+            },
+            "links": {
+              "type": "array",
+              "description": "Replacement typed links from the task to OneAgent entities.",
+              "items": {
+                "type": "object",
+                "required": [
+                  "relationType",
+                  "targetKind",
+                  "targetId"
+                ],
+                "properties": {
+                  "relationType": {
+                    "type": "string",
+                    "description": "Relation type such as requested_by, needed_for or related_to."
+                  },
+                  "targetKind": {
+                    "type": "string",
+                    "description": "Target entity kind."
+                  },
+                  "targetId": {
+                    "type": "string",
+                    "description": "Target entity id."
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "Optional display label."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_createNote",
+        "tags": ["work-memory", "note", "write"],
+        "toolReferenceName": "workMemoryCreateNote",
+        "displayName": "Create OneAgent Note",
+        "modelDescription": "Use when the user asks to save a quick note or open question in the OneAgent Notes page. Save the user's content immediately and verbatim. A primary entity is optional; omitted notes appear under General and can be classified later. This action does not start observation curation or create a graph entity.",
+        "userDescription": "Save a note directly in OneAgent Notes.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(note)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "content": { "type": "string", "description": "Text to save verbatim in the note." },
+            "title": { "type": "string", "description": "Optional title; defaults to the first line of content." },
+            "contentType": { "type": "string", "enum": ["note", "question"], "default": "note", "description": "Use question for an open question in Notes." },
+            "primaryEntity": { "type": "string", "description": "Optional existing entity as kind:id. Omit to save under General; in a strict context with one selected entity it is selected automatically." },
+            "tags": { "type": "string", "description": "Optional comma-separated note tags." }
+          },
+          "required": ["content"]
+        }
+      },
+      {
+        "name": "workMemory_captureMemory",
+        "tags": [
+          "work-memory",
+          "capture",
+          "write"
+        ],
+        "toolReferenceName": "workMemoryCapture",
+        "displayName": "OneAgent Capture Memory",
+        "modelDescription": "For a quick user-authored note visible in Notes, use workMemory_createNote. This tool creates, classifies, relates, curates, reingests or lists source captures. Use 'create' (default) to preserve original meeting or document content verbatim as Markdown under .work-memory/captures and ingest it. Do not summarize, rewrite, translate, clean up, or interpret the source before calling create. For source captures, 'create' returns proposal-only curation instructions: read the capture, call workMemory_inbox propose_observation once per atomic interpretation with an exact excerpt, then finish with action 'curate'. During this autonomous pass, never create or edit graph entities/relations, classification, or wiki content. If contentType is note or question, create saves directly in Notes without curation. Use 'classify' and 'relate'/'unrelate' only when the user explicitly asks to change capture organization, 'reingest' to re-index, and 'list' to filter captures. Every identity is a typed entity reference 'kind:id'.",
+        "userDescription": "Create, classify and ingest OneAgent captures.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(record)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "create",
+                "classify",
+                "relate",
+                "unrelate",
+                "curate",
+                "reingest",
+                "list"
+              ],
+              "description": "Capture action to run.",
+              "default": "create"
+            },
+            "title": {
+              "type": "string",
+              "description": "Short title for the captured input (create)."
+            },
+            "content": {
+              "type": "string",
+              "description": "Original source content to preserve verbatim (create). Do not pass a summary unless the source itself is a summary."
+            },
+            "contentType": {
+              "type": "string",
+              "enum": [
+                "raw_input",
+                "document",
+                "note",
+                "meeting",
+                "user_interview",
+                "one_to_one",
+                "monthly_update",
+                "mission_review",
+                "feedback",
+                "development_plan",
+                "idea",
+                "feature_idea",
+                "feature_request",
+                "insight",
+                "research",
+                "strategy",
+                "okr",
+                "guide",
+                "best_practice",
+                "decision",
+                "risk",
+                "question",
+                "flow"
+              ],
+              "description": "Controlled content type for the capture.",
+              "default": "raw_input"
+            },
+            "primaryEntity": {
+              "type": "string",
+              "description": "Primary entity as 'kind:id' (for example product:oneff or mission:valentin-mission-2026). Used by create, classify and list."
+            },
+            "relatedEntities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Related entities for create, each as 'kind:id:relation' (for example person:jane-doe:requested_by)."
+            },
+            "tags": {
+              "type": "string",
+              "description": "Comma-separated tags for the capture (create)."
+            },
+            "captureId": {
+              "type": "string",
+              "description": "Capture id for classify, relate, unrelate or reingest."
+            },
+            "entity": {
+              "type": "string",
+              "description": "Entity 'kind:id' for relate or unrelate."
+            },
+            "relation": {
+              "type": "string",
+              "description": "Relation type for relate, for example requested_by, reported_by, reviewer, scoped_to."
+            },
+            "ingestionStatus": {
+              "type": "string",
+              "description": "Ingestion status filter for list, for example indexed, not_ingested, failed."
+            },
+            "curationStatus": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "curating",
+                "curated",
+                "failed"
+              ],
+              "description": "For curate: status to set (default curated). For list: filter captures by curation status."
+            },
+            "summary": {
+              "type": "string",
+              "description": "One-line extraction summary for curate: observations proposed and any ambiguity left for human review."
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_inbox",
+        "tags": [
+          "work-memory",
+          "inbox"
+        ],
+        "toolReferenceName": "workMemoryInbox",
+        "displayName": "OneAgent Inbox",
+        "modelDescription": "Manage sourced observations, curation packages and reviewable graph/wiki proposals. Filter read or list_packages with entities as typed kind:id references; there is no product-specific Inbox scope. The default read returns compact pending packages whose observations preserve an exact excerpt, source revision and chunk citation. During autonomous capture curation use ONLY propose_observation: it never mutates the graph or wiki. After observations are human-accepted, propose_graph_change can turn their reviewed metadata into explicit create/update/relation operations; it still performs no graph mutation. Use preview_graph_change before accept_graph_change, and accept or reject only after an explicit human decision. When a preview reports boundaryChangeRequired, accept_graph_change must set allowBoundaryChange=true only after the user explicitly confirms that expansion. A simple observation rejection may include an optional note; edits, reclassifications, merges, measurement, evidence-link rejection and graph changes require a reason. Use wiki_decision only to record not_needed or a suggestion without writing content. workMemory_wiki write records the suggested decision itself, so never call wiki_decision immediately before write. Omit observationIds unless the user explicitly requests an evidence subset; OneAgent automatically selects accepted active evidence attached to the target. Never use legacy propose with type=wiki_proposal or shell/chat-session files as a fallback. Additional reviewed wiki syntheses remain optional; every graph entity has a Markdown page.",
+        "userDescription": "Review sourced observations and curation packages.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(inbox)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "entities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional typed entity filters kind:id for read or list_packages."
+            },
+            "entity": {
+              "type": "string",
+              "description": "Existing typed entity kind:id that anchors a legacy non-wiki propose item."
+            },
+            "itemId": {
+              "type": "string",
+              "description": "Optional inbox item id to preview."
+            },
+            "graphProposalId": {
+              "type": "string",
+              "description": "Graph-change proposal id for preview, accept or reject. itemId is also accepted."
+            },
+            "allowBoundaryChange": {
+              "type": "boolean",
+              "description": "Set true for accept_graph_change only after the user explicitly confirms a preview marked boundaryChangeRequired. This allows creation of new graph entities outside the active strict boundary."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of inbox items to return when itemId is not provided.",
+              "default": 20
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "read",
+                "propose",
+                "propose_observation",
+                "list_observations",
+                "get_observation",
+                "list_packages",
+                "get_package",
+                "review_package",
+                "accept_observation",
+                "reject_observation",
+                "edit_observation",
+                "reclassify_observation",
+                "merge_observations",
+                "review_evidence",
+                "measure_observation",
+                "assess_wiki",
+                "wiki_decision",
+                "propose_graph_change",
+                "list_graph_changes",
+                "preview_graph_change",
+                "accept_graph_change",
+                "reject_graph_change",
+                "accept_item",
+                "reject_item"
+              ],
+              "description": "Curation package or legacy Inbox action; default is read.",
+              "default": "read"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "decision_candidate",
+                "open_question",
+                "risk",
+                "task",
+                "wiki_proposal"
+              ],
+              "description": "Legacy proposal type for propose. wiki_proposal does not create a durable Wiki page; use wiki_decision followed by the Wiki write action instead."
+            },
+            "title": {
+              "type": "string",
+              "description": "Proposal title for propose."
+            },
+            "body": {
+              "type": "string",
+              "description": "Proposal body for propose; quote the relevant capture passage."
+            },
+            "captureId": {
+              "type": "string",
+              "description": "Capture the proposal was derived from (propose)."
+            },
+            "sourceId": {
+              "type": "string",
+              "description": "Optional source id backing the proposal (propose)."
+            },
+            "sourceChunkId": {
+              "type": "string",
+              "description": "Optional exact source chunk for propose_observation; OneAgent resolves it when omitted."
+            },
+            "packageId": {
+              "type": "string",
+              "description": "Curation package id."
+            },
+            "observationId": {
+              "type": "string",
+              "description": "Observation id for a granular operation."
+            },
+            "targetObservationId": {
+              "type": "string",
+              "description": "Target observation for review_evidence."
+            },
+            "observationIds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Observation ids for merge, wiki evidence or graph-change evidence. For wiki_decision or workMemory_wiki write, omit them unless the user explicitly requested a subset; OneAgent automatically selects accepted active evidence attached to the target."
+            },
+            "graphChanges": {
+              "type": "array",
+              "description": "Typed graph operations for propose_graph_change. Supported ops are create_entity, update_entity and upsert_relation.",
+              "items": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            },
+            "acceptObservationIds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Package observations to accept."
+            },
+            "rejectObservationIds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Package observations to reject."
+            },
+            "kind": {
+              "type": "string",
+              "enum": ["claim", "decision", "question", "task", "risk", "feature_request", "insight", "metric", "relationship"],
+              "description": "Atomic observation kind."
+            },
+            "excerpt": {
+              "type": "string",
+              "description": "Exact verbatim passage from the indexed capture; required for propose_observation."
+            },
+            "subjectEntity": {
+              "type": "string",
+              "description": "Existing subject entity as kind:id. When omitted, the capture primary entity is used. Unknown candidates belong in metadata."
+            },
+            "clearSubjectEntity": {
+              "type": "boolean",
+              "description": "Remove the linked subject during edit_observation."
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Agent confidence in the interpretation."
+            },
+            "relationType": {
+              "type": "string",
+              "enum": ["supports", "contradicts", "supersedes", "duplicates"],
+              "description": "Evidence relation for review_evidence."
+            },
+            "decision": {
+              "type": "string",
+              "enum": ["accepted", "rejected", "not_needed", "suggested"],
+              "description": "accepted|rejected for evidence, or not_needed|suggested for wiki."
+            },
+            "reason": {
+              "type": "string",
+              "description": "Optional audit note for observation rejection; required rationale for edit, reclassification, merge, evidence-link rejection or wiki suggestion."
+            },
+            "documentationReason": {
+              "type": "string",
+              "enum": ["multi_source_synthesis", "specification", "durable_reference", "publication_required"],
+              "description": "Controlled durable-documentation reason for wiki_decision."
+            },
+            "target": {
+              "type": "string",
+              "description": "Durable wiki subject as kind:id for wiki_decision. Required when decision is suggested."
+            },
+            "home": {
+              "type": "string",
+              "description": "Canonical wiki navigation home as kind:id for wiki_decision. Omit only when it resolves unambiguously."
+            },
+            "page": {
+              "type": "string",
+              "description": "Safe Markdown page below the subject content space for wiki_decision.",
+              "default": "index.md"
+            },
+            "status": {
+              "type": "string",
+              "description": "Optional curation package or observation validation status filter."
+            },
+            "evidenceStatus": {
+              "type": "string",
+              "description": "Optional observation evidence filter: standalone, corroborated or contradicted. Measurement is an independent observation property."
+            },
+            "metadata": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "Optional proposed entity/relation details; stored for review and never auto-applied."
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_graph",
+        "tags": [
+          "work-memory",
+          "graph",
+          "graphify"
+        ],
+        "toolReferenceName": "workMemoryGraph",
+        "displayName": "OneAgent Graph",
+        "modelDescription": "Read the OneAgent graph view for the selected scope, including products, repositories, concepts, sources, tasks, risks, questions, decisions and Graphify relations when available. Wiki pages are content attached to their subject entities and are returned through entity context, not as graph nodes. Use when the user asks about dependencies, related concepts, memory topology or why entities are connected. The tool is read-only and returns a compact graph slice. When an agent context scope is active the response carries it under contextScope with an instruction you must follow: strict mode prunes the graph to the scope and cannot be bypassed; guided mode annotates nodes with inContextScope so you can flag out-of-scope material.",
+        "userDescription": "Read the OneAgent graph.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(type-hierarchy)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio",
+                "product",
+                "dependencies",
+                "manual"
+              ],
+              "description": "Graph scope.",
+              "default": "portfolio"
+            },
+            "productId": {
+              "type": "string",
+              "description": "Product id used when scope is product or dependencies."
+            },
+            "includeProductIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Explicit product ids used when scope is manual."
+            },
+            "focus": {
+              "type": "string",
+              "description": "Optional label, id or path fragment used to return a focused graph slice."
+            },
+            "maxNodes": {
+              "type": "number",
+              "description": "Maximum number of graph nodes to request from the runtime.",
+              "default": 120
+            },
+            "maxEdges": {
+              "type": "number",
+              "description": "Maximum number of graph edges to request from the runtime.",
+              "default": 240
+            },
+            "includeGraphify": {
+              "type": "boolean",
+              "description": "Include imported Graphify data when available.",
+              "default": true
+            },
+            "contextScope": {
+              "type": "boolean",
+              "description": "Honor the active agent context scope (entity-based retrieval boundary). True by default; set false to read the full graph. Ignored when the scope mode is strict: a strict scope cannot be bypassed.",
+              "default": true
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_organization",
+        "tags": [
+          "work-memory",
+          "organization"
+        ],
+        "toolReferenceName": "workMemoryOrganization",
+        "displayName": "OneAgent Organization",
+        "modelDescription": "Manage OneAgent entities, relations and links. Use list_kinds, list_entities and resolve_entities first. When the user explicitly requests an entity, create_entity writes its Markdown page and SQLite graph record; update_entity changes an existing entity and can replace its Markdown content. For autonomous conclusions from captured material, propose_graph_change remains the reviewed path. Entity pages are searchable through SQLite full-text indexing. Mutations obey the active strict scope; allowBoundaryChange requires explicit user confirmation.",
+        "userDescription": "Manage OneAgent entities, relations and links.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(organization)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "list",
+                "list_kinds",
+                "list_entities",
+                "list_links",
+                "list_relations",
+                "resolve_entities",
+                "merge_entities",
+                "entity_context",
+                "create_entity",
+                "update_entity",
+                "upsert_entity",
+                "delete_entity",
+                "upsert_relation",
+                "delete_relation",
+                "upsert_link",
+                "delete_link"
+              ],
+              "description": "Action to run.",
+              "default": "list"
+            },
+            "allowBoundaryChange": {
+              "type": "boolean",
+              "default": false,
+              "description": "Set true only after an explicit user request to create or mutate entities outside the active strict Context."
+            },
+            "id": {
+              "type": "string",
+              "description": "Entity id, relation id or link id depending on the action."
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "oneagent",
+                "domain",
+                "subdomain",
+                "team",
+                "product",
+                "repository",
+                "project",
+                "discovery",
+                "feature",
+                "feature_request",
+                "practice",
+                "mission",
+                "insight",
+                "person"
+              ],
+              "description": "Entity kind for create_entity, update_entity, delete_entity or list_entities. Use discovery for time-bounded uncertainty reduction, feature_request for a stakeholder ask, and insight for reusable learning."
+            },
+            "label": {
+              "type": "string",
+              "description": "Entity display label."
+            },
+            "description": {
+              "type": "string",
+              "description": "Entity, relation or link description."
+            },
+            "content": {
+              "type": "string",
+              "description": "Markdown body of the entity page for create_entity or update_entity. Omit to preserve existing page content."
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "active",
+                "inactive",
+                "candidate",
+                "archived"
+              ],
+              "description": "Entity status for upsert_entity."
+            },
+            "tags": {
+              "type": "string",
+              "description": "Comma-separated tags for upsert_entity."
+            },
+            "aliases": {
+              "type": "string",
+              "description": "Comma-separated alternative names for upsert_entity; used by resolve_entities matching."
+            },
+            "names": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Free-form entity names to match for resolve_entities."
+            },
+            "from": {
+              "type": "string",
+              "description": "For merge_entities: the duplicate entity to merge away, as 'kind:id'."
+            },
+            "into": {
+              "type": "string",
+              "description": "For merge_entities: the canonical entity that absorbs the duplicate, as 'kind:id'."
+            },
+            "parentId": {
+              "type": "string",
+              "description": "Parent entity id for upsert_entity."
+            },
+            "repoPath": {
+              "type": "string",
+              "description": "For upsert_entity: link an external reference repository. This never authorizes copying private memory into that repository."
+            },
+            "wikiRoot": {
+              "type": "string",
+              "description": "For upsert_entity: reference documentation root inside the bound repo (default docs/wiki); used for reading."
+            },
+            "members": {
+              "type": "string",
+              "description": "Team member metadata for organization kinds, separated by semicolon, for example 'Name - Role; Name - Role'."
+            },
+            "entity": {
+              "type": "string",
+              "description": "Entity 'kind:id' filter for list_relations."
+            },
+            "sourceId": {
+              "type": "string",
+              "description": "Source 'kind:id' for upsert_relation, or source entity/product id for upsert_link."
+            },
+            "targetId": {
+              "type": "string",
+              "description": "Target 'kind:id' for upsert_relation, or target entity/product id for upsert_link."
+            },
+            "type": {
+              "type": "string",
+              "description": "Relation or link predicate, for example applies_practice, scoped_to, informs, owns, depends_on, requested_by."
+            },
+            "reassignToOneAgent": {
+              "type": "boolean",
+              "description": "For delete_entity, reassign referencing captures to the oneagent fallback (default true).",
+              "default": true
+            },
+            "captureId": {
+              "type": "string",
+              "description": "For upsert_relation: the capture that justifies this relation (provenance, shown on the graph edge). Always pass it during curation."
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_wiki",
+        "tags": [
+          "work-memory",
+          "wiki"
+        ],
+        "toolReferenceName": "workMemoryWiki",
+        "displayName": "OneAgent Wiki",
+        "modelDescription": "Read entity Markdown pages and propose reviewed syntheses for them. Every graph entity has a page; a new synthesis from captured evidence remains optional and reviewable. Use write only when a source-scoped curation package has accepted observations for the same entity and a supported documentation reason; pass packageId and documentationReason. Do not call workMemory_inbox wiki_decision first because write records the decision atomically. Omit observationIds unless the user explicitly requests a subset; OneAgent selects accepted active evidence attached to the target. Write returns proposalId and the exact next Inbox action; use those values directly without scanning Inbox. The write remains reviewable before Markdown is applied. Use read for one entity page, scan with entities for existing repository pages, log for the curation log, and read_capture for raw provenance. Sync is blocked during the private-memory transition; accepting a wiki proposal writes only to private memory. Never use productId, a product registry, shell commands, SQLite or chat-session files as a wiki fallback.",
+        "userDescription": "Read and curate the OneAgent wiki.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(book)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "scan",
+                "read",
+                "write",
+                "log",
+                "sync",
+                "read_capture"
+              ],
+              "description": "Wiki action. Omit or 'scan' to scan pages from repository entities.",
+              "default": "scan"
+            },
+            "path": {
+              "type": "string",
+              "description": "Relative Markdown page path within the global wiki, for read only."
+            },
+            "page": {
+              "type": "string",
+              "description": "Page path relative to the entity content space for write, for example index.md or decisions/zone-selection.md.",
+              "default": "index.md"
+            },
+            "content": {
+              "type": "string",
+              "description": "Full Markdown content for write."
+            },
+            "packageId": {
+              "type": "string",
+              "description": "Source-scoped curation package that justifies a write. Required for write."
+            },
+            "observationIds": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Accepted observations used as wiki evidence. Omit unless the user explicitly requested a subset; OneAgent automatically uses accepted active observations from packageId that are attached to the target entity."
+            },
+            "documentationReason": {
+              "type": "string",
+              "enum": ["multi_source_synthesis", "specification", "durable_reference", "publication_required"],
+              "description": "Why a durable page is useful. Required for write."
+            },
+            "message": {
+              "type": "string",
+              "description": "Log line for the log action."
+            },
+            "logAction": {
+              "type": "string",
+              "description": "Log category for the log action (ingest, curate, lint, note).",
+              "default": "curate"
+            },
+            "entity": {
+              "type": "string",
+              "description": "Entity 'kind:id' used as the page subject for write or projected for sync."
+            },
+            "home": {
+              "type": "string",
+              "description": "Primary navigation home as a typed entity kind:id. Omit only when graph structure resolves one unambiguously."
+            },
+            "captureId": {
+              "type": "string",
+              "description": "Capture id to read for the read_capture action."
+            },
+            "entities": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Optional typed entity filters kind:id for scan. When omitted, the active entity context is used."
+            },
+            "query": {
+              "type": "string",
+              "description": "Optional page label or path filter for the scan action."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Maximum number of wiki pages to return for the scan action.",
+              "default": 50
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_today",
+        "tags": [
+          "work-memory",
+          "today"
+        ],
+        "toolReferenceName": "workMemoryToday",
+        "displayName": "OneAgent Today",
+        "modelDescription": "Read the OneAgent daily dashboard: operational tasks and reviews plus the mission → OKR → KPI pilotage model. OKRs contain structured key results; KPI measurements expose dated trends, freshness and alerts. Contributions describe expected impact and causal hypotheses, never automatic causal proof. Use to answer what to focus on, which OKRs are at risk, how KPIs trend, and how current work aligns with the mission. The tool is read-only and obeys the active context boundary.",
+        "userDescription": "Read the OneAgent daily dashboard.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(calendar)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "entity": {
+              "type": "string",
+              "description": "Optional entity focus as 'kind:id' (for example mission:valentin-mission-2026 or product:oneff)."
+            },
+            "assignee": {
+              "type": "string",
+              "enum": [
+                "me",
+                "agent"
+              ],
+              "description": "Filter tasks by assignee."
+            },
+            "dueWindow": {
+              "type": "string",
+              "description": "Due-soon window, for example 3d or 7d.",
+              "default": "7d"
+            },
+            "section": {
+              "type": "string",
+              "enum": [
+                "due-soon",
+                "active-work",
+                "blocked",
+                "objectives",
+                "inbox",
+                "agent-queue",
+                "upcoming-reviews",
+                "contradictions",
+                "context-views",
+                "outcomes"
+              ],
+              "description": "Return only one section."
+            },
+            "includeAgent": {
+              "type": "boolean",
+              "description": "Include tasks assigned to the agent (default true).",
+              "default": true
+            }
+          }
+        }
+      },
+      {
+        "name": "workMemory_outcomes",
+        "tags": [
+          "work-memory",
+          "mission",
+          "okr",
+          "kpi"
+        ],
+        "toolReferenceName": "workMemoryOutcomes",
+        "displayName": "OneAgent Outcomes",
+        "modelDescription": "Read and explicitly manage OneAgent professional outcomes: Mission → OKR → KPI. An OKR is one graph entity whose key results remain structured children, not graph nodes. Use dashboard/gaps/list/get for reads; upsert_okr, upsert_kpi, record_measurement, archive_kpi, restore_kpi and link_contribution only when the user explicitly asks for that métier mutation. Archiving never deletes KPI measurements or provenance. Outcome upserts are create-only by default; set createOnly=false only when the user explicitly asks to update an existing OKR or KPI. A work contribution records expected impact and an optional causal hypothesis; it never proves causality. Set allowBoundaryChange=true only after explicit user confirmation when creating an entity outside a strict active context. Autonomous interpretations must first be proposed as sourced observations for human review.",
+        "userDescription": "Manage missions, OKRs, KPI measurements and expected work contributions.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(graph-line)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "dashboard",
+                "gaps",
+                "list_okrs",
+                "get_okr",
+                "upsert_okr",
+                "list_kpis",
+                "get_kpi",
+                "upsert_kpi",
+                "archive_kpi",
+                "restore_kpi",
+                "record_measurement",
+                "compare_kpi",
+                "link_contribution"
+              ],
+              "default": "dashboard"
+            },
+            "id": { "type": "string" },
+            "entity": { "type": "string", "description": "Optional focus kind:id." },
+            "okrId": { "type": "string" },
+            "kpiId": { "type": "string" },
+            "missionId": { "type": "string" },
+            "clearMission": { "type": "boolean", "description": "Explicitly detach an existing OKR from its mission." },
+            "label": { "type": "string" },
+            "objective": { "type": "string" },
+            "description": { "type": "string" },
+            "status": { "type": "string", "enum": ["draft", "active", "at_risk", "off_track", "achieved", "closed"] },
+            "periodStart": { "type": "string" },
+            "periodEnd": { "type": "string" },
+            "keyResults": { "type": "array", "items": { "type": "object" } },
+            "kpiIds": { "type": "array", "items": { "type": "string" } },
+            "okrIds": { "type": "array", "items": { "type": "string" } },
+            "unit": { "type": "string" },
+            "direction": { "type": "string", "enum": ["increase", "decrease", "target", "range"] },
+            "targetValue": { "type": "number" },
+            "targetMin": { "type": "number" },
+            "targetMax": { "type": "number" },
+            "staleAfterDays": { "type": "number" },
+            "value": { "type": "number" },
+            "measuredAt": { "type": "string" },
+            "deliveryDate": { "type": "string" },
+            "note": { "type": "string" },
+            "sourceId": { "type": "string" },
+            "observationId": { "type": "string" },
+            "work": { "type": "string", "description": "project:id, feature:id or task:id" },
+            "expectedImpact": { "type": "string" },
+            "causalHypothesis": { "type": "string" },
+            "keyResultIds": { "type": "array", "items": { "type": "string" } },
+            "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+            "createOnly": { "type": "boolean", "description": "Keep true/default when creating so an existing id cannot be overwritten. Set false only for an explicit update of an existing OKR or KPI.", "default": true },
+            "allowBoundaryChange": { "type": "boolean", "default": false }
+          }
+        }
+      },
+      {
+        "name": "workMemory_contextView",
+        "tags": [
+          "work-memory",
+          "context",
+          "graph"
+        ],
+        "toolReferenceName": "workMemoryContextView",
+        "displayName": "OneAgent Context Views",
+        "modelDescription": "Manage the same saved graph Context views used by the OneAgent cockpit. Every read is constrained by the active strict Context. Use list/get/preview for inspection; create/update/rename/duplicate/delete/activate/clear/compare only for explicit user-requested view operations; suggest to rank compact control-plane entity metadata and add reviewable proposed nodes; refresh to run a monitored view; compile_pack/list_packs/get_pack for versioned context actually prepared for the active agent boundary. Set allowBoundaryChange=true only when the user explicitly asks to inspect, replace, clear or broaden the current strict boundary; the confirmation must make that change visible. Autonomous discovery only adds role=proposed and never activates it. If the user states an explicit boundary such as 'OneFF only', pass it in boundaryEntities: OneAgent automatically makes that discovery boundary strict and cannot search beyond it. Context roles are pinned, included, proposed, exploratory and excluded. Raw-source administration is not exposed.",
+        "userDescription": "Manage saved Context views and compile Context Packs.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(target)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string",
+              "enum": [
+                "list",
+                "get",
+                "create",
+                "update",
+                "rename",
+                "duplicate",
+                "delete",
+                "activate",
+                "clear",
+                "compare",
+                "preview",
+                "suggest",
+                "refresh",
+                "compile_pack",
+                "list_packs",
+                "get_pack"
+              ],
+              "default": "list"
+            },
+            "viewId": {
+              "type": "string",
+              "description": "Saved Context view id."
+            },
+            "leftViewId": {
+              "type": "string",
+              "description": "Left view id for compare."
+            },
+            "rightViewId": {
+              "type": "string",
+              "description": "Right view id for compare."
+            },
+            "name": {
+              "type": "string",
+              "description": "View name for create, update, rename or duplicate."
+            },
+            "topic": {
+              "type": "string",
+              "description": "Topic used to rank Context candidates or refresh a monitored view."
+            },
+            "request": {
+              "type": "string",
+              "description": "Concrete agent objective used to compile a Context Pack."
+            },
+            "sessionId": {
+              "type": "string",
+              "description": "Conversation/session identifier stored on a compiled Context Pack."
+            },
+            "packId": {
+              "type": "string",
+              "description": "Context Pack id for get_pack."
+            },
+            "allowBoundaryChange": {
+              "type": "boolean",
+              "default": false,
+              "description": "Set true only after an explicit user request to inspect, replace, clear or broaden the active strict Context. The tool confirmation exposes the requested boundary change."
+            },
+            "boundaryEntities": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Explicit discovery boundary as kind:id refs. Any non-empty value is automatically enforced in strict mode."
+            },
+            "boundaryDepth": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3,
+              "default": 2
+            },
+            "pinnedEntities": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Entity refs always included first."
+            },
+            "includedEntities": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "proposedEntities": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "exploratoryEntities": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "excludedEntities": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "depth": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 3
+            },
+            "mode": {
+              "type": "string",
+              "enum": ["strict", "guided", "disabled"]
+            },
+            "includedTypes": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "allowedRelationTypes": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "timeRange": {
+              "type": "object",
+              "properties": {
+                "from": { "type": "string" },
+                "to": { "type": "string" }
+              }
+            },
+            "validationStatuses": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Compatibility alias for observation validation statuses."
+            },
+            "entityStatuses": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "sourceStatuses": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "observationValidationStatuses": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Observation validation states such as accepted or proposed."
+            },
+            "observationEvidenceStatuses": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Observation evidence states: standalone, corroborated or contradicted. Measurement is independent from evidence state."
+            },
+            "observationMeasurement": {
+              "type": "string",
+              "enum": ["any", "measured", "unmeasured"],
+              "description": "Independent measurement filter for observations."
+            },
+            "sourceAccess": {
+              "type": "string",
+              "enum": ["none", "metadata", "snippets", "full"]
+            },
+            "tokenBudget": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 1000000
+            },
+            "refreshPolicy": {
+              "type": "string",
+              "enum": ["frozen", "monitored", "dynamic"]
+            },
+            "limit": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "visualState": {
+              "type": "object",
+              "description": "Optional cockpit visual-state payload."
+            }
+          }
+        }
+      }
+    ],
+    "chatParticipants": [
+      {
+        "id": "work-memory.memory",
+        "name": "memory",
+        "fullName": "OneAgent",
+        "description": "Ask OneAgent about product context and use /note to save a quick note directly in Notes.",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "note",
+            "description": "Save the text directly as a note in the OneAgent Notes page."
+          },
+          {
+            "name": "ingest",
+            "description": "Capture a document and extract sourced observations into a human-reviewable curation package."
+          },
+          {
+            "name": "oneagent-help",
+            "description": "Ask a question about OneAgent using the bundled guides, then open the most relevant guide."
+          },
+          {
+            "name": "search",
+            "description": "Search indexed OneAgent sources."
+          },
+          {
+            "name": "context",
+            "description": "Show active products, repositories and scope."
+          },
+          {
+            "name": "readiness",
+            "description": "Show BMAD readiness score and blocking signals."
+          },
+          {
+            "name": "tasks",
+            "description": "Show open OneAgent tasks."
+          },
+          {
+            "name": "inbox",
+            "description": "Show pending memory proposals and open questions."
+          },
+          {
+            "name": "graph",
+            "description": "Summarize the memory graph and related entities."
+          },
+          {
+            "name": "wiki",
+            "description": "List wiki pages from configured repositories."
+          },
+          {
+            "name": "migrate-wiki",
+            "description": "Preview the canonical wiki migration, then apply safe moves after explicit confirmation."
+          }
+        ],
+        "disambiguation": [
+          {
+            "category": "work_memory_product_context",
+            "description": "The user is asking about remembered product context, dependencies, prior decisions, unresolved questions, risks, wiki pages, tasks or BMAD readiness stored in OneAgent.",
+            "examples": [
+              "What does OneAgent know about this product?",
+              "Which decisions are still candidates?",
+              "What are the open questions and risks before we continue?",
+              "Show the memory graph around this concept.",
+              "Which wiki proposals are pending?"
+            ]
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "workMemory.showContext",
+        "title": "OneAgent: Show Context"
+      },
+      {
+        "command": "workMemory.refresh",
+        "title": "OneAgent: Refresh"
+      },
+      {
+        "command": "workMemory.openInbox",
+        "title": "OneAgent: Open Inbox"
+      },
+      {
+        "command": "workMemory.openCockpit",
+        "title": "OneAgent: Open Cockpit"
+      },
+      {
+        "command": "workMemory.openHelp",
+        "title": "OneAgent: Open Help"
+      },
+      {
+        "command": "workMemory.refreshGraphify",
+        "title": "OneAgent: Refresh Graphify"
+      },
+      {
+        "command": "workMemory.setConfigPath",
+        "title": "OneAgent: Set Config Path"
+      },
+      {
+        "command": "workMemory.useFixtureConfig",
+        "title": "OneAgent: Use Fixture Config"
+      },
+      {
+        "command": "workMemory.addProduct",
+        "title": "OneAgent: Add Product"
+      },
+      {
+        "command": "workMemory.upsertEntity",
+        "title": "OneAgent: Add or Edit Organization Entity"
+      },
+      {
+        "command": "workMemory.deleteEntity",
+        "title": "OneAgent: Delete Organization Entity"
+      },
+      {
+        "command": "workMemory.upsertEntityLink",
+        "title": "OneAgent: Add or Edit Organization Link"
+      },
+      {
+        "command": "workMemory.deleteEntityLink",
+        "title": "OneAgent: Delete Organization Link"
+      },
+      {
+        "command": "workMemory.createTask",
+        "title": "OneAgent: Create Task"
+      },
+      {
+        "command": "workMemory.createNote",
+        "title": "OneAgent: Create Note",
+        "icon": "$(note)"
+      },
+      {
+        "command": "workMemory.captureMemory",
+        "title": "OneAgent: Capture Memory"
+      },
+      {
+        "command": "workMemory.resetMemory",
+        "title": "OneAgent: Reset Test Data"
+      },
+      {
+        "command": "workMemory.diagnoseRuntime",
+        "title": "OneAgent: Diagnose Runtime"
+      },
+      {
+        "command": "workMemory.runIngestionSmokeTest",
+        "title": "OneAgent: Run Ingestion Smoke Test"
+      },
+      {
+        "command": "workMemory.checkForUpdates",
+        "title": "OneAgent: Check for Updates"
+      },
+      {
+        "command": "workMemory.syncRepositories",
+        "title": "OneAgent: Sync Linked GitHub Repositories"
+      },
+      {
+        "command": "workMemory.addRepository",
+        "title": "OneAgent: Add Repository"
+      },
+      {
+        "command": "workMemory.reindexRepository",
+        "title": "OneAgent: Reindex Repository"
+      },
+      {
+        "command": "workMemory.ingestCurrentFile",
+        "title": "OneAgent: Ingest Current File"
+      },
+      {
+        "command": "workMemory.curatePending",
+        "title": "OneAgent: Curate Pending Captures"
+      },
+      {
+        "command": "workMemory.lintWiki",
+        "title": "OneAgent: Lint & Consolidate Wiki"
+      },
+      {
+        "command": "workMemory.searchMemory",
+        "title": "OneAgent: Search Memory"
+      },
+      {
+        "command": "workMemory.openWikiPage",
+        "title": "OneAgent: Open Wiki Page"
+      },
+      {
+        "command": "workMemory.reindexWikiPage",
+        "title": "OneAgent: Reindex Wiki Page"
+      },
+      {
+        "command": "workMemory.showRelatedGraph",
+        "title": "OneAgent: Show Related Graph"
+      },
+      {
+        "command": "workMemory.previewProposal",
+        "title": "OneAgent: Preview Proposal"
+      },
+      {
+        "command": "workMemory.acceptProposal",
+        "title": "OneAgent: Accept Proposal"
+      },
+      {
+        "command": "workMemory.rejectProposal",
+        "title": "OneAgent: Reject Proposal"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "workMemory",
+          "title": "OneAgent",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "workMemory": [
+        {
+          "id": "workMemory.cockpit",
+          "name": "Cockpit",
+          "type": "webview"
+        }
+      ]
+    },
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "workMemory.addProduct"
+        },
+        {
+          "command": "workMemory.upsertEntity"
+        },
+        {
+          "command": "workMemory.upsertEntityLink"
+        },
+        {
+          "command": "workMemory.captureMemory"
+        },
+        {
+          "command": "workMemory.createTask"
+        },
+        {
+          "command": "workMemory.createNote"
+        },
+        {
+          "command": "workMemory.resetMemory"
+        },
+        {
+          "command": "workMemory.diagnoseRuntime"
+        },
+        {
+          "command": "workMemory.runIngestionSmokeTest"
+        },
+        {
+          "command": "workMemory.checkForUpdates"
+        },
+        {
+          "command": "workMemory.syncRepositories"
+        },
+        {
+          "command": "workMemory.openCockpit"
+        },
+        {
+          "command": "workMemory.openHelp"
+        },
+        {
+          "command": "workMemory.refresh"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "workMemory.refresh",
+          "when": "view == workMemory.cockpit",
+          "group": "navigation"
+        },
+        {
+          "command": "workMemory.openCockpit",
+          "when": "view == workMemory.cockpit",
+          "group": "navigation"
+        },
+        {
+          "command": "workMemory.createNote",
+          "when": "view == workMemory.cockpit",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": []
+    }
+  }
+}

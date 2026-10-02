@@ -15,8 +15,13 @@ export function requireMemoryConfig(value: string | undefined): string {
 
 /** Internal bridge only. The public MCP surface cannot supply CLI commands or flags. */
 export async function runMemoryCommand(configPath: string, args: string[], input?: string): Promise<unknown> {
+  return JSON.parse(await runMemoryTextCommand(configPath, [...args, "--json"], input));
+}
+
+/** Host controller bridge, never exposed as an agent-callable arbitrary CLI tool. */
+export async function runMemoryTextCommand(configPath: string, args: string[], input?: string): Promise<string> {
   requireMemoryConfig(configPath);
-  return JSON.parse(await runCliRequest(path.dirname(configPath), [...args, "--config", configPath, "--json"], input));
+  return runCliRequest(path.dirname(configPath), [...args, "--config", configPath], input);
 }
 
 /** Initialize only a directory reserved by the onboarding service, using the shared CLI. */

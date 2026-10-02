@@ -1,11 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 
 /** SDK-free loopback surface. The injected caller owns the shared memory binding. */
 export async function startPriorityServer(call) {
   const token = randomBytes(32).toString("hex");
-  const assets = new Map(await Promise.all(["index.html", "app.js", "style.css"].map(async (name) => [name, await readFile(new URL(name, import.meta.url), "utf8")])));
+  const assets = new Map(await Promise.all(["index.html", "app.js", "style.css"].map(async (name) => [name, await readFile(new URL(name, existsSync(new URL("index.html", import.meta.url)) ? import.meta.url : new URL("../../../../vscode-extension/src/priorities/", import.meta.url)), "utf8")])));
   let authority;
   const server = createServer(async (req, res) => {
     const send = (status, value, type = "application/json; charset=utf-8") => {

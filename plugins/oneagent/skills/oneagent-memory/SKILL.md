@@ -106,3 +106,14 @@ empty strings clear optional text. After a conflict, reread and reconcile the
 user's intended change; never blindly overwrite a concurrent edit. After an
 uncertain creation failure, list requests before retrying to avoid duplicates.
 No automatic ingestion of messages or external notifications is included.
+
+## Full cockpit (Copilot 0.5+)
+
+When the user wants the OneAgent interface, graph, notes, tasks, Inbox, sources,
+Today, settings or the same interface as VS Code, open the `oneagent-cockpit`
+canvas (**OneAgent · Cockpit**). This is the full shared frontend, not a chat-only
+substitute. It also offers memory onboarding when no memory is connected. The
+standalone `oneagent-priorities` canvas remains available for a focused view.
+Do not invoke UI controller messages or confirmation replies as agent actions:
+human confirmations in the canvas are deliberately kept separate from model tools.
+Use the existing company BMAD skill for work methodology; OneAgent supplies memory.

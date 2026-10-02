@@ -1,0 +1,112 @@
+{
+  "guides": [
+    {
+      "id": "start",
+      "title": "Start using OneAgent",
+      "summary": "Open your workspace, learn the main screens, and save your first useful item.",
+      "category": "Getting started",
+      "order": 10,
+      "keywords": ["start", "workspace", "cockpit", "first steps", "chat", "help", "oneagent-help"],
+      "file": "start-using-oneagent.md"
+    },
+    {
+      "id": "ingestion",
+      "title": "From capture to trusted knowledge",
+      "summary": "Follow information from Chat or the capture form through indexing, analysis, and human review.",
+      "category": "Getting started",
+      "order": 20,
+      "keywords": ["capture", "source", "ingestion", "ingest", "ingérer", "chat", "file attachment", "fichier", "pièce jointe", "indexing", "curation", "review"],
+      "file": "capture-and-ingestion.md"
+    },
+    {
+      "id": "entities-graph",
+      "title": "Entities and the memory graph",
+      "summary": "Understand entities, relationships, and how information is attached to your work.",
+      "category": "Organize knowledge",
+      "order": 30,
+      "keywords": ["entity", "relation", "graph", "product", "person", "team", "markdown", "open file", "editor"],
+      "file": "entities-and-graph.md"
+    },
+    {
+      "id": "graph-views",
+      "title": "Graph views",
+      "summary": "Filter the graph and save reusable visual views for a topic or activity.",
+      "category": "Organize knowledge",
+      "order": 40,
+      "keywords": ["graph view", "vue", "vue graphe", "filters", "focus", "dependencies", "layout", "preset"],
+      "file": "graph-views.md"
+    },
+    {
+      "id": "context",
+      "title": "Manage the agent context",
+      "summary": "Choose what the agent should focus on and when that boundary must be enforced.",
+      "category": "Agent context",
+      "order": 50,
+      "keywords": ["active context", "contexte", "périmètre", "disabled", "guided", "strict", "source access", "boundary"],
+      "file": "active-context.md"
+    },
+    {
+      "id": "context-packs",
+      "title": "Context Packs",
+      "summary": "Prepare a focused, versioned information package for one specific agent objective.",
+      "category": "Agent context",
+      "order": 60,
+      "keywords": ["context pack", "paquet de contexte", "objective", "tokens", "provenance", "version"],
+      "file": "context-packs.md"
+    },
+    {
+      "id": "notes",
+      "title": "Notes and questions",
+      "summary": "Keep thoughts and open questions, link them to entities, and find them again.",
+      "category": "Daily work",
+      "order": 70,
+      "keywords": ["note", "question", "entity filter", "today", "resolve", "archive", "chat", "/note", "agent"],
+      "file": "notes-and-questions.md"
+    },
+    {
+      "id": "tasks-today",
+      "title": "Tasks and Today",
+      "summary": "Plan linked work and use Today to decide what needs attention first.",
+      "category": "Daily work",
+      "order": 80,
+      "keywords": ["task", "today", "deadline", "blocked", "priority", "assignee"],
+      "file": "tasks-and-today.md"
+    },
+    {
+      "id": "analyze-inbox",
+      "title": "Analyze and Inbox",
+      "summary": "Turn source material into reviewable suggestions without changing trusted memory automatically.",
+      "category": "Review",
+      "order": 90,
+      "keywords": ["analyze", "inbox", "observation", "accept", "reject", "evidence"],
+      "file": "analyze-and-inbox.md"
+    },
+    {
+      "id": "local-ai",
+      "title": "Local knowledge and search",
+      "summary": "Understand Markdown knowledge, SQLite full-text search and the migration.",
+      "category": "Help and maintenance",
+      "order": 100,
+      "keywords": ["markdown", "sqlite", "fts", "local search", "migration", "privacy", "local ai"],
+      "file": "local-ai-and-embeddings.md"
+    },
+    {
+      "id": "troubleshooting",
+      "title": "Troubleshooting",
+      "summary": "Resolve the most common indexing, analysis, context, display, and update problems.",
+      "category": "Help and maintenance",
+      "order": 110,
+      "keywords": ["problem", "error", "diagnose", "output", "reingest", "reload"],
+      "file": "troubleshooting.md"
+    },
+    {
+      "id": "whats-new",
+      "title": "Updates and what's new",
+      "summary": "Check for a new version, reload safely, and find the changes included in each release.",
+      "category": "Help and maintenance",
+      "order": 120,
+      "keywords": ["update", "mise à jour", "nouvelle version", "version", "release", "reload", "changelog", "what's new"],
+      "file": "updates-and-whats-new.md"
+    }
+  ]
+}

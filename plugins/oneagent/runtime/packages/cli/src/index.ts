@@ -6610,7 +6610,8 @@ function tasksCommand(argv: string[]): void {
   const runtime = createCliRuntime(argv);
   try {
     const scope = resolveScope(runtime.config, runtime.context, parseScopeOptions(argv));
-    if (scope.includedProductIds.length === 0) {
+    // A portfolio also contains personal tasks without a configured product.
+    if (scope.includedProductIds.length === 0 && scope.scope !== "portfolio") {
       if (hasFlag(argv, "--json")) {
         console.log("[]");
       } else {
