@@ -47,8 +47,8 @@ le champ `deadline` existant. Les estimations n’alimentent pas ce champ afin q
 Today et les anciens clients n’affichent pas de faux retards. Une date ferme
 ajoutée ensuite depuis VS Code prévaut sur l’estimation.
 
-Les deux plugins conservent la même base. Cette livraison ajoute l’écran dans
-Copilot ; la vue VS Code dédiée n’est pas incluse. Les anciennes tâches restent
+Les deux plugins conservent la même base. Depuis Copilot 0.5.0 et VS Code
+0.1.126, le même écran Priorités est également intégré au cockpit commun. Les anciennes tâches restent
 compatibles. L’export privé passe au format 3 et restaure les formats 1 et 2.
 Il ne s’agit pas d’une synchronisation automatique entre deux ordinateurs.
 

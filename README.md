@@ -2,10 +2,10 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.4.0](docs/copilot.md) : ajouter ce dépôt comme catalogue, puis installer ou mettre à jour OneAgent. Le paquet inclut le **panneau Priorités** (HTML, JavaScript et CSS) et le moteur mémoire.
+- [GitHub Copilot 0.5.0](docs/copilot.md) : ajouter ce dépôt comme catalogue, puis installer ou mettre à jour OneAgent. Le paquet inclut le **cockpit complet partagé avec VS Code** : graphe 2D/3D, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
-Après mise à jour, ouvrir une nouvelle session Copilot et demander **« Ouvre mes priorités OneAgent »**. [Fonctionnement du panneau](docs/priorities.md) · [Code de l’interface](plugins/oneagent/com.github.copilot/extensions/oneagent-priorities).
+Après mise à jour, ouvrir une nouvelle session Copilot et demander **« Ouvre le cockpit OneAgent »**. [Guide du cockpit](docs/copilot.md) · [Code partagé de l’interface](plugins/oneagent/cockpit/src/cockpit.js) · [Adaptateur Copilot](plugins/oneagent/com.github.copilot/extensions/oneagent-cockpit).
 
 ---
 
