@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.3.0 : installation par catalogue GitHub, choix des mises à jour et
+Version 0.4.0 : panneau Priorités, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -13,7 +13,7 @@ ou VS Code n’est nécessaire sur le poste cible.
 
 ### Installation par URL (recommandée)
 
-Ce parcours devient disponible après la première publication du catalogue 0.3.0
+Ce parcours devient disponible après la première publication du catalogue 0.4.0
 dans le dépôt de releases. Le build local ne publie rien sur GitHub.
 
 Dans l’application, ouvrir **Customize → Plugins**, ajouter le catalogue :
@@ -35,12 +35,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.3.0.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.4.0.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.3.0/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.4.0/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -194,7 +194,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.3.0.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.4.0.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.
@@ -202,8 +202,8 @@ du dépôt de développement.
 ## Périmètre et validation
 
 Trois outils d’onboarding permettent de consulter l’état, préparer le choix et le
-finaliser. Sept outils métier couvrent entités, recherche, contexte, sources et
-notes privées. Quatre outils gèrent l’état, la vérification, le choix et l’application
+finaliser. Neuf outils métier couvrent entités, recherche, contexte, sources,
+notes privées et sollicitations. Quatre outils gèrent l’état, la vérification, le choix et l’application
 des mises à jour. L’onboarding vérifie les destinations et les modifications
 concurrentes ; une création ne réutilise jamais un dossier existant, même vide,
 et refuse les repos Git, le dossier du plugin et les mémoires imbriquées.
@@ -216,7 +216,7 @@ Les tests de mise à jour utilisent un catalogue HTTP et un gestionnaire de plug
 simulés ; ils ne remplacent pas un essai avec l’hôte Copilot réel.
 
 Une nouvelle note attend son ingestion/curation avant d’apparaître dans la recherche ;
-elle est immédiatement disponible via les outils de notes. Pas encore de canvas,
+elle est immédiatement disponible via les outils de notes. Le canvas Priorités est inclus ; pas encore
 de parité de curation/édition, de publication Git ou de score BMAD. Les filtres de
 recherche ne remplacent pas une politique stricte d’accès par session. La mémoire
 locale n’est pas automatiquement disponible dans les sessions cloud.
@@ -226,3 +226,43 @@ Références officielles vérifiées le 1er octobre 2026 :
 - [Personnaliser l’application Copilot](https://docs.github.com/en/copilot/how-tos/github-copilot-app/customize-github-copilot-app)
 - [Référence des plugins Copilot](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference)
 - [Spécification Agent Plugins 1.0](https://github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md)
+
+
+## Priorités : suivre les sollicitations
+
+Après configuration, demander **« Ouvre mes priorités OneAgent »**. Le plugin
+fournit le canvas **OneAgent · Priorités** dans le panneau de l’application.
+La prise en charge des canvas doit être disponible dans la version de Copilot
+utilisée ; les outils conversationnels restent accessibles sans ce panneau.
+
+Le tableau montre le sujet, la personne ou l’équipe qui attend le résultat,
+la priorité, l’échéance, l’avancement et la prochaine action. Une fiche permet
+l’ajout et la modification. Recherche par sujet/demandeur, filtres sur les
+priorités hautes, les retards, les 7 prochains jours et les points à préciser.
+Les sollicitations terminées restent consultables et peuvent être rouvertes.
+
+Une échéance peut être ferme, estimée (ex. « courant octobre ») ou inconnue.
+Une estimation peut comporter une date cible pour le tri, sans être comptée
+comme un retard. Le tri reste explicite : priorité, puis échéance. Les badges
+utilisent la date locale du Mac. Actualisation automatique chaque minute hors
+édition, et bouton Actualiser ; aucun rappel ou message externe n’est envoyé.
+
+Les demandes sont des tâches natives assignées à « me », conservées dans la
+mémoire choisie lors de l’onboarding, sans projet obligatoire. Les propositions
+de l’Inbox ne deviennent pas automatiquement des engagements. Les tâches et
+leurs identités sont communes à VS Code ; ce nouvel écran est livré d’abord
+pour Copilot. L’export privé passe au format 3 et conserve la lecture des
+formats 1 et 2. Une ancienne version du plugin ne sait pas lire le format 3.
+
+Pour le chat : **« Ajoute une demande de Claire pour préparer le point vendredi,
+priorité haute »**, puis vérifier les informations ambiguës avant d’enregistrer.
+Les outils sont `oneagent_list_priorities` et `oneagent_save_priority`, avec un
+périmètre portfolio explicite. L’écriture protège contre les fiches devenues
+obsolètes ; recharger et rouvrir une fiche si elle a changé dans un autre hôte.
+
+Canvas basé sur le contrat SDK public GitHub, testé hors de l’application avec
+des mémoires temporaires. L’affichage et l’ouverture dans l’application réelle
+restent à valider sur le poste équipé de Copilot.
+
+Référence vérifiée le 2 octobre 2026 :
+[Canvas GitHub Copilot](https://docs.github.com/en/copilot/how-tos/github-copilot-app/working-with-canvas-extensions).

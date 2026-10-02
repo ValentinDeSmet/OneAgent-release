@@ -74,6 +74,7 @@ import {
   type WorkMemoryDatabase
 } from "../../storage/src/index.ts";
 import { archiveTask, createTask, listTaskReadModel, updateTask } from "../../tasks/src/index.ts";
+import { listPriorities, savePriority } from "../../tasks/src/priorities.ts";
 import type { TaskDraft, TaskReadModelItem } from "../../tasks/src/index.ts";
 import {
   appendWikiLog,
@@ -327,6 +328,24 @@ async function executeCommand(argv: string[]): Promise<void> {
 
   if (command === "ui-state") {
     await uiStateCommand(rest);
+    return;
+  }
+
+  if (command === "priorities") {
+    const operation = positionalValues(rest)[0];
+    if (!hasFlag(rest, "--stdin")) throw new Error("Priorities requires a JSON object on stdin.");
+    const input = await readJsonStdin<Record<string, unknown>>();
+    const runtime = createCliRuntime(rest);
+    try {
+      // A portfolio request must never silently widen an active strict session.
+      const scope = activeResolvedContextScope(runtime, rest);
+      if (scope?.scope.mode === "strict") throw new Error("Priorities is a portfolio view. Leave the strict context explicitly before using it.");
+      if (input.scope !== "portfolio") throw new Error("Explicit portfolio scope is required.");
+      const result = operation === "list" ? listPriorities(runtime.db, input)
+        : operation === "save" ? savePriority(runtime.db, input) : undefined;
+      if (!result) throw new Error("Use priorities list|save.");
+      console.log(JSON.stringify(result));
+    } finally { runtime.close(); }
     return;
   }
 
@@ -7557,6 +7576,7 @@ function importCommand(argv: string[]): void {
           notes: typeof task.notes === "string" ? task.notes : null,
           productId: typeof task.productId === "string" ? task.productId : null,
           sourceId: typeof task.sourceId === "string" ? task.sourceId : null,
+          tracking: task.tracking && typeof task.tracking === "object" && !Array.isArray(task.tracking) ? task.tracking : null,
           origin: typeof task.origin === "string" ? task.origin : "import"
         };
         if (runtime.db.getTask(id)) runtime.db.updateTask({ taskId: id, ...input });

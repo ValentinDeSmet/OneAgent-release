@@ -70,6 +70,14 @@ export interface TaskMetadataInput {
   notes?: string | null;
 }
 
+export interface TaskTracking {
+  requester?: string;
+  deadlineKind?: "exact" | "approximate" | "unknown";
+  deadlineLabel?: string;
+  targetDate?: string;
+  nextAction?: string;
+}
+
 export interface TaskRecord {
   id: string;
   title: string;
@@ -85,6 +93,7 @@ export interface TaskRecord {
   archivedAt?: string;
   createdAt: string;
   updatedAt: string;
+  tracking?: TaskTracking | null;
 }
 
 export interface TaskInput {
@@ -99,6 +108,7 @@ export interface TaskInput {
   productId?: string | null;
   sourceId?: string | null;
   origin?: string | null;
+  tracking?: TaskTracking | null;
 }
 
 export interface TaskUpdateInput {
@@ -113,6 +123,7 @@ export interface TaskUpdateInput {
   productId?: string | null;
   sourceId?: string | null;
   origin?: string | null;
+  tracking?: TaskTracking | null;
 }
 
 export interface TaskLinkRecord {
@@ -318,6 +329,7 @@ export class WorkMemoryDatabase {
       this.ensureInboxContextReferenceIndex();
       this.ensureGenericSourceEntityLinks();
       this.ensureTaskTable();
+      this.ensureTaskTrackingColumn();
       this.ensureTaskMetadataColumns();
       this.ensureTaskLinkTable();
       this.ensureImpactTables();
@@ -340,6 +352,7 @@ export class WorkMemoryDatabase {
       recordMigration.run("012_observation_search_fts", nowIso());
       recordMigration.run("013_generic_source_entities", nowIso());
       recordMigration.run("015_repository_index", nowIso());
+      recordMigration.run("016_task_tracking", nowIso());
     };
 
     // Schema inspection followed by ALTER TABLE is otherwise racy across the CLI
@@ -361,9 +374,9 @@ export class WorkMemoryDatabase {
     if (!migrationsTable) return true;
     const row = this.db.prepare(`
       SELECT COUNT(*) AS count FROM schema_migrations
-      WHERE id IN ('006_observation_integrity', '007_context_pack_retention', '008_wiki_synthesis_targets', '009_inbox_context_refs', '010_entity_search_fts', '011_professional_outcomes', '012_observation_search_fts', '013_generic_source_entities', '015_repository_index')
+      WHERE id IN ('006_observation_integrity', '007_context_pack_retention', '008_wiki_synthesis_targets', '009_inbox_context_refs', '010_entity_search_fts', '011_professional_outcomes', '012_observation_search_fts', '013_generic_source_entities', '015_repository_index', '016_task_tracking')
     `).get() as { count: number };
-    return Number(row.count) < 9;
+    return Number(row.count) < 10;
   }
 
   private seedDefaultEntity(): void {
@@ -3262,9 +3275,9 @@ export class WorkMemoryDatabase {
       .prepare(`
         INSERT INTO tasks (
           id, title, body, status, priority, assignee, deadline, notes,
-          product_id, source_id, origin, archived_at, created_at, updated_at
+          product_id, source_id, origin, archived_at, created_at, updated_at, tracking_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
       `)
       .run(
         id,
@@ -3279,7 +3292,8 @@ export class WorkMemoryDatabase {
         normalizeOptional(input.sourceId, undefined) ?? null,
         normalizeOptional(input.origin, undefined) ?? "manual",
         now,
-        now
+        now,
+        input.tracking ? JSON.stringify(input.tracking) : null
       );
     return this.getTask(id) as TaskRecord;
   }
@@ -3301,7 +3315,8 @@ export class WorkMemoryDatabase {
           origin,
           archived_at AS archivedAt,
           created_at AS createdAt,
-          updated_at AS updatedAt
+          updated_at AS updatedAt,
+          tracking_json AS trackingJson
         FROM tasks
         WHERE id = ?
       `)
@@ -3328,7 +3343,8 @@ export class WorkMemoryDatabase {
           origin,
           archived_at AS archivedAt,
           created_at AS createdAt,
-          updated_at AS updatedAt
+          updated_at AS updatedAt,
+          tracking_json AS trackingJson
         FROM tasks
         WHERE id IN (SELECT value FROM json_each(?))
         ORDER BY id
@@ -3356,7 +3372,8 @@ export class WorkMemoryDatabase {
           origin,
           archived_at AS archivedAt,
           created_at AS createdAt,
-          updated_at AS updatedAt
+          updated_at AS updatedAt,
+          tracking_json AS trackingJson
         FROM tasks
         WHERE 1 = 1
         ${productFilter}
@@ -3443,7 +3460,8 @@ export class WorkMemoryDatabase {
         origin,
         archived_at AS archivedAt,
         created_at AS createdAt,
-        updated_at AS updatedAt
+        updated_at AS updatedAt,
+        tracking_json AS trackingJson
       FROM tasks
       WHERE id IN (SELECT id FROM context_candidate_tasks)
       ${archiveFilter}
@@ -3480,6 +3498,7 @@ export class WorkMemoryDatabase {
       productId: normalizeOptional(input.productId, existing.productId),
       sourceId: normalizeOptional(input.sourceId, existing.sourceId),
       origin: normalizeOptional(input.origin, existing.origin) ?? existing.origin,
+      tracking: input.tracking === undefined ? existing.tracking : input.tracking,
       updatedAt: now
     };
 
@@ -3497,7 +3516,8 @@ export class WorkMemoryDatabase {
           product_id = ?,
           source_id = ?,
           origin = ?,
-          updated_at = ?
+          updated_at = ?,
+          tracking_json = ?
         WHERE id = ?
       `)
       .run(
@@ -3512,6 +3532,7 @@ export class WorkMemoryDatabase {
         next.sourceId ?? null,
         next.origin,
         next.updatedAt,
+        next.tracking ? JSON.stringify(next.tracking) : null,
         next.id
       );
     return this.getTask(input.taskId) as TaskRecord;
@@ -4769,6 +4790,13 @@ export class WorkMemoryDatabase {
     });
   }
 
+  private ensureTaskTrackingColumn(): void {
+    const columns = this.db.prepare("PRAGMA table_info(tasks)").all() as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "tracking_json")) {
+      this.db.exec("ALTER TABLE tasks ADD COLUMN tracking_json TEXT;");
+    }
+  }
+
   private ensureTaskTable(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
@@ -4884,6 +4912,7 @@ function normalizeTaskMetadata(row: TaskMetadataRecord): TaskMetadataRecord {
 
 function normalizeTaskRecord(row: TaskRecord): TaskRecord {
   return {
+    tracking: parseJsonObject((row as TaskRecord & { trackingJson?: string }).trackingJson ?? null) as TaskTracking | undefined,
     id: row.id,
     title: row.title,
     body: row.body ?? undefined,

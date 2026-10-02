@@ -19,7 +19,7 @@ export interface PrivateExportPolicy {
   contextPacks: "retain" | "omit";
 }
 interface ExportData {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   tables: Record<string, TableData>;
   privateSourceIds: string[];
   externalSourceIds: string[];
@@ -27,7 +27,7 @@ interface ExportData {
 }
 export interface PrivateExportManifest {
   format: "oneagent-private-export";
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   createdAt: string;
   publicationReady: false;
   policy: PrivateExportPolicy;
@@ -80,7 +80,7 @@ export function exportPrivateMemory(configPath: string, destination: string, pol
         return false;
       });
       if (policy.contextPacks === "omit") tables.context_packs.rows = [];
-      data = { version: 2, tables, ...classified, omittedExternalChunks };
+      data = { version: 3, tables, ...classified, omittedExternalChunks };
       coverage = {
         tables: before.map((table) => ({ ...table, exportedRows: tables[table.name].rows.length })),
         excludedDerivedTables: tableNames(db).filter((table) => DERIVED.has(table.name)).map((table) => table.name).sort(),
@@ -100,7 +100,7 @@ export function exportPrivateMemory(configPath: string, destination: string, pol
     // recognizable credentials fail closed; free text still requires review.
     for (const file of files) assertNoCredentials(fs.readFileSync(path.join(staged, file.path), "utf8"), config.embeddings.apiKey);
     const manifest: PrivateExportManifest = {
-      format: "oneagent-private-export", version: 2, createdAt: recovery.createdAt,
+      format: "oneagent-private-export", version: 3, createdAt: recovery.createdAt,
       publicationReady: false, policy, originalPaths: recovery.originalPaths, coverage, files
     };
     writePrivate(path.join(staged, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
@@ -334,7 +334,7 @@ function validatePrivateManifest(manifest: PrivateExportManifest): void {
   onlyKeys(manifest, ["format", "version", "createdAt", "publicationReady", "policy", "originalPaths", "coverage", "files"], "manifest");
   onlyKeys(manifest.policy, ["externalEvidence", "contextPacks"], "policy");
   onlyKeys(manifest.originalPaths, ["captures", "wiki"], "origin");
-  if (!manifest || manifest.format !== "oneagent-private-export" || ![1, 2].includes(manifest.version) || manifest.publicationReady !== false || !Array.isArray(manifest.files)) throw new Error("Unsupported private export format.");
+  if (!manifest || manifest.format !== "oneagent-private-export" || ![1, 2, 3].includes(manifest.version) || manifest.publicationReady !== false || !Array.isArray(manifest.files)) throw new Error("Unsupported private export format.");
   validatePolicy(manifest.policy);
   if (typeof manifest.createdAt !== "string" || !Number.isFinite(Date.parse(manifest.createdAt)) || !manifest.originalPaths
     || ![manifest.originalPaths.captures, manifest.originalPaths.wiki].every((value) => typeof value === "string" && path.isAbsolute(value))) throw new Error("Invalid private export origin.");
@@ -355,6 +355,8 @@ function validateData(data: ExportData, manifest: PrivateExportManifest): void {
   // Version 1 predates repository tracking. Its original table set and coverage
   // remain mandatory; the trusted restoration schema supplies empty new tables.
   if (manifest.version === 1) for (const name of ["repository_documents", "repository_source_provenance", "repository_index_state"]) delete expected[name];
+  // Formats 1 and 2 predate request tracking; restore their original task shape.
+  if (manifest.version < 3) expected.tasks = expected.tasks.filter((name) => name !== "tracking_json");
   if (!data || data.version !== manifest.version || !data.tables || JSON.stringify(Object.keys(data.tables).sort()) !== JSON.stringify(Object.keys(expected).sort())) throw new Error("Private export table coverage does not match this format.");
   for (const [name, columns] of Object.entries(expected)) {
     const table = data.tables[name];

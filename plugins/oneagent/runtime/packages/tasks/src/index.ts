@@ -1,6 +1,7 @@
 import type { InboxItem } from "../../shared/src/index.ts";
 import type {
   TaskInput,
+  TaskTracking,
   TaskLinkInput,
   TaskLinkRecord,
   TaskMetadataInput,
@@ -46,6 +47,7 @@ export interface TaskReadModelItem {
   sourceId?: string;
   origin: TaskOrigin;
   links: TaskLinkDraft[];
+  tracking?: TaskTracking | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -101,10 +103,11 @@ export function archiveTask(db: WorkMemoryDatabase, taskId: string): void {
 export function listTaskReadModel(db: WorkMemoryDatabase, productIds: string[]): TaskReadModelItem[] {
   const byKey = new Map<string, TaskReadModelItem>();
   const nativeTasks = db.listTasks(productIds);
+  const nativeTitles = new Set(nativeTasks.map(taskKey));
   const nativeLinks = groupLinks(db.listTaskLinks(nativeTasks.map((task) => task.id)));
 
   for (const task of nativeTasks) {
-    byKey.set(taskKey(task), taskFromRecord(task, nativeLinks.get(task.id) ?? []));
+    byKey.set(`native:${task.id}`, taskFromRecord(task, nativeLinks.get(task.id) ?? []));
   }
 
   const legacy = legacyTasks(db, productIds);
@@ -115,7 +118,7 @@ export function listTaskReadModel(db: WorkMemoryDatabase, productIds: string[]):
     if (enriched.status === "archived") {
       continue;
     }
-    if (!byKey.has(taskKey(enriched))) {
+    if (!nativeTitles.has(taskKey(enriched)) && !byKey.has(taskKey(enriched))) {
       byKey.set(taskKey(enriched), {
         ...enriched,
         links: (legacyLinks.get(enriched.id) ?? []).map(linkToDraft)
@@ -240,6 +243,7 @@ function taskFromRecord(task: TaskRecord, links: TaskLinkRecord[] = []): TaskRea
     sourceId: task.sourceId,
     origin: isTaskOrigin(task.origin) ? task.origin : "task",
     links: links.map(linkToDraft),
+    tracking: task.tracking,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt
   };

@@ -343,6 +343,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   assignee TEXT NOT NULL DEFAULT 'me',
   deadline TEXT,
   notes TEXT,
+  tracking_json TEXT,
   product_id TEXT,
   source_id TEXT,
   origin TEXT NOT NULL DEFAULT 'manual',

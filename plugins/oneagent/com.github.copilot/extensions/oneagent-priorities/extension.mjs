@@ -1,0 +1,51 @@
+import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
+import { startPriorityServer } from "./server.mjs";
+
+const [major, minor] = process.versions.node.split(".").map(Number);
+if (major < 22 || major === 22 && minor < 18) throw new Error("OneAgent requires Node.js >=22.18.");
+const { MemoryConnection } = await import("../../../runtime/packages/mcp-server/src/onboarding.ts");
+const { PluginUpdates } = await import("../../../runtime/packages/mcp-server/src/plugin-updates.ts");
+const { callPriorityTool, priorityTools } = await import("../../../runtime/packages/mcp-server/src/priorities.ts");
+const connection = new MemoryConnection({ configPath: process.env.ONEAGENT_CONFIG, settingsPath: process.env.ONEAGENT_COPILOT_SETTINGS });
+const updates = new PluginUpdates();
+const instances = new Map();
+let queue = Promise.resolve();
+const call = (name, input) => {
+  const operation = queue.then(() => {
+    updates.assertSessionCurrent();
+    return callPriorityTool(connection.requireConfig(), name, input);
+  });
+  queue = operation.catch(() => {});
+  return operation;
+};
+await joinSession({ canvases: [createCanvas({
+  id: "oneagent-priorities", displayName: "OneAgent · Priorités",
+  description: "Suivre mes sollicitations : qui attend quoi, priorité, échéance et prochaine action. Mémoire privée partagée avec OneAgent.",
+  inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  actions: priorityTools.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema,
+    handler: (ctx) => call(tool.name, ctx.input ?? {}) })),
+  open: async (ctx) => {
+    let entry = instances.get(ctx.instanceId);
+    if (!entry) {
+      entry = startPriorityServer(call);
+      instances.set(ctx.instanceId, entry);
+      entry.catch(() => instances.delete(ctx.instanceId));
+    }
+    return { title: "OneAgent · Priorités", url: (await entry).url };
+  },
+  onClose: async (ctx) => {
+    const entry = instances.get(ctx.instanceId);
+    instances.delete(ctx.instanceId);
+    if (entry) await (await entry).close();
+  }
+})] });
+let closing = false;
+const shutdown = async () => {
+  if (closing) return;
+  closing = true;
+  await Promise.allSettled([...instances.values()].map(async (entry) => (await entry).close()));
+  await queue;
+  process.exit(0);
+};
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
