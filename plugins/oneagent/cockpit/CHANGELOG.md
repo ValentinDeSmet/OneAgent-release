@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.127
+
+- Partage d’une même mémoire locale avec Copilot 0.5.1 : récupération automatique
+  des verrous dont le processus propriétaire est confirmé arrêté, attente des
+  opérations actives et diagnostic du propriétaire en cas de blocage.
+- Arrêt du daemon par fermeture de son entrée : les opérations en cours se
+  terminent et libèrent la mémoire avant la fermeture. Une réponse perdue ou un
+  délai dépassé ne déclenche plus une deuxième écriture automatique.
+
 ## 0.1.126
 
 - Cockpit partagé avec le plugin Copilot 0.5.0 : graphe 2D/3D, notes, Inbox,

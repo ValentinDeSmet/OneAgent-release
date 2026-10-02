@@ -749,12 +749,11 @@ class WorkMemoryCli {
     try {
       return await this.runViaDaemon(args, options);
     } catch (error) {
-      // Transport failures (spawn, crash, timeout) fall back to the one-shot CLI;
-      // real command errors propagate to the caller unchanged.
+      // A lost reply does not prove that a write failed. Never replay a dispatched
+      // command: it could create a duplicate note or repeat a completed mutation.
       if (error && error.daemonTransport) {
-        this.output.appendLine(`Daemon unavailable (${error.message}); falling back to one-shot CLI.`);
+        this.output.appendLine(`Daemon unavailable (${error.message}); command was not replayed.`);
         this.stopDaemon();
-        return this.runNow(args, options);
       }
       throw error;
     }
@@ -801,6 +800,7 @@ class WorkMemoryCli {
         this.daemon = undefined;
       }
     };
+    child.stdin.on("error", (error) => failPending(`daemon input error: ${error.message}`));
     child.on("error", (error) => failPending(`daemon error: ${error.message}`));
     child.on("exit", (code) => failPending(`daemon exited (code ${code})`));
 
@@ -883,7 +883,9 @@ class WorkMemoryCli {
       return;
     }
     try {
-      this.daemon.child.kill();
+      // EOF drains the current request and releases the database + file lock.
+      // SIGTERM here used to strand an operation lock during disposal/timeouts.
+      this.daemon.child.stdin.end();
     } catch {
       // Already gone.
     }
@@ -956,9 +958,9 @@ function formatCommand(command, args) {
   }).join(" ");
 }
 
-/** Failure of the daemon channel itself (spawn, crash, timeout) — callers fall back to one-shot exec. */
+/** Failure of the daemon channel: the command outcome may be unknown. */
 function daemonTransportError(message) {
-  const error = new Error(message);
+  const error = new Error(`${message}. The command was not replayed automatically. It may still finish; check the memory state before retrying.`);
   error.daemonTransport = true;
   return error;
 }
