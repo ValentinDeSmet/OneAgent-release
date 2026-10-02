@@ -1,0 +1,23 @@
+{
+  "name": "oneagent",
+  "owner": {
+    "name": "Valentin De Smet"
+  },
+  "metadata": {
+    "description": "OneAgent stable releases for GitHub Copilot",
+    "version": "0.3.0"
+  },
+  "plugins": [
+    {
+      "name": "oneagent",
+      "description": "Private professional memory shared with the OneAgent VS Code extension.",
+      "version": "0.3.0",
+      "source": {
+        "source": "github",
+        "repo": "ValentinDeSmet/OneAgent-release",
+        "sha": "a3e7611ef1ecf1633110cb1dd619807e5c1947f0",
+        "path": "plugins/oneagent"
+      }
+    }
+  ]
+}

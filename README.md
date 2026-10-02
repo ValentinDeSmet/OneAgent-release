@@ -1,3 +1,12 @@
+# OneAgent
+
+Deux plugins en parallèle :
+
+- [Installer OneAgent dans GitHub Copilot](docs/copilot.md) : ajouter ce dépôt comme catalogue, puis installer OneAgent.
+- Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
+
+---
+
 # OneAgent — installation
 
 OneAgent est une extension VS Code qui conserve la connaissance de travail sur votre Mac. Les entités ont chacune une page Markdown dans `wiki/`. SQLite garde les liens entre entités, les tâches, les observations sourcées et un index de recherche plein texte. Aucun serveur de modèle local n’est nécessaire pour capturer, classer ou rechercher ces informations.
