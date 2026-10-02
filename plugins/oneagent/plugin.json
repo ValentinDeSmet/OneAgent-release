@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "oneagent",
+  "version": "0.3.0",
+  "description": "Private professional memory shared with the OneAgent VS Code extension.",
+  "author": {
+    "name": "Valentin De Smet"
+  },
+  "repository": "https://github.com/ValentinDeSmet/OneAgent",
+  "keywords": [
+    "memory",
+    "bmad",
+    "context"
+  ]
+}

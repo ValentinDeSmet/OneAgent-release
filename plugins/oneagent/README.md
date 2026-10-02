@@ -1,0 +1,228 @@
+# OneAgent pour l’application GitHub Copilot
+
+Version 0.3.0 : installation par catalogue GitHub, choix des mises à jour et
+configuration de la mémoire **après installation, dans la conversation Copilot**.
+L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
+réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
+
+## Installer sur le Mac cible
+
+Prérequis : Node.js >=22.18 visible depuis Copilot, Copilot CLI et l’application
+GitHub Copilot. Le paquet inclut le moteur ; aucun clone du dépôt OneAgent, pnpm
+ou VS Code n’est nécessaire sur le poste cible.
+
+### Installation par URL (recommandée)
+
+Ce parcours devient disponible après la première publication du catalogue 0.3.0
+dans le dépôt de releases. Le build local ne publie rien sur GitHub.
+
+Dans l’application, ouvrir **Customize → Plugins**, ajouter le catalogue :
+
+```text
+https://github.com/ValentinDeSmet/OneAgent-release
+```
+
+Installer **OneAgent** depuis ce catalogue. Aucun ZIP à importer, aucun paramètre
+de mémoire à préparer. Le nom du catalogue est `oneagent`.
+
+L’équivalent via Copilot CLI :
+
+```sh
+copilot plugin marketplace add ValentinDeSmet/OneAgent-release
+copilot plugin install oneagent@oneagent
+copilot plugin list --json
+```
+
+### ZIP de secours
+
+Décompresser `oneagent-copilot-0.3.0.zip` dans un dossier durable. Le paquet inclut
+un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
+Pour une installation locale (par exemple avant publication du catalogue) :
+
+```sh
+copilot plugin install "/chemin/oneagent-copilot-0.3.0/plugins/oneagent"
+copilot plugin list --json
+```
+
+Une installation depuis un dossier local ne suit pas automatiquement le catalogue
+GitHub. Pour obtenir les futures mises à jour sans réimporter de ZIP, passer une
+fois au catalogue officiel avec le parcours ci-dessous.
+
+Après toute installation, ouvrir une nouvelle session **locale** dans l’application et vérifier les
+composants OneAgent dans **Customize**. La documentation GitHub indique que les
+serveurs MCP et skills configurés via Copilot CLI sont aussi disponibles dans
+l’application. Ce parcours réel dans l’hôte reste à valider.
+
+## Premier démarrage : « Configurer OneAgent »
+
+Aucun fichier de paramètres à préparer. Après installation, dire à Copilot :
+
+> Configurer OneAgent.
+
+Le skill `oneagent-memory` guide deux choix :
+
+1. **Créer une mémoire sur ce Mac** : le dossier proposé est `~/OneAgentMemory`.
+   L’utilisateur peut choisir un autre dossier neuf. Le plugin crée la mémoire
+   avec le moteur commun et enregistre la liaison.
+2. **Connecter une mémoire existante** : indiquer son dossier ou son fichier de
+   configuration. Si VS Code utilise déjà OneAgent sur ce Mac, sélectionner cette
+   même mémoire. La connexion vérifie le fichier et l’existence de la base ; elle
+   ne modifie pas les données. Les migrations habituelles du moteur pourront
+   s’appliquer à la première utilisation : conserver une sauvegarde d’une ancienne
+   mémoire avant de l’utiliser.
+
+Copilot présente l’emplacement choisi. Une fois ce choix fait par l’utilisateur,
+les outils deviennent utilisables **dans la même conversation**, sans redémarrage.
+Le choix est conservé aux sessions suivantes. Une première demande de recherche
+ou de note peut aussi déclencher ce parcours si aucune mémoire n’est connectée.
+
+À la fin, choisir **mises à jour automatiques** ou **mises à jour manuelles**.
+Cette étape est facultative et ne bloque pas l’accès à la mémoire. Le plugin
+enregistre uniquement la préférence du catalogue OneAgent dans les paramètres
+utilisateur Copilot ; les réglages BMAD et les autres plugins sont conservés.
+
+Il s’agit d’un onboarding conversationnel via le skill et les outils MCP ; le
+plugin n’impose pas une fenêtre native à l’installation. Aucun dossier mémoire
+n’est créé au simple démarrage et aucune note de démonstration n’est ajoutée.
+
+Pour essayer ensuite :
+
+> Crée une note privée OneAgent intitulée Test installation, avec le contenu
+> Première utilisation sur ce Mac, puis relis-la.
+
+## Mettre à jour sans télécharger de fichier
+
+Dans la conversation :
+
+> Vérifie les mises à jour OneAgent.
+
+> Mets à jour OneAgent.
+
+Le premier appel compare la version du plugin au catalogue GitHub stable, sans
+ouvrir la mémoire. Le second utilise Copilot CLI pour actualiser le catalogue
+`oneagent`, puis mettre à jour uniquement ce plugin. Une nouvelle session charge
+ensuite le moteur, le manifeste et le skill ensemble. La mémoire et sa liaison
+locale ne sont ni transférées ni reconfigurées.
+
+La première mise à jour demande d’avoir choisi le mode automatique ou manuel,
+afin de fixer la source officielle. Une erreur réseau de vérification laisse le
+plugin utilisable. Après une tentative d’installation dont le résultat est incertain,
+ouvrir une nouvelle session et consulter le gestionnaire de plugins avant de
+réessayer ; le serveur évite de mélanger deux versions du moteur.
+
+Équivalent dans un terminal, sans télécharger de ZIP :
+
+```sh
+copilot plugin marketplace update oneagent
+copilot plugin update oneagent
+```
+
+L’option automatique repose sur `extraKnownMarketplaces.oneagent.autoUpdate`
+dans `~/.copilot/settings.json` (ou le dossier désigné par `COPILOT_HOME`). GitHub
+la documente au démarrage des sessions CLI interactives et `-p`, pas des sessions
+SDK/serveur. **Le déclenchement automatique dans l’application macOS reste à
+valider.** En attendant, la commande conversationnelle fournit le parcours manuel
+sans import. La préférence enregistrée n’atteste pas que l’application l’a appliquée.
+Les politiques d’entreprise et une désactivation globale priment ; OneAgent ne
+modifie pas ces restrictions. Aucun bouton natif supplémentaire n’est annoncé.
+
+### Passer d’un ancien ZIP au catalogue officiel
+
+Après publication du catalogue, fermer les sessions OneAgent actives. Vérifier
+avec `copilot plugin list --json` que l’entrée `oneagent` est l’ancienne installation
+locale à remplacer. La mémoire doit être dans son dossier séparé, comme prévu par
+l’onboarding. Puis :
+
+```sh
+copilot plugin marketplace add ValentinDeSmet/OneAgent-release
+copilot plugin uninstall oneagent
+copilot plugin install oneagent@oneagent
+```
+
+Ouvrir une nouvelle session. La liaison `~/.config/oneagent/copilot.json` reste
+disponible : l’onboarding ne recrée pas la mémoire. Il s’agit d’un changement de
+source d’installation unique ; les mises à jour suivantes utilisent le catalogue.
+Le plugin ne désinstalle jamais automatiquement une ancienne installation locale.
+
+## Mémoire, VS Code et plusieurs postes
+
+Le paquet contient uniquement le code. Les notes et la mémoire professionnelle
+se transfèrent séparément avec les commandes de sauvegarde/restauration OneAgent.
+Il n’existe pas encore de synchronisation automatique entre ordinateurs.
+
+Le plugin conserve le choix local dans `~/.config/oneagent/copilot.json`. Ce fichier
+est écrit automatiquement par l’onboarding. Les anciennes liaisons restent
+compatibles. Pour un usage avancé, `ONEAGENT_CONFIG` ou `--config` priment et ne
+peuvent pas être remplacés par l’onboarding ; `ONEAGENT_COPILOT_SETTINGS` permet de
+choisir un autre emplacement du fichier de liaison.
+
+Une mémoire déjà connectée ne sera pas remplacée par l’onboarding. Une modification
+de la liaison par une autre session demande une nouvelle session plutôt que de
+changer de mémoire au milieu d’une conversation. Les configurations mal formées
+ne sont pas écrasées. Un chemin enregistré devenu invalide peut être corrigé avec
+le parcours créer/connecter. Après un arrêt forcé pendant l’onboarding, un fichier
+`copilot.json.setup-lock` peut subsister : vérifier que les processus de configuration
+sont arrêtés avant de retirer ce seul verrou.
+
+Pour travailler simultanément avec VS Code, utiliser une extension embarquant
+le moteur actuel et son verrou commun ; une ancienne VSIX peut ignorer ce contrat.
+Le processus MCP au repos ne verrouille pas la mémoire. Les sélections de contexte
+VS Code ne sont ni reprises ni modifiées dans cette première intégration.
+
+## En cas de démarrage impossible
+
+Si Copilot ne trouve pas `node`, vérifier son PATH. Il est aussi possible d’ajouter
+un serveur personnalisé dans **Customize → MCP**, avec le chemin absolu du binaire
+Node.js comme commande et les arguments `--disable-warning=ExperimentalWarning`,
+puis le chemin absolu du fichier `oneagent/start.mjs` du paquet. Le même onboarding
+reste disponible. Éviter deux connexions MCP OneAgent actives si cette connexion
+remplace celle du plugin.
+
+## Construire depuis les sources
+
+Depuis le dépôt OneAgent :
+
+```sh
+pnpm copilot:prepare
+pnpm copilot:package
+```
+
+Le résultat est `dist/copilot-marketplace/plugins/oneagent`, accompagné du catalogue
+`dist/copilot-marketplace/marketplace.json`. Le dossier source `apps/copilot-plugin`
+seul n’est pas installable : le moteur est ajouté au build. Le build n’embarque ni
+mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
+sert au développement ; le catalogue public stable porte le nom `oneagent` et
+épingle chaque version sur un commit précis du dépôt de releases.
+
+`copilot:package` produit aussi `dist/oneagent-copilot-0.3.0.zip` et son `.sha256`.
+Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
+installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
+du dépôt de développement.
+
+## Périmètre et validation
+
+Trois outils d’onboarding permettent de consulter l’état, préparer le choix et le
+finaliser. Sept outils métier couvrent entités, recherche, contexte, sources et
+notes privées. Quatre outils gèrent l’état, la vérification, le choix et l’application
+des mises à jour. L’onboarding vérifie les destinations et les modifications
+concurrentes ; une création ne réutilise jamais un dossier existant, même vide,
+et refuse les repos Git, le dossier du plugin et les mémoires imbriquées.
+
+Les tests couvrent un démarrage sans réglage, la création/connexion, la persistance,
+l’usage immédiat, les conflits de sessions, le protocole et le paquet autonome.
+Ils utilisent uniquement des mémoires temporaires sur macOS. La validation manuelle
+dans l’application Copilot et avec le plugin BMAD d’entreprise reste à effectuer.
+Les tests de mise à jour utilisent un catalogue HTTP et un gestionnaire de plugins
+simulés ; ils ne remplacent pas un essai avec l’hôte Copilot réel.
+
+Une nouvelle note attend son ingestion/curation avant d’apparaître dans la recherche ;
+elle est immédiatement disponible via les outils de notes. Pas encore de canvas,
+de parité de curation/édition, de publication Git ou de score BMAD. Les filtres de
+recherche ne remplacent pas une politique stricte d’accès par session. La mémoire
+locale n’est pas automatiquement disponible dans les sessions cloud.
+
+Références officielles vérifiées le 1er octobre 2026 :
+
+- [Personnaliser l’application Copilot](https://docs.github.com/en/copilot/how-tos/github-copilot-app/customize-github-copilot-app)
+- [Référence des plugins Copilot](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference)
+- [Spécification Agent Plugins 1.0](https://github.com/agentplugins/agent-plugins-spec/blob/main/spec/1.0.0.md)
