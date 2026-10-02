@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.5.0 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.5.1 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -35,12 +35,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.5.0.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.5.1.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.5.0/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.5.1/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -164,10 +164,27 @@ le parcours créer/connecter. Après un arrêt forcé pendant l’onboarding, un
 `copilot.json.setup-lock` peut subsister : vérifier que les processus de configuration
 sont arrêtés avant de retirer ce seul verrou.
 
-Pour travailler simultanément avec VS Code, utiliser une extension embarquant
-le moteur actuel et son verrou commun ; une ancienne VSIX peut ignorer ce contrat.
-Le processus MCP au repos ne verrouille pas la mémoire. Les sélections de contexte
-VS Code ne sont ni reprises ni modifiées dans cette première intégration.
+Pour travailler simultanément sur **le même dossier local du même ordinateur**,
+mettre à jour les deux plugins : **VS Code 0.1.127 et Copilot 0.5.1**, ou versions
+ultérieures. Sélectionner dans Copilot le même fichier de configuration mémoire
+que dans VS Code. Une ancienne VSIX peut ignorer le verrou commun.
+
+Le verrou protège chaque opération sur SQLite et les fichiers Markdown, puis est
+libéré. Une session VS Code ou MCP au repos ne conserve pas ce verrou. Les opérations
+concurrentes attendent jusqu’à 30 secondes ; une opération plus longue peut demander
+une nouvelle tentative après sa fin. Les hôtes peuvent rester ouverts ensemble.
+
+Après un crash, le moteur récupère automatiquement un verrou valide si le système
+confirme que son processus local n’existe plus. Il ne se base jamais uniquement
+sur l’âge du verrou. Un propriétaire actif, une vérification refusée, un verrou
+incomplet, une récupération interrompue ou un propriétaire d’une autre machine
+restent protégés. Ce mécanisme n’est pas une synchronisation réseau.
+
+En cas de blocage persistant, relever le message exact (chemin, PID et date), mettre
+à jour les deux plugins, fermer une fois les deux applications puis les relancer.
+Un verrou non vérifiable nécessite un diagnostic ; ne pas effacer la base SQLite
+ni ses fichiers `-wal` et `-shm`. Les sélections de contexte VS Code ne sont ni
+reprises ni modifiées par la connexion Copilot.
 
 ## En cas de démarrage impossible
 
@@ -194,7 +211,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.5.0.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.5.1.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.
