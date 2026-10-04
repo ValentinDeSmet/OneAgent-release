@@ -2460,6 +2460,12 @@ async function handleCockpitMessage(cli, webview, message) {
         if (!["list", "save"].includes(message.operation)) throw new Error("Unknown priorities action.");
         const payload = JSON.parse(await cli.run(["priorities", message.operation, "--stdin", "--json"], { input: JSON.stringify({ ...message.input, scope: "portfolio" }), logOutput: false }));
         await webview.postMessage({ type: "priorityResult", requestId: message.requestId, payload });
+        if (message.operation === "save") {
+          // The write is already confirmed. A refresh failure must not turn it
+          // into a failed save and invite a duplicate creation.
+          try { await postCockpitState(cli, webview); }
+          catch (error) { cli.output?.appendLine?.(`Priority saved; cockpit refresh unavailable: ${error.message}`); }
+        }
       } catch (error) {
         await webview.postMessage({ type: "priorityResult", requestId: message.requestId, error: error.message });
       }

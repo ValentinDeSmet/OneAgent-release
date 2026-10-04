@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.5.1 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.6.0 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -35,12 +35,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.5.1.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.0.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.5.1/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.0/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -211,7 +211,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.5.1.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.0.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.
@@ -325,3 +325,20 @@ restent à valider sur le poste équipé de Copilot.
 
 Référence vérifiée le 2 octobre 2026 :
 [Canvas GitHub Copilot](https://docs.github.com/en/copilot/how-tos/github-copilot-app/working-with-canvas-extensions).
+
+## Priorités intégrées (0.6.0)
+
+L’écran Priorités du cockpit partage les couleurs, boutons, champs et thèmes
+clair/sombre du reste de OneAgent. Le tableau affiche sujet, description, produit
+concerné, attendu par, priorité, deadline, URL et avancement. Cliquer sur les
+en-têtes pour trier dans les deux sens ; les filtres par champ sont combinables.
+
+Chaque création ou édition requiert une entité existante. Le produit concerné
+est facultatif pour les entités d’un autre type ; une entité produit renseigne
+son propre produit. Les anciennes demandes sans lien restent visibles sous
+**Sans entité · à rattacher**. Aucun rattachement n’est inventé automatiquement.
+
+L’agent peut créer et modifier ces informations avec `oneagent_save_priority`,
+après lecture des entités et révisions via `oneagent_list_priorities`. VS Code
+0.1.128 expose les mêmes actions. Après mise à jour du plugin, ouvrir une nouvelle
+session Copilot pour charger le nouveau front et les outils.

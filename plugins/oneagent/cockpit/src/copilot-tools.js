@@ -21,6 +21,8 @@ const TOOL_IDS = {
   context: "workMemory_context",
   readiness: "workMemory_readiness",
   tasks: "workMemory_tasks",
+  listPriorities: "workMemory_listPriorities",
+  savePriority: "workMemory_savePriority",
   createTask: "workMemory_createTask",
   updateTask: "workMemory_updateTask",
   createNote: "workMemory_createNote",
@@ -90,6 +92,18 @@ function registerLanguageModelTools(cli) {
       "Reading OneAgent tasks",
       (input) => readTasks(cli, input),
       () => "Read the task read model for the selected scope."
+    )),
+    vscode.lm.registerTool(TOOL_IDS.listPriorities, new WorkMemoryTool(
+      "Read OneAgent Priorities", "Reading personal priorities",
+      (input) => priorityCommand(cli, "list", input),
+      () => "Read priorities and existing entity choices across the private memory.",
+      { compileContextPack: false }
+    )),
+    vscode.lm.registerTool(TOOL_IDS.savePriority, new WorkMemoryTool(
+      "Save OneAgent Priority", "Saving a linked priority",
+      (input) => priorityCommand(cli, "save", input),
+      (input) => input.taskId ? `Update priority ${input.taskId}.` : `Create priority ${input.title || ""}.`,
+      { compileContextPack: false }
     )),
     vscode.lm.registerTool(TOOL_IDS.createTask, new WorkMemoryTool(
       "Create OneAgent Task",
@@ -171,6 +185,12 @@ function registerLanguageModelTools(cli) {
         : `Run OneAgent Context action \`${input.action || "list"}\` inside the active boundary.`
     ))
   ];
+}
+
+async function priorityCommand(cli, operation, input) {
+  return JSON.parse(await cli.run(["priorities", operation, "--stdin", "--json", "--context-scope", "active"], {
+    input: JSON.stringify(input), logOutput: false
+  }));
 }
 
 async function readToday(cli, input) {

@@ -71,6 +71,7 @@ export interface TaskMetadataInput {
 }
 
 export interface TaskTracking {
+  url?: string;
   requester?: string;
   deadlineKind?: "exact" | "approximate" | "unknown";
   deadlineLabel?: string;
@@ -3726,6 +3727,10 @@ export class WorkMemoryDatabase {
       now
     );
     return this.listTaskLinks([input.taskId]).find((link) => link.id === id)!;
+  }
+
+  removeTaskLink(taskId: string, linkId: string): void {
+    this.db.prepare("DELETE FROM task_links WHERE task_id = ? AND id = ?").run(taskId, linkId);
   }
 
   replaceTaskLinks(taskId: string, links: Omit<TaskLinkInput, "taskId">[]): TaskLinkRecord[] {

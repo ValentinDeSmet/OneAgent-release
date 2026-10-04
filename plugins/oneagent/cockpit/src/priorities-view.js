@@ -5,17 +5,22 @@ const path = require("node:path");
 function prioritiesBootstrap() {
   const read = (name) => fs.readFileSync(path.join(__dirname, "priorities", name), "utf8");
   const body = read("index.html").match(/<body>([\s\S]*?)<\/body>/)[1];
-  const html = `<style>${read("style.css").replaceAll(":root", ":host").replace(/\bbody\b/g, ":host")} :host {display:block;color:var(--text,#f4f1ea);font:14px/1.5 system-ui} main{padding:16px}</style>${body}`;
+  // The embedded view inherits the exact cockpit tokens, including live theme
+  // switches. Standalone canvas defaults must never override those variables.
+  const css = read("style.css").replace(/\/\* standalone-theme:start \*\/[\s\S]*?\/\* standalone-theme:end \*\//, "").replace(/\bbody\b/g, ":host");
+  const html = `<style>${css} :host {display:block;color:var(--text);font:inherit} main{padding:0}</style>${body}`;
   const script = read("app.js")
     .replace('const $ = (selector) => document.querySelector(selector);', 'const $ = (selector) => root.querySelector(selector);')
+    .replace('const openExternal = null;', 'const openExternal = (url) => vscode?.postMessage({type:"openExternal",url});')
     .replace('const token = $(\'meta[name="oneagent-token"]\').content;', '')
     .replaceAll('document.querySelectorAll(', 'root.querySelectorAll(')
     .replace(/async function api\(operation, input\) \{[\s\S]*?\n\}/, '')
     .replace('!document.hidden)', '!document.hidden && root.host.closest("[data-panel]").classList.contains("active"))');
   return `
   let prioritiesMounted = false;
+  let refreshPriorities;
   function mountPriorities() {
-    if (prioritiesMounted) return;
+    if (prioritiesMounted) { refreshPriorities?.(); return; }
     prioritiesMounted = true;
     const root = document.querySelector("#priorities").attachShadow({mode:"open"});
     root.innerHTML = ${JSON.stringify(html).replace(/</g, "\\u003c")};
@@ -37,6 +42,8 @@ function prioritiesBootstrap() {
       });
     }
     ${script}
+    refreshPriorities = () => { if (!loading && !saving && !editor.open) refresh(); };
+    window.addEventListener("message", (event) => { if (event.data?.type === "state") autoRefresh(); });
   }`;
 }
 

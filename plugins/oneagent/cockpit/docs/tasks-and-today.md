@@ -22,6 +22,25 @@ Use the linked-entity filter to focus on one or more subjects. You can also grou
 - **ready** means the task can be started;
 - **done** removes it from active work without erasing history.
 
+## Follow personal requests in Priorities
+
+Open **Priorités** in the cockpit navigation for a table of subject, description,
+product, requester, priority, deadline, URL and status. The linked entity appears
+under the subject. Every new or edited request needs an existing entity; requests
+from earlier versions without one stay visible under **Sans entité · à rattacher**.
+A product is optional when the request is attached to a different entity type.
+
+Click any column heading to sort in either direction. Open **Filtres par champ**
+to combine text, entity, product, requester, priority, date range and URL filters.
+Sorting and filtering cover all results before pagination. Estimated dates are
+never flagged as firm overdue commitments. Open a subject to edit its full details.
+The screen follows the cockpit theme and saves the same tasks and graph links.
+
+Ask the agent to create or update a priority using **OneAgent Priorities** tools.
+The agent can change every field; edits require the current task ID and revision.
+Concurrent changes are reported rather than overwritten. An unknown entity must
+be clarified or created through the existing graph workflow.
+
 ## Use Today
 
 Open **Today** at the start of a work session. Depending on your workspace, it can show:

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.128
+
+- Écran Priorités intégré au thème du cockpit commun à VS Code et Copilot 0.6.0,
+  avec sujet, description, produit concerné, attendu par, priorité, deadline et URL.
+- Rattachement obligatoire à une entité existante lors de la création ou de
+  l’édition ; les anciennes tâches sans rattachement restent visibles à corriger.
+- Tri ascendant/descendant par colonne et filtres combinables par champ, appliqués
+  avant la pagination ; conservation des estimations et des dates à préciser.
+- Création et modification de tous les champs par les agents des deux hôtes,
+  avec détection des conflits sur la tâche et ses liens ; actualisation des autres
+  vues après un enregistrement dans le cockpit.
+
 ## 0.1.127
 
 - Partage d’une même mémoire locale avec Copilot 0.5.1 : récupération automatique

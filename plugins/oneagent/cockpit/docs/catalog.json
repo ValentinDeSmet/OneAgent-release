@@ -69,7 +69,7 @@
       "summary": "Plan linked work and use Today to decide what needs attention first.",
       "category": "Daily work",
       "order": 80,
-      "keywords": ["task", "today", "deadline", "blocked", "priority", "assignee"],
+      "keywords": ["task", "today", "deadline", "blocked", "priority", "priorities", "priorités", "requester", "url", "filter", "sort", "assignee"],
       "file": "tasks-and-today.md"
     },
     {
