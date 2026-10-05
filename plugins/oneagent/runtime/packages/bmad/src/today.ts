@@ -3,7 +3,6 @@ import { buildOutcomeSnapshot, type OutcomeSnapshot } from "../../impact/src/ind
 import { listTaskReadModel, listTaskReadModelForContext, type TaskReadModelItem } from "../../tasks/src/index.ts";
 import type { ActiveContext, CaptureRecord, InboxItem, ResolvedContextScope, WorkMemoryConfig } from "../../shared/src/index.ts";
 import type { WorkMemoryDatabase } from "../../storage/src/index.ts";
-import { buildBmadReadinessReport } from "./readiness.ts";
 
 const OBJECTIVE_CONTENT_TYPES = new Set(["okr", "strategy", "development_plan", "mission_review"]);
 const REVIEW_CONTENT_TYPES = new Set(["one_to_one", "mission_review", "development_plan", "okr"]);
@@ -61,7 +60,6 @@ export interface TodayModel {
     agentTasks: number;
     objectives: number;
     upcomingReviews: number;
-    readinessScore: number;
     missions: number;
     okrs: number;
     atRiskOkrs: number;
@@ -100,7 +98,7 @@ export interface TodayInput {
 
 /**
  * Deterministic daily read model: what to look at first today. Aggregated from tasks (deadlines,
- * priority, status, assignee), inbox, readiness, and captures (objectives + upcoming reviews).
+ * priority, status, assignee), inbox and captures (objectives + upcoming reviews).
  * Every section follows the same product/entity/context boundary, including
  * mission- and OKR-linked tasks that do not carry a product id themselves.
  */
@@ -250,9 +248,8 @@ export function buildTodayModel(input: TodayInput): TodayModel {
     productId: item.productId
   }));
 
-  const readiness = contentPlaneAllowed && productIds.length > 0 ? buildBmadReadinessReport(input.db, productIds).score : 0;
   if (!contentPlaneAllowed) {
-    notes.push("Source-derived captures, Inbox items and readiness signals are hidden by the active sourceAccess=none policy.");
+    notes.push("Source-derived captures and Inbox items are hidden by the active sourceAccess=none policy.");
   }
 
   const model: TodayModel = {
@@ -268,7 +265,6 @@ export function buildTodayModel(input: TodayInput): TodayModel {
       upcomingReviews: upcomingReviews.length,
       contradictions: contradictions.length,
       contextViewsToReview: contextViewsToReview.length,
-      readinessScore: readiness,
       ...outcomes.summary
     },
     dueSoon,

@@ -67,12 +67,9 @@ Open **Today** at the start of a work session. Depending on your workspace, it c
 - open questions and notes marked **Show in Today**;
 - Inbox items and contradictions to review;
 - Context Views that may need attention;
-- missions, OKRs, KPI trends, objectives, and upcoming reviews;
-- a readiness score for the current scope.
+- missions, OKRs, KPI trends, objectives, and upcoming reviews.
 
 Today follows the active OneAgent context. In strict mode, it only shows permitted work.
-
-The readiness score is a workload-hygiene indicator, not a judgment about a person, product, or team. Pending reviews, open questions, risks, and unfinished work can lower it.
 
 ## A simple daily routine
 

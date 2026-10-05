@@ -19,7 +19,6 @@ const MAX_CONTEXT_TOKEN_BUDGET = 1000000;
 const TOOL_IDS = {
   search: "workMemory_search",
   context: "workMemory_context",
-  readiness: "workMemory_readiness",
   tasks: "workMemory_tasks",
   listPriorities: "workMemory_listPriorities",
   savePriority: "workMemory_savePriority",
@@ -81,12 +80,6 @@ function registerLanguageModelTools(cli) {
       "Reading active OneAgent context",
       (input) => readContext(cli, input),
       () => "Read active products, repositories, dependencies and scope."
-    )),
-    vscode.lm.registerTool(TOOL_IDS.readiness, new WorkMemoryTool(
-      "Read BMAD Readiness",
-      "Reading BMAD readiness",
-      (input) => readReadiness(cli, input),
-      () => "Read BMAD readiness score and blocking signals."
     )),
     vscode.lm.registerTool(TOOL_IDS.tasks, new WorkMemoryTool(
       "Read OneAgent Tasks",
@@ -766,16 +759,9 @@ function registerMemoryParticipant(cli) {
           { prompt: "/oneagent-help How does the Active Context work?", label: "Understand context" }
         ];
       }
-      if (command === "readiness") {
-        return [
-          { prompt: "/tasks", label: "Show related tasks" },
-          { prompt: "/inbox", label: "Show pending proposals" }
-        ];
-      }
       if (command === "graph") {
         return [
-          { prompt: "/wiki", label: "Show wiki pages" },
-          { prompt: "/readiness", label: "Check readiness" }
+          { prompt: "/wiki", label: "Show wiki pages" }
         ];
       }
       if (command === "migrate-wiki") {
@@ -791,7 +777,6 @@ function registerMemoryParticipant(cli) {
         ];
       }
       return [
-        { prompt: "/readiness", label: "Check readiness" },
         { prompt: "/graph", label: "Open graph summary" }
       ];
     }
@@ -841,13 +826,6 @@ async function handleMemoryChatRequest(cli, request, chatContext, stream, token,
     stream.markdown(renderContextMarkdown(data));
     addCockpitButton(stream);
     return { metadata: { command } };
-  }
-
-  if (command === "readiness") {
-    const data = await readReadiness(cli, {});
-    stream.markdown(renderReadinessMarkdown(data));
-    addCockpitButton(stream);
-    return { metadata: { command, score: data.score } };
   }
 
   if (command === "tasks") {
@@ -1431,56 +1409,6 @@ async function readContext(cli, input) {
     products: (products || [])
       .filter((product) => !strictEntities || strictEntities.has(`product:${product.id}`))
       .map((product) => compactProduct(product, strictEntities))
-  };
-}
-
-async function readReadiness(cli, input) {
-  const scope = buildScope(input, "portfolio");
-  const contextScope = await readActiveContextScope(cli);
-  const strictProducts = contextScope?.active && contextScope.mode === "strict"
-    ? (contextScope.entities || []).filter((ref) => ref.startsWith("product:")).map((ref) => ref.slice("product:".length))
-    : undefined;
-  if (strictProducts && contextScope.sourceAccess === "none") {
-    return {
-      tool: "workMemoryReadiness",
-      scope: scope.description,
-      contextScope,
-      productIds: strictProducts,
-      score: 0,
-      status: "unavailable",
-      counts: {
-        pendingInbox: 0,
-        openQuestions: 0,
-        decisionCandidates: 0,
-        risks: 0,
-        openTasks: 0,
-        unvalidatedConcepts: 0,
-        unreviewedSources: 0,
-        candidateWikiPages: 0
-      },
-      signals: [],
-      unavailable: true,
-      message: "BMAD readiness is unavailable because the active strict context has sourceAccess=none."
-    };
-  }
-  if (strictProducts && strictProducts.length === 0) {
-    return {
-      tool: "workMemoryReadiness",
-      scope: scope.description,
-      contextScope,
-      unavailable: true,
-      message: "BMAD readiness is product-scoped and the active strict context contains no product."
-    };
-  }
-  const args = ["bmad", "readiness", "--json", ...scope.args];
-  if (strictProducts) args.push("--scope", "manual", "--include", strictProducts.join(","));
-  args.push("--context-scope", "active");
-  const report = await cli.json(args);
-  return {
-    tool: "workMemoryReadiness",
-    scope: scope.description,
-    contextScope: contextScope?.active ? contextScope : undefined,
-    ...report
   };
 }
 
@@ -2714,13 +2642,12 @@ async function scanRepoWiki(cli, input) {
 }
 
 async function buildMemorySnapshot(cli, prompt) {
-  const [contextScope, context, readiness, today, tasks, inbox, wiki, graph, search] = await Promise.all([
+  const [contextScope, context, today, tasks, inbox, wiki, graph, search] = await Promise.all([
     safeRead(async () => {
       const scope = await readActiveContextScope(cli);
       return scope && scope.active ? scope : undefined;
     }),
     safeRead(() => readContext(cli, {})),
-    safeRead(() => readReadiness(cli, {})),
     safeRead(() => readToday(cli, {})),
     safeRead(() => readTasks(cli, { limit: 12 })),
     safeRead(() => readInbox(cli, { limit: 12 })),
@@ -2731,7 +2658,7 @@ async function buildMemorySnapshot(cli, prompt) {
 
   // Highest-priority (query-ranked) sections first so that, when the token
   // budget is hit, the model keeps what is most relevant to the question and
-  // only the static boilerplate (readiness/context) is dropped. The context
+  // only the static boilerplate (context) is dropped. The context
   // scope leads so its instruction is never dropped for budget.
   return {
     contextScope: contextScope?.ok && contextScope.data ? contextScope : undefined,
@@ -2741,12 +2668,11 @@ async function buildMemorySnapshot(cli, prompt) {
     today,
     tasks,
     inbox,
-    readiness,
     context
   };
 }
 
-const SNAPSHOT_SECTION_ORDER = ["contextScope", "contextPack", "search", "today", "wiki", "graph", "tasks", "inbox", "readiness", "context"];
+const SNAPSHOT_SECTION_ORDER = ["contextScope", "contextPack", "search", "today", "wiki", "graph", "tasks", "inbox", "context"];
 
 // Serialize the snapshot for the model in priority order, minified, stopping
 // once the character budget is reached. Returns the JSON text plus the list of
@@ -3278,21 +3204,6 @@ function renderContextMarkdown(data) {
   return lines.join("\n");
 }
 
-function renderReadinessMarkdown(data) {
-  if (data.message) {
-    return `### BMAD Readiness\n${data.message}`;
-  }
-  const lines = [
-    "### BMAD Readiness",
-    `Score: ${data.score}/100 (${data.status})`,
-    ""
-  ];
-  for (const signal of data.signals || []) {
-    lines.push(`- ${signal.label}: ${signal.detail} [${signal.status}]`);
-  }
-  return lines.join("\n");
-}
-
 function renderTasksMarkdown(data) {
   if (!data.tasks.length) {
     return "### OneAgent Tasks\nNo open tasks in this scope.";
@@ -3455,7 +3366,6 @@ function renderWikiMigrationLintMarkdown(report) {
 }
 
 function renderSnapshotMarkdown(snapshot) {
-  const readiness = snapshot.readiness?.ok ? snapshot.readiness.data : undefined;
   const tasks = snapshot.tasks?.ok ? snapshot.tasks.data : undefined;
   const inbox = snapshot.inbox?.ok ? snapshot.inbox.data : undefined;
   const search = snapshot.search?.ok ? snapshot.search.data : undefined;
@@ -3464,9 +3374,6 @@ function renderSnapshotMarkdown(snapshot) {
   const lines = ["### OneAgent Snapshot", ""];
   if (contextScope) {
     lines.push(`Context scope (${contextScope.mode}): ${(contextScope.selectedEntities || []).join(", ")}`);
-  }
-  if (readiness) {
-    lines.push(`Readiness: ${readiness.score}/100 (${readiness.status})`);
   }
   if (tasks) {
     lines.push(`Tasks: ${tasks.totalTasks}`);
@@ -3820,7 +3727,6 @@ return {
     manageOrganization,
     participantContextSessionId,
     readContext,
-    readReadiness,
     readInbox,
     readActiveContextScope,
     scanRepoWiki,

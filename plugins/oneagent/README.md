@@ -1,9 +1,12 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.6.5 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.6.6 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
+
+BMAD Readiness a été supprimé du cockpit et du moteur. Today, les priorités,
+les tâches et les autres intégrations BMAD restent disponibles.
 
 ## Installer sur le Mac cible
 
@@ -35,7 +38,7 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.5.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.6.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
@@ -251,7 +254,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.5.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.6.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.
@@ -380,7 +383,7 @@ son propre produit. Les anciennes demandes sans lien restent visibles sous
 
 L’agent peut créer et modifier ces informations avec `oneagent_save_priority`,
 après lecture des entités et révisions via `oneagent_list_priorities`. VS Code
-0.1.131 expose les mêmes actions. Après mise à jour du plugin, ouvrir une nouvelle
+0.1.132 expose les mêmes actions. Après mise à jour du plugin, ouvrir une nouvelle
 session Copilot pour charger le nouveau front et les outils.
 
 ### Fiches du graphe (0.6.3)
@@ -418,7 +421,7 @@ et bas. Les filtres conservent l’ordre relatif des sujets masqués. Le bouton
 **Mon classement** retrouve cet ordre après un tri par colonne, sans changer les
 priorités haute/basse, les dates, les liens ou l’avancement.
 
-L’ordre est enregistré dans la mémoire commune à VS Code 0.1.131 et Copilot.
+L’ordre est enregistré dans la mémoire commune à VS Code 0.1.132 et Copilot.
 Avant le premier déplacement, il reprend priorité puis date ; après classement,
 les nouvelles lignes arrivent en fin de liste. Les déplacements concurrents
 sont détectés : actualiser la liste avant de réessayer. L’agent peut aussi placer

@@ -1,9 +1,9 @@
 {
   "name": "work-memory-vscode-extension",
   "displayName": "OneAgent",
-  "description": "Local-first product knowledge, curation, readiness, tasks, and graph context for VS Code.",
+  "description": "Local-first product knowledge, curation, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.131",
+  "version": "0.1.132",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",
@@ -623,47 +623,6 @@
                 "manual"
               ],
               "description": "Context scope to resolve.",
-              "default": "portfolio"
-            },
-            "productId": {
-              "type": "string",
-              "description": "Product id used when scope is product or dependencies."
-            },
-            "includeProductIds": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              },
-              "description": "Explicit product ids used when scope is manual."
-            }
-          }
-        }
-      },
-      {
-        "name": "workMemory_readiness",
-        "tags": [
-          "work-memory",
-          "bmad",
-          "readiness"
-        ],
-        "toolReferenceName": "workMemoryReadiness",
-        "displayName": "BMAD Readiness",
-        "modelDescription": "Read the BMAD readiness report for the selected OneAgent scope, including pending inbox items, open questions, candidate decisions, risks, open tasks, unvalidated concepts, unreviewed sources, candidate wiki pages and score. Use before saying a product area is ready or blocked. The tool is read-only.",
-        "userDescription": "Read BMAD readiness score and signals.",
-        "canBeReferencedInPrompt": true,
-        "icon": "$(pulse)",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "scope": {
-              "type": "string",
-              "enum": [
-                "portfolio",
-                "product",
-                "dependencies",
-                "manual"
-              ],
-              "description": "Readiness scope.",
               "default": "portfolio"
             },
             "productId": {
@@ -1956,10 +1915,6 @@
             "description": "Show active products, repositories and scope."
           },
           {
-            "name": "readiness",
-            "description": "Show BMAD readiness score and blocking signals."
-          },
-          {
             "name": "tasks",
             "description": "Show open OneAgent tasks."
           },
@@ -1983,7 +1938,7 @@
         "disambiguation": [
           {
             "category": "work_memory_product_context",
-            "description": "The user is asking about remembered product context, dependencies, prior decisions, unresolved questions, risks, wiki pages, tasks or BMAD readiness stored in OneAgent.",
+            "description": "The user is asking about remembered product context, dependencies, prior decisions, unresolved questions, risks, wiki pages or tasks stored in OneAgent.",
             "examples": [
               "What does OneAgent know about this product?",
               "Which decisions are still candidates?",

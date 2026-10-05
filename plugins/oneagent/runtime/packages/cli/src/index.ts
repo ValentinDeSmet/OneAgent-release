@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-import { buildBmadReadinessReport, buildTodayModel } from "../../bmad/src/index.ts";
+import { buildTodayModel } from "../../bmad/src/index.ts";
 import {
   buildOutcomeSnapshot,
   compareKpiBeforeAfter,
@@ -298,11 +298,6 @@ async function executeCommand(argv: string[]): Promise<void> {
     } finally {
       runtime.close();
     }
-    return;
-  }
-
-  if (command === "bmad") {
-    bmadCommand(rest);
     return;
   }
 
@@ -6069,83 +6064,6 @@ function inboxRejectCommand(argv: string[]): void {
   }
 }
 
-function bmadCommand(argv: string[]): void {
-  const subcommand = firstPositional(argv);
-  if (subcommand !== "readiness") {
-    throw new Error("Unknown BMAD command. Use: pnpm wm bmad readiness [--product <id>].");
-  }
-
-  const runtime = createCliRuntime(argv);
-  try {
-    const requestedScope = resolveScope(runtime.config, runtime.context, parseScopeOptions(argv));
-    const contextScope = activeResolvedContextScope(runtime, argv);
-    const strictProductIds = contextScope?.scope.mode === "strict"
-      ? new Set(contextScope.entities.filter((entity) => entity.kind === "product").map((entity) => entity.id))
-      : undefined;
-    const scope = strictProductIds
-      ? { ...requestedScope, includedProductIds: requestedScope.includedProductIds.filter((id) => strictProductIds.has(id)) }
-      : requestedScope;
-    if (scope.includedProductIds.length === 0) {
-      const emptyReport = {
-        productIds: [],
-        score: 0,
-        status: "blocked",
-        counts: {
-          pendingInbox: 0,
-          openQuestions: 0,
-          decisionCandidates: 0,
-          risks: 0,
-          openTasks: 0,
-          unvalidatedConcepts: 0,
-          unreviewedSources: 0,
-          candidateWikiPages: 0
-        },
-        signals: [],
-        message: "No products configured for this scope."
-      };
-      console.log(hasFlag(argv, "--json") ? JSON.stringify(emptyReport, null, 2) : emptyReport.message);
-      return;
-    }
-
-    if (contextScope?.scope.mode === "strict" && (contextScope.scope.sourceAccess ?? "full") === "none") {
-      const unavailableReport = {
-        productIds: scope.includedProductIds,
-        score: 0,
-        status: "unavailable",
-        counts: {
-          pendingInbox: 0,
-          openQuestions: 0,
-          decisionCandidates: 0,
-          risks: 0,
-          openTasks: 0,
-          unvalidatedConcepts: 0,
-          unreviewedSources: 0,
-          candidateWikiPages: 0
-        },
-        signals: [],
-        unavailable: true,
-        message: "BMAD readiness is unavailable because the active strict context has sourceAccess=none."
-      };
-      console.log(hasFlag(argv, "--json") ? JSON.stringify(unavailableReport, null, 2) : unavailableReport.message);
-      return;
-    }
-
-    const report = buildBmadReadinessReport(runtime.db, scope.includedProductIds);
-    if (hasFlag(argv, "--json")) {
-      console.log(JSON.stringify(report, null, 2));
-      return;
-    }
-
-    console.log(`BMAD readiness: ${report.score}/100 (${report.status})`);
-    console.log(`Products: ${report.productIds.join(", ")}`);
-    for (const signal of report.signals) {
-      console.log(`- ${signal.label}: ${signal.detail} [${signal.status}]`);
-    }
-  } finally {
-    runtime.close();
-  }
-}
-
 function okrCommand(argv: string[]): void {
   const subcommand = firstPositional(argv) ?? "list";
   const rawId = positionalValues(argv)[1];
@@ -6519,7 +6437,7 @@ function todayCommand(argv: string[]): void {
     }
 
     const s = model.summary;
-    console.log(`Today — due soon ${s.dueSoon} (overdue ${s.overdue}) · blocked ${s.blocked} · inbox ${s.inboxPending} · agent ${s.agentTasks} · OKR ${s.okrs} (${s.atRiskOkrs} at risk) · KPI ${s.kpis} (${s.kpisChanged} changed, ${s.staleKpis} stale) · readiness ${s.readinessScore}/100`);
+    console.log(`Today — due soon ${s.dueSoon} (overdue ${s.overdue}) · blocked ${s.blocked} · inbox ${s.inboxPending} · agent ${s.agentTasks} · OKR ${s.okrs} (${s.atRiskOkrs} at risk) · KPI ${s.kpis} (${s.kpisChanged} changed, ${s.staleKpis} stale)`);
     for (const mission of model.outcomes.missions) {
       printTodaySection(`Mission · ${mission.label}`, mission.okrs.map((okr) =>
         `${okr.label} [${okr.definition.status}] · ${formatPercent(okr.progress)} · ${okr.contributions.length} contribution(s) · ${okr.kpis.length} KPI(s)${okr.atRisk ? ` · risk: ${okr.riskReasons.join(" ")}` : ""}`
@@ -8087,7 +8005,6 @@ Commands:
   pnpm wm memory restore --from <backup-directory> --to <new-directory> [--json]
   pnpm wm import <file.json>
   pnpm wm products
-  pnpm wm bmad readiness [--product <id>] [--scope product|dependencies|manual|portfolio] [--json]
   pnpm wm today [--entity <kind:id>] [--assignee me|agent] [--due-window 7d] [--section due-soon|active-work|blocked|outcomes|objectives|inbox|agent-queue|upcoming-reviews|contradictions|context-views] [--no-agent] [--json]
   pnpm wm okr list|show [<id>] [--context-scope active] [--json]
   pnpm wm okr upsert <id> --label <label> [--objective <text>] [--mission <id>|--clear-mission] [--status draft|active|at_risk|off_track|achieved|closed] [--period-start <ISO>] [--period-end <ISO>] [--key-results '<json>'] [--kpi <ids>] [--json]

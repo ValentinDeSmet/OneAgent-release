@@ -86,13 +86,14 @@ function activate(context) {
     onUpdated: () => refreshAll({ auto: true })
   });
   const contextProvider = new ContextProvider(cli);
-  const readinessProvider = new ReadinessProvider(cli);
   const productsProvider = new ProductsProvider(cli);
   const wikiProvider = new WikiProvider(cli);
   const tasksProvider = new TasksProvider(cli);
   const inboxProvider = new InboxProvider(cli);
   const cockpitViewProvider = new CockpitViewProvider(cli);
   const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  status.text = "$(database) OneAgent";
+  status.tooltip = "Open OneAgent cockpit";
   let cockpitPanel;
   let refreshTimer;
   let refreshRunning = false;
@@ -328,9 +329,7 @@ function activate(context) {
         cli.output.appendLine(`Monitored Context refresh failed: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
-    await updateStatus(status, cli);
     contextProvider.refresh();
-    readinessProvider.refresh();
     productsProvider.refresh();
     wikiProvider.refresh();
     tasksProvider.refresh();
@@ -1081,37 +1080,6 @@ class ContextProvider {
         new StaticItem("Active Product", data.activeProduct?.label || "portfolio", "target"),
         new StaticItem("Scope", included.length ? included.join(", ") : "none", "symbol-namespace")
       ];
-    } catch (error) {
-      return [new StaticItem("Unavailable", error.message, "warning")];
-    }
-  }
-
-  getTreeItem(item) {
-    return item;
-  }
-}
-
-class ReadinessProvider {
-  constructor(cli) {
-    this.cli = cli;
-    this.emitter = new vscode.EventEmitter();
-    this.onDidChangeTreeData = this.emitter.event;
-  }
-
-  refresh() {
-    this.emitter.fire();
-  }
-
-  async getChildren() {
-    try {
-      const report = await this.cli.json(["bmad", "readiness", "--json", "--scope", "portfolio"]);
-      if (report.message) {
-        return [new StaticItem("No Products", report.message, "warning")];
-      }
-      const root = [new StaticItem(`Score ${report.score}/100`, report.status, readinessIcon(report.status))];
-      return root.concat(report.signals.map((signal) =>
-        new StaticItem(signal.label, signal.detail, readinessIcon(signal.status))
-      ));
     } catch (error) {
       return [new StaticItem("Unavailable", error.message, "warning")];
     }
@@ -2364,7 +2332,6 @@ function createDocumentationOnlyCockpitState(options = {}) {
       edges: [],
       diagnostics: []
     },
-    readiness: { score: 0, status: "unavailable", signals: [] },
     tasks: [],
     inbox: [],
     graphChangeHistory: [],
@@ -3386,9 +3353,8 @@ async function loadCockpitState(cli, options = {}) {
     if (options.refreshGraphify) {
       graphArgs.push("--refresh-graphify");
     }
-    const [graph, readiness, tasks, inbox, graphChangeHistoryState, curationPackageState, sources, diagnostics, entities, captures, manualNotes, today, graphFilters, contextScope, cockpitTheme, graphViews, taxonomy, documentation, documentationState] = await Promise.all([
+    const [graph, tasks, inbox, graphChangeHistoryState, curationPackageState, sources, diagnostics, entities, captures, manualNotes, today, graphFilters, contextScope, cockpitTheme, graphViews, taxonomy, documentation, documentationState] = await Promise.all([
       cli.json(graphArgs),
-      cli.json(["bmad", "readiness", "--json", "--scope", "portfolio", "--context-scope", "active"]),
       cli.json(["tasks", "--json", "--scope", "portfolio"]),
       cli.json(["inbox", "--json", "--scope", "portfolio", "--context-scope", "active"]),
       loadGraphChangeHistory(cli),
@@ -3412,7 +3378,6 @@ async function loadCockpitState(cli, options = {}) {
       graph,
       graphLimits: { visibleMaxNodes, visibleMaxEdges, loadedMaxNodes, loadedMaxEdges },
       contextTokenBudget,
-      readiness,
       tasks,
       inbox: enrichedInbox,
       graphChangeHistory: graphChangeHistoryState.items,
@@ -4858,22 +4823,6 @@ function buildInboxDiff(preview) {
   };
 }
 
-async function updateStatus(status, cli) {
-  try {
-    const report = await cli.json(["bmad", "readiness", "--json", "--scope", "portfolio"]);
-    if (report.message) {
-      status.text = "$(database) OneAgent";
-      status.tooltip = report.message;
-      return;
-    }
-    status.text = `$(database) WM ${report.score}/100`;
-    status.tooltip = `BMAD readiness: ${report.status}`;
-  } catch (error) {
-    status.text = "$(warning) OneAgent";
-    status.tooltip = error.message;
-  }
-}
-
 async function runCliTask(cli, title, args) {
   return vscode.window.withProgress(
     {
@@ -5433,16 +5382,6 @@ function iconForInboxType(type) {
     wiki_proposal: "book"
   };
   return new vscode.ThemeIcon(icons[type] || "inbox");
-}
-
-function readinessIcon(status) {
-  if (status === "ready") {
-    return "pass";
-  }
-  if (status === "blocked") {
-    return "error";
-  }
-  return "warning";
 }
 
 return {

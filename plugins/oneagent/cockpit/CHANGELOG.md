@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.132
+
+- Suppression de BMAD Readiness dans les deux plugins (Copilot 0.6.6) : score
+  dans l’en-tête, indicateur et carte Today, outil agent, commande et calcul CLI.
+- Nettoyage des styles, exemples, prototypes et instructions associés. Les
+  questions, risques, tâches, priorités et imports BMAD restent disponibles.
+
 ## 0.1.131
 
 - Classement manuel des priorités par glisser-déposer, affiché par défaut et

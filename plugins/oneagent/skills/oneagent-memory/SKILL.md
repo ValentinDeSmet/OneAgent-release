@@ -95,7 +95,7 @@ result and must not be retried automatically. Preserve the existing memory bindi
    OneAgent supplies context and personal notes; BMAD supplies the team's workflow.
    Keep using the host's company Google/GitHub tools for their authoritative data.
 
-Do not claim a BMAD readiness score or introduce another assistant persona. This
+Do not introduce another assistant persona. This
 increment does not expose editing entities, changing relations, activating strict
 contexts, curation, Git publication, or a graph canvas through MCP. Explicit search
 filters are not strict session access controls. Respect the host's tool approvals.

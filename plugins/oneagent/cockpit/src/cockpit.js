@@ -57,7 +57,6 @@ function renderCockpitHtml(payload, assets = {}) {
         --edge: rgba(244,241,234,0.24);
         --edge-graphify: rgba(101,215,222,0.54);
         --edge-indirect: rgba(226,200,111,0.42);
-        --score-bg: rgba(88,214,141,0.1);
         --track: rgba(255,255,255,0.08);
         --accent-soft-bg: rgba(121,167,255,0.14);
         --accent-soft-border: rgba(121,167,255,0.45);
@@ -91,7 +90,6 @@ function renderCockpitHtml(payload, assets = {}) {
         --edge: rgba(16,16,16,0.22);
         --edge-graphify: rgba(14,124,134,0.5);
         --edge-indirect: rgba(180,83,9,0.42);
-        --score-bg: rgba(1,127,92,0.12);
         --track: rgba(0,0,0,0.08);
         --accent-soft-bg: rgba(54,67,186,0.1);
         --accent-soft-border: rgba(54,67,186,0.35);
@@ -281,7 +279,7 @@ function renderCockpitHtml(payload, assets = {}) {
       .scope-tabs { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
       .tab { height: 30px; min-width: 56px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); }
       .tab.active { background: var(--active-bg); color: var(--active-fg); }
-      .control, .score, .action {
+      .control, .action {
         height: 34px;
         border: 1px solid var(--border);
         border-radius: 8px;
@@ -365,15 +363,6 @@ function renderCockpitHtml(payload, assets = {}) {
       .operation.success { border-color: rgba(88,214,141,0.38); color: var(--green); }
       .operation.warning { border-color: rgba(226,200,111,0.45); color: var(--yellow); }
       .operation.error { border-color: rgba(237,106,115,0.45); color: var(--red); }
-      .score {
-        display: grid;
-        place-items: center;
-        min-width: 46px;
-        border-color: rgba(88,214,141,0.38);
-        background: var(--score-bg);
-        color: var(--green);
-        font-weight: 800;
-      }
       .content {
         --side-width: 352px;
         display: grid;
@@ -719,21 +708,13 @@ function renderCockpitHtml(payload, assets = {}) {
       .metric { min-height: 64px; padding: 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
       .metric span { display: block; color: var(--dim); font-size: 10px; text-transform: uppercase; }
       .metric strong { display: block; margin-top: 7px; font-size: 18px; }
-      .readiness { display: grid; grid-template-columns: 88px 1fr; gap: 12px; align-items: center; }
-      .ring text { fill: var(--text); font-size: 18px; font-weight: 800; text-anchor: middle; }
-      .signals { display: grid; gap: 7px; }
-      .signal { display: grid; grid-template-columns: 86px 1fr; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; }
       .bar { height: 7px; border-radius: 999px; background: var(--track); overflow: hidden; }
       .bar span { display: block; height: 100%; border-radius: inherit; }
       .feed { min-height: 0; overflow: auto; }
       .feed-item { padding: 11px; border-bottom: 1px solid var(--border); }
       .feed-item strong { display: block; margin-bottom: 5px; font-size: 12px; }
       .feed-item span { color: var(--muted); font-size: 12px; }
-      .settings-section, .today-readiness { margin-top: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); overflow: hidden; }
-      .today-readiness .side-body { display: grid; grid-template-columns: 116px minmax(0, 1fr); gap: 18px; align-items: center; }
-      .readiness-score { display: grid; place-items: center; min-height: 96px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
-      .readiness-score strong { color: var(--green); font-size: 30px; }
-      .readiness-score span { color: var(--muted); font-size: 11px; text-transform: uppercase; }
+      .settings-section { margin-top: 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); overflow: hidden; }
       .today-outcomes { display: grid; gap: 14px; margin-top: 14px; }
       .today-outcome-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
       .today-outcome-head h2 { margin: 0; font-size: 15px; }
@@ -1283,9 +1264,7 @@ function renderCockpitHtml(payload, assets = {}) {
         .title-row {
           flex-direction: column;
         }
-        .readiness,
         .metrics,
-        .today-readiness .side-body,
         .today-outcome-metrics {
           grid-template-columns: 1fr;
         }
@@ -1308,9 +1287,6 @@ function renderCockpitHtml(payload, assets = {}) {
         .help-article-wrap { overflow: visible; }
         .help-article { padding: 24px 18px 54px; }
         .help-banner { grid-template-columns: 1fr; }
-        .signal {
-          grid-template-columns: 72px 1fr;
-        }
       }
     </style>
   </head>
@@ -1366,7 +1342,7 @@ function renderCockpitHtml(payload, assets = {}) {
             <select class="control" id="graphLayoutMode" title="Graph layout algorithm"><option value="force">Layout: force</option><option value="hierarchy">Layout: hierarchy</option><option value="circle">Layout: circle</option><option value="grid">Layout: grid</option></select>
             <select class="control" id="graphGroupMode" title="Group visible nodes without changing the memory graph"><option value="none">Group: none</option><option value="auto">Group: auto</option><option value="by_type">Group: type</option></select>
           </div>
-          <div class="toolbar"><div class="graph-search"><input class="control" id="filter" placeholder="Find or filter nodes" autocomplete="off"><div class="graph-search-results" id="graphSearchResults" hidden></div></div><div class="hidden-mode" id="graphHiddenModeToggle" title="What to do with nodes hidden by filters: remove them or keep them as faded ghosts"><span>Hidden</span><button type="button" data-hidden-mode="hide" class="active">Hide</button><button type="button" data-hidden-mode="fade">Fade</button></div><div class="operation" id="operationStatus"></div><button class="control" id="curationQueueBadge" style="display:none" title="Captures awaiting agent curation — click to curate them all now"></button><div class="score" id="score">0</div></div>
+          <div class="toolbar"><div class="graph-search"><input class="control" id="filter" placeholder="Find or filter nodes" autocomplete="off"><div class="graph-search-results" id="graphSearchResults" hidden></div></div><div class="hidden-mode" id="graphHiddenModeToggle" title="What to do with nodes hidden by filters: remove them or keep them as faded ghosts"><span>Hidden</span><button type="button" data-hidden-mode="hide" class="active">Hide</button><button type="button" data-hidden-mode="fade">Fade</button></div><div class="operation" id="operationStatus"></div><button class="control" id="curationQueueBadge" style="display:none" title="Captures awaiting agent curation — click to curate them all now"></button></div>
         </header>
         <div class="content">
           <section class="stage">
@@ -2253,7 +2229,8 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function setGraphPerspective(mode) {
-        graphPerspective = mode === "product" ? "focus" : mode || "map";
+        const perspective = mode === "product" ? "focus" : mode || "map";
+        graphPerspective = ["map", "focus", "deps"].includes(perspective) ? perspective : "focus";
         document.querySelectorAll("[data-graph-mode]").forEach((item) => item.classList.toggle("active", item.dataset.graphMode === graphPerspective));
       }
 
@@ -2266,7 +2243,6 @@ function renderCockpitHtml(payload, assets = {}) {
             ? graph.includedProductIds.join(" · ")
             : "No product configured";
         renderFocusSelector();
-        renderReadiness();
         renderCurationQueue();
         renderLegend();
         renderGraphFilterPanel();
@@ -3195,7 +3171,6 @@ function renderCockpitHtml(payload, assets = {}) {
       function graphNodeLimit(filter) {
         const configured = Math.max(20, Number(state.graphLimits?.visibleMaxNodes) || 500);
         if (filter || graphPerspective === "map") return configured;
-        if (graphPerspective === "bmad") return Math.min(configured, 180);
         if (graphPerspective === "focus" || graphPerspective === "product") return Math.min(configured, 240);
         return Math.min(configured, 220);
       }
@@ -3203,7 +3178,6 @@ function renderCockpitHtml(payload, assets = {}) {
       function graphEdgeLimit(filter) {
         const configured = Math.max(20, Number(state.graphLimits?.visibleMaxEdges) || 1200);
         if (filter || graphPerspective === "map") return configured;
-        if (graphPerspective === "bmad") return Math.min(configured, 300);
         return Math.min(configured, 500);
       }
 
@@ -3281,9 +3255,6 @@ function renderCockpitHtml(payload, assets = {}) {
         if (graphPerspective === "map") return true;
         if (graphPerspective === "focus" || graphPerspective === "product") {
           return isInFocusedEntityArea(node, graph, 2);
-        }
-        if (graphPerspective === "bmad") {
-          return ["question", "risk", "task", "decision", "source"].includes(type) && isInFocusedEntityArea(node, graph, 3);
         }
         if (graphPerspective === "deps") {
           return isInFocusedEntityArea(node, graph, 3) && ["domain", "subdomain", "team", "product", "repository", "source", "decision", "question", "risk", "task"].includes(type);
@@ -5142,16 +5113,6 @@ function renderCockpitHtml(payload, assets = {}) {
         event.target.textContent = "⚙ curating...";
         vscode?.postMessage({ type: "curatePending" });
       });
-
-      function renderReadiness() {
-        const report = state.readiness || { score: 0, signals: [] };
-        const score = report.score || 0;
-        const scoreElement = document.querySelector("#score");
-        if (scoreElement) {
-          scoreElement.textContent = score;
-          scoreElement.title = "Planning readiness for the current scope: " + score + "/100";
-        }
-      }
 
       function renderDiagnostics() {
         const diagnostics = (state.graph.diagnostics || []).slice();
@@ -8524,18 +8485,8 @@ function renderCockpitHtml(payload, assets = {}) {
           : "Portfolio";
 
         let html = '<div class="title-row"><div><h1>Today</h1><p>What to look at first today — outcomes and operations inside the active OneAgent context.</p></div><div class="proposal-actions"><span class="chip">' + escapeHtml(activeScope) + '</span><button class="action" data-setting-action="refresh">Refresh</button></div></div>';
-        html += '<div class="metrics">' + metric("Due soon", s.dueSoon) + metric("Overdue", s.overdue) + metric("Blocked", s.blocked) + metric("Inbox", s.inboxPending) + metric("Notes", notesToRevisit.length) + metric("Contradictions", s.contradictions) + metric("Context views", s.contextViewsToReview) + metric("Agent", s.agentTasks) + metric("Objectives", s.objectives) + metric("Reviews", s.upcomingReviews) + metric("Readiness", s.readinessScore) + '</div>';
+        html += '<div class="metrics">' + metric("Due soon", s.dueSoon) + metric("Overdue", s.overdue) + metric("Blocked", s.blocked) + metric("Inbox", s.inboxPending) + metric("Notes", notesToRevisit.length) + metric("Contradictions", s.contradictions) + metric("Context views", s.contextViewsToReview) + metric("Agent", s.agentTasks) + metric("Objectives", s.objectives) + metric("Reviews", s.upcomingReviews) + '</div>';
         html += renderTodayOutcomes(today);
-
-        const readiness = state.readiness || { score: 0, status: "blocked", signals: [] };
-        const readinessSignals = (readiness.signals || []).map((signal) => {
-          const color = signal.status === "ready" ? "var(--green)" : signal.status === "blocked" ? "var(--red)" : "var(--yellow)";
-          return '<div class="signal"><span>' + escapeHtml(signal.label) + '</span><div><strong style="color:' + color + '">' + escapeHtml(String(signal.count || 0)) + '</strong><span> · ' + escapeHtml(signal.detail || signal.status) + '</span></div></div>';
-        }).join("");
-        html += '<section class="today-readiness"><div class="side-head"><h2>Planning readiness</h2><span class="chip">' + escapeHtml(readiness.status || "unknown") + '</span></div>' +
-          '<div class="side-body"><div class="readiness-score"><strong>' + escapeHtml(String(readiness.score || 0)) + '</strong><span>out of 100</span></div><div>' +
-          '<p class="summary">A workload-hygiene indicator for the current scope. Pending inbox items, open questions, candidate decisions, risks, tasks, unvalidated concepts and unreviewed sources lower the score. It is not a property of a graph entity.</p>' +
-          '<div class="signals">' + readinessSignals + '</div><div class="detail-actions"><button class="action" id="todayReadinessInbox">Review inbox</button></div></div></div></section>';
 
         const columns = [];
         if ((today.dueSoon || []).length) columns.push(lane("Due soon", today.dueSoon.length, today.dueSoon.map(itemCard).join("")));
@@ -8555,7 +8506,6 @@ function renderCockpitHtml(payload, assets = {}) {
         root.innerHTML = html;
         bindSettingsActions(root);
         bindTodayOutcomeActions(root);
-        root.querySelector("#todayReadinessInbox")?.addEventListener("click", () => setActiveView("inbox"));
         root.querySelectorAll("[data-today-note]").forEach((card) => card.addEventListener("click", () => {
           setActiveView("notes");
           selectManualNote(card.dataset.todayNote);
