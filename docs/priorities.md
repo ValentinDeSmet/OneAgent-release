@@ -1,6 +1,6 @@
 # Priorités — sollicitations personnelles
 
-Mise à jour du 5 octobre 2026, Copilot 0.6.5 et VS Code 0.1.131. Le catalogue public
+Mise à jour du 5 octobre 2026, Copilot 0.6.6 et VS Code 0.1.132. Le catalogue public
 `ValentinDeSmet/OneAgent-release` distribue le front et le moteur dans un même
 plugin ; aucune installation séparée de l’interface n’est nécessaire.
 
