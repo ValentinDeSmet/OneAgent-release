@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.6.0 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.6.1 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -35,12 +35,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.0.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.1.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.0/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.1/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -99,14 +99,17 @@ Dans la conversation :
 > Mets à jour OneAgent.
 
 Le premier appel compare la version du plugin au catalogue GitHub stable, sans
-ouvrir la mémoire. Le second utilise Copilot CLI pour actualiser le catalogue
+ouvrir la mémoire. Le second utilise directement Copilot CLI, sans exiger un
+accès préalable de Node.js à l’API GitHub, pour actualiser le catalogue
 `oneagent`, puis mettre à jour uniquement ce plugin. Une nouvelle session charge
 ensuite le moteur, le manifeste et le skill ensemble. La mémoire et sa liaison
 locale ne sont ni transférées ni reconfigurées.
 
 La première mise à jour demande d’avoir choisi le mode automatique ou manuel,
 afin de fixer la source officielle. Une erreur réseau de vérification laisse le
-plugin utilisable. Après une tentative d’installation dont le résultat est incertain,
+plugin utilisable et ne demande pas de nouvelle session. Le message distingue
+DNS, certificat TLS, délai ou réponse HTTP lorsque le système fournit ce détail.
+Le cockpit propose alors une mise à jour via Copilot, sur choix explicite. Après une tentative d’installation dont le résultat est incertain,
 ouvrir une nouvelle session et consulter le gestionnaire de plugins avant de
 réessayer ; le serveur évite de mélanger deux versions du moteur.
 
@@ -116,6 +119,23 @@ réessayer ; le serveur évite de mélanger deux versions du moteur.
 copilot plugin marketplace update oneagent
 copilot plugin update oneagent
 ```
+
+### Si une ancienne version affiche « fetch failed »
+
+Le catalogue peut être accessible à Copilot alors que l’accès direct de Node.js
+à `api.github.com` échoue sur le poste. Avant 0.6.1, ce contrôle bloquait aussi
+l’installation. Un nouveau chat ne répare pas ce problème réseau.
+
+Si `copilot --version` fonctionne dans le Terminal de ce poste, exécuter les
+commandes ci-dessus, puis `copilot plugin list --json` pour vérifier la version.
+Après une mise à jour effective, ouvrir une nouvelle session pour charger le
+plugin. Si la liste du CLI ne contient pas l’installation utilisée par l’application,
+consulter son gestionnaire de plugins avant de créer une deuxième installation.
+
+Si l’actualisation du catalogue échoue également, relever son erreur exacte :
+le réseau/proxy ou les certificats du poste restent à diagnostiquer. Ne pas
+modifier les réglages BMAD, la liaison mémoire ou la validation TLS pour résoudre
+ce message. Une installation ZIP ancienne suit le parcours de migration ci-dessous.
 
 L’option automatique repose sur `extraKnownMarketplaces.oneagent.autoUpdate`
 dans `~/.copilot/settings.json` (ou le dossier désigné par `COPILOT_HOME`). GitHub
@@ -211,7 +231,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.0.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.1.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.

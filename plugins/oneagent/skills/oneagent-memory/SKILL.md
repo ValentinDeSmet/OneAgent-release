@@ -45,9 +45,20 @@ the installed and available versions. For "Mettre à jour OneAgent", call
 `oneagent_update_plugin`; that request already authorizes the scoped update.
 This uses Copilot's installer and requires the official OneAgent marketplace and
 Copilot CLI on PATH. It updates this plugin only, not the host or other plugins.
-After installation, or an uncertain installation failure, ask the user to open a
-new session. Do not call memory tools or automatically repeat installation in the
-old session. No memory transfer or reconfiguration is required. For a legacy local
+Do not require oneagent_check_updates before an explicitly requested update:
+oneagent_update_plugin delegates directly to Copilot, even if Node's GitHub API
+lookup fails. After an error, call the offline oneagent_update_status to inspect
+restartRequired. A failed lookup or catalogue refresh occurs before installation;
+it leaves memory usable and does not call for a new chat or app restart. Report
+the specific network/DNS/certificate/timeout detail when provided; do not guess
+which applies from "fetch failed" alone. If this is an older plugin blocked by
+that lookup and Copilot CLI is available on the same post, use the documented
+scoped Terminal commands to update the official installation. Never disable TLS
+verification or change company network/BMAD settings.
+
+After a confirmed version change or an uncertain installation failure with
+restartRequired true, ask the user to open a new session. Do not call memory tools
+or automatically repeat installation in that old session. No memory transfer or reconfiguration is required. For a legacy local
 ZIP installation, follow the guide's explicit migration to the official catalogue;
 do not silently uninstall it or claim it receives remote updates already.
 

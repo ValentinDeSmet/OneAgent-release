@@ -123,7 +123,15 @@ export function createCockpitHost({ connection, updates, emit, runAgentLoop, run
       if (["workMemory.openCockpit", "workMemory.cockpit.focus", "workMemory.refresh"].includes(command)) return emitHost({ kind: "focus" });
       if (command === "revealFileInOS") return showDocument(await openDocument(target));
       if (command === "workMemory.checkForUpdates") {
-        const result = await updates.check();
+        let result;
+        try { result = await updates.check(); }
+        catch (error) {
+          if (error.canUpdateWithCopilot !== true) throw error;
+          if (await notify("info", error.message, { modal: true }, "Mettre à jour via Copilot") !== "Mettre à jour via Copilot") return;
+          const status = updates.status();
+          if (!status.officialSourceConfigured) updates.configure(false);
+          return notify("info", (await updates.update()).message);
+        }
         if (!result.updateAvailable) return notify("info", `OneAgent ${result.currentVersion} est à jour.`);
         if (await notify("info", `OneAgent ${result.latestVersion} est disponible.`, { modal: true }, "Mettre à jour") !== "Mettre à jour") return;
         if (!result.officialSourceConfigured) updates.configure(false);
