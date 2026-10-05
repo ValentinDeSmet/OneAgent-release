@@ -62,6 +62,16 @@ or automatically repeat installation in that old session. No memory transfer or 
 ZIP installation, follow the guide's explicit migration to the official catalogue;
 do not silently uninstall it or claim it receives remote updates already.
 
+## Memory worker startup failures
+
+An old "OneAgent worker stopped (1)" message does not establish a database lock,
+corruption, or missing product configuration. Do not reset the memory, delete locks,
+or replay a write on that evidence. The current bridge checks Node compatibility
+and waits for the worker's ready signal before sending the operation. Report its
+specific startup diagnostic if present. A failure before a request was sent did
+not execute the memory operation; a failure after sending it has an uncertain
+result and must not be retried automatically. Preserve the existing memory binding.
+
 1. Resolve the relevant entity with `oneagent_list_entities`. Search with
    `oneagent_search_memory`, specifying `scope: product` and `productId` when the
    product is known. Use `scope: portfolio` only when a cross-product search is

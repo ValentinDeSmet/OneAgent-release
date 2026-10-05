@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.6.1 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.6.2 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -35,12 +35,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.1.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.2.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.1/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.2/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -164,6 +164,26 @@ disponible : l’onboarding ne recrée pas la mémoire. Il s’agit d’un chang
 source d’installation unique ; les mises à jour suivantes utilisent le catalogue.
 Le plugin ne désinstalle jamais automatiquement une ancienne installation locale.
 
+### Si le cockpit affiche « OneAgent worker stopped (1) »
+
+Ce message des anciennes versions signifie que le processus moteur s’est arrêté ;
+il ne permet pas de conclure à un verrou ou à une corruption de la mémoire.
+La version 0.6.2 vérifie le moteur Node.js avant son lancement : le processus
+hébergeant un canvas n’est pas nécessairement un exécutable Node.js réutilisable.
+Le plugin choisit un Node.js compatible (≥ 22.18, TypeScript actif et `node:sqlite`),
+puis attend que le moteur soit prêt avant de lui transmettre une requête.
+
+Les erreurs distinguent désormais un échec avant toute requête d’un résultat
+incertain après envoi. Les diagnostics connus indiquent un Node incompatible,
+un module manquant ou un accès refusé, sans recopier les sorties brutes du poste.
+Aucune écriture n’est répétée automatiquement. Une erreur encore inconnue est
+présentée comme telle ; ce correctif ne confirme pas la cause d’une panne à distance.
+
+Si Node.js est introuvable depuis l’application, rendre le même Node compatible
+accessible dans son `PATH`. Pour un hôte administré, `ONEAGENT_NODE_PATH` accepte
+un chemin absolu vers le Node à utiliser. Le plugin conserve les options et les
+restrictions de l’environnement ; il ne change pas les permissions de la mémoire.
+
 ## Mémoire, VS Code et plusieurs postes
 
 Le paquet contient uniquement le code. Les notes et la mémoire professionnelle
@@ -231,7 +251,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.1.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.2.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.
