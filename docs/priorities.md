@@ -1,6 +1,6 @@
 # Priorités — sollicitations personnelles
 
-Mise à jour du 5 octobre 2026, Copilot 0.6.4 et VS Code 0.1.130. Le catalogue public
+Mise à jour du 5 octobre 2026, Copilot 0.6.5 et VS Code 0.1.131. Le catalogue public
 `ValentinDeSmet/OneAgent-release` distribue le front et le moteur dans un même
 plugin ; aucune installation séparée de l’interface n’est nécessaire.
 
@@ -34,8 +34,20 @@ avancement. L’entité rattachée figure sous le sujet. Une fiche d’édition 
 - Cliquer sur le titre ou **Modifier** pour modifier ou terminer une demande ;
   les demandes terminées peuvent être rouvertes.
 
-Le tri initial compare la priorité puis les dates. Chaque en-tête permet un tri
-ascendant ou descendant. Les filtres par sujet, description, entité, produit,
+L’affichage initial utilise **Mon classement**, avec une poignée ⠿ et le rang
+portfolio de chaque ligne. Glisser la poignée au-dessus ou en dessous d’une
+ligne pour enregistrer le nouvel ordre. La poignée accepte aussi les flèches
+haut et bas au clavier. Les produits, équipes, sujets et tâches partagent un
+même ordre ; les filtres masquent seulement des lignes, en conservant l’ordre
+relatif des autres. Les rangs peuvent donc avoir des trous dans une vue filtrée.
+Les sujets terminés conservent leur place pour une éventuelle réouverture.
+
+Avant le premier déplacement, l’ordre reprend priorité puis date pour garder
+les repères existants. Après classement, les nouvelles lignes arrivent en fin
+de liste. Une modification de priorité ou de deadline ne réordonne pas les
+lignes déjà classées. Chaque en-tête alterne croissant, décroissant puis retour
+au classement manuel ; **Mon classement** permet aussi ce retour directement.
+Le glisser-déposer est disponible uniquement dans le classement manuel. Les filtres par sujet, description, entité, produit,
 demandeur, priorité, intervalle de dates, nature de la deadline, documentation,
 source et avancement sont combinables. Le filtre visible **Produit / équipe
 concerné** retrouve l’entité comme produit principal, rattachement produit/équipe
@@ -46,7 +58,7 @@ les lignes actives correspondant aux filtres de champ, à la recherche et à la
 nature sélectionnée, avant pagination. Le choix d’une métrique ne réduit pas
 les autres compteurs à cette seule catégorie. « À préciser »
 signifie demandeur absent, échéance inconnue ou entité à rattacher. Le tableau se recharge chaque
-minute lorsqu’aucune fiche n’est en cours d’édition et lorsque le panneau est
+minute lorsqu’aucune fiche n’est en cours d’édition ni déplacement en cours et lorsque le panneau est
 visible. La date de mise à jour figure dans la fiche ; ce n’est pas un journal
 complet des changements.
 
@@ -56,8 +68,10 @@ Le canvas `oneagent-priorities` est livré dans
 `com.github.copilot/extensions/oneagent-priorities/`, conformément au format
 Agent Plugins 1.0. Il réutilise la liaison mémoire de l’onboarding, les outils
 `oneagent_list_priorities` / `oneagent_save_priority` et les commandes CLI
-`priorities list|save --stdin --json`. Ces commandes exigent un périmètre portfolio
-explicite et refusent d’élargir implicitement un contexte strict actif.
+`priorities list|save|reorder --stdin --json`. Ces commandes exigent un périmètre portfolio
+explicite. Les appels agent utilisent le contexte actif et refusent d’élargir
+implicitement un contexte strict. Le canvas et le cockpit manuels restent des
+vues portfolio explicites, sans modifier le contexte actif de l’agent.
 
 Les demandes sont des tâches natives assignées à `me`. Le lien principal est un
 lien `about` vers l’entité, marqué `priorityPrimary` dans ses métadonnées. Un
@@ -74,7 +88,7 @@ liens, notes et références des tâches existantes sont conservés à l’édit
 
 La migration 016 ajoute un objet `tracking_json` aux tâches : `requester`,
 `deadlineKind`, `deadlineLabel`, `targetDate`, `nextAction`, `url`, `sourceUrl`,
-`itemType` et `relatedEntityRefs`.
+`itemType`, `relatedEntityRefs` et `manualRank`.
 Aucune nouvelle migration SQL n’est nécessaire. Les anciennes lignes créées dans
 Priorités (lien principal `priorityPrimary`) sont lues comme sujets ; les autres
 tâches restent des tâches. Une classification explicite prévaut toujours. La date ferme reste
@@ -95,6 +109,17 @@ est refusée avec un message demandant son actualisation. Les champs omis resten
 intacts ; une chaîne vide efface un texte facultatif et `relatedEntityRefs: []`
 retire les partenaires. Les créations ne sont pas
 réessayées automatiquement après une erreur réseau.
+
+Le déplacement utilise `taskId`, `targetTaskId`, `position: before|after` et le
+`orderRevision` global renvoyé par la liste. La révision porte sur toutes les
+lignes personnelles non archivées, même hors filtres ou pagination. Le serveur
+recalcule l’ordre sous transaction, refuse une révision périmée et enregistre
+des rangs entiers. Toute autre ligne conserve son ordre relatif. Les champs et
+liens restent intacts, y compris lors d’une actualisation concurrente d’une
+source. Une erreur suspend les déplacements jusqu’à une nouvelle lecture,
+sans répéter l’écriture. L’agent dispose de `oneagent_reorder_priority` et
+`workMemory_reorderPriority` ; il ne classe qu’à la demande explicite de
+l’utilisateur, après relecture de la liste.
 
 Le canvas utilise le SDK fourni par Copilot pour `createCanvas` et `joinSession`.
 Le serveur local écoute uniquement sur `127.0.0.1`, avec un secret par instance,
