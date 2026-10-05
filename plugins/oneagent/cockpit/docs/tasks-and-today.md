@@ -6,7 +6,7 @@ Tasks record actions. Today brings the most relevant actions, questions, reviews
 
 1. Open **Tasks** and select **Add task**.
 2. Enter a clear action title and optional description.
-3. Choose a status: pending, open, blocked, ready, or done.
+3. Choose a status: pending, open, in progress, blocked, ready, or done.
 4. Choose a priority.
 5. Assign it to **me** or **agent**.
 6. Add a deadline when time matters.
@@ -18,6 +18,7 @@ Entity links make the task visible in the right entity workspace and allow focus
 
 Use the linked-entity filter to focus on one or more subjects. You can also group tasks by their linked entities and move their status as work progresses.
 
+- **in progress** means work has started and stays visible in Today;
 - **blocked** should explain what prevents progress;
 - **ready** means the task can be started;
 - **done** removes it from active work without erasing history.
@@ -25,14 +26,24 @@ Use the linked-entity filter to focus on one or more subjects. You can also grou
 ## Follow personal requests in Priorities
 
 Open **Priorités** in the cockpit navigation for a table of subject, description,
-product, requester, priority, deadline, URL and status. The linked entity appears
+primary product, partner products/teams, requester, priority, deadline,
+documentation URL, source URL and status. The linked entity appears
 under the subject. Every new or edited request needs an existing entity; requests
 from earlier versions without one stay visible under **Sans entité · à rattacher**.
 A product is optional when the request is attached to a different entity type.
 
 Click any column heading to sort in either direction. Open **Filtres par champ**
 to combine text, entity, product, requester, priority, date range and URL filters.
-Sorting and filtering cover all results before pagination. Estimated dates are
+The visible product/team filter matches primary or partner involvement. Nature
+can show subjects and tasks, subjects only or tasks only; the default retains
+both and each row can be reclassified. The editor offers a searchable multi-select
+for partners, a separate original Google Sheet URL, and **En cours** for work
+that has started. Click the title or **Modifier** to edit any row. An entity that
+is itself a product fixes the primary product; change that attachment to replace
+it or add other products as partners.
+
+Sorting and filtering cover all results before pagination. The counters follow
+the field filters and nature selection. Estimated dates are
 never flagged as firm overdue commitments. Open a subject to edit its full details.
 The screen follows the cockpit theme and saves the same tasks and graph links.
 

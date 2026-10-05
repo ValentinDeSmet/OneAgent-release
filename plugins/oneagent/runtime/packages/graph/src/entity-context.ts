@@ -307,7 +307,7 @@ export function buildEntityContext(input: EntityContextInput): EntityContextMode
     entity,
     summary: {
       tasks: tasks.length,
-      openTasks: tasks.filter((task) => task.status === "open" || task.status === "ready").length,
+      openTasks: tasks.filter((task) => task.status === "open" || task.status === "in_progress" || task.status === "ready").length,
       blockedTasks: tasks.filter((task) => task.status === "blocked").length,
       captures: allCaptures.length,
       sources: sources.length,

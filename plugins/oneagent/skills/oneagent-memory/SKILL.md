@@ -124,7 +124,18 @@ unlinked tasks when editing them. Resolve the relevant entity from the user's
 request, or ask when ambiguous. Never invent a placeholder entity. `productId`
 is optional for other entity types; a product entity uses its own product ID.
 Use `body` for description, `requester` for who expects it, and `url` for an HTTP(S)
-work-item/source link. All these fields can be edited. Use the list tool's column
+documentation/work-item link. Use `sourceUrl` for the original source Google
+Sheet (including a tab/row locator when supplied). Never replace one URL with
+the other or invent missing source provenance. Use `relatedEntityRefs` for
+existing product:id/team:id partners, independent of the primary product.
+Resolve partners from list choices or the existing entity creation workflow;
+never invent IDs. Use `status: in_progress` for work already underway and
+`itemType: subject` or `task` to distinguish a subject to develop from an action.
+All these fields can be edited. To find DKT FF work across primary and partner
+roles, use `involvedEntity`; `productId` and `relatedEntity` filter each role
+separately. `itemType` on list accepts all, subject or task. Preserve source URLs
+and partners when refreshing a priority from its original sheet unless the
+user or source explicitly changes them. Use the list tool's column
 sorts and combined filters before pagination, not just on the current page. Keep
 unknown people/dates unspecified; use `deadlineKind: approximate` and a period
 label for estimates, or `exact` with an unambiguous YYYY-MM-DD for firm dates.

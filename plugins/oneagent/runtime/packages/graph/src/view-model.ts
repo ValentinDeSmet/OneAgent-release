@@ -1196,6 +1196,7 @@ function mapStatus(status: string | undefined): GraphNodeStatus {
 }
 
 function taskStatusToGraphStatus(status: string | undefined): GraphNodeStatus {
+  if (status === "in_progress") return "active";
   if (status === "done") {
     return "accepted";
   }

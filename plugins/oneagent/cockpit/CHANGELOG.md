@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.130
+
+- Priorités communes à VS Code et Copilot 0.6.4 : produit principal et plusieurs
+  produits ou équipes partenaires, avec un filtre portant sur toutes les
+  participations et des filtres distincts pour le principal et les partenaires.
+- URL source séparée du lien de documentation, conservée à l’édition et
+  exploitable par l’agent pour retrouver le Google Sheet d’origine.
+- État En cours reconnu dans Priorités, Tasks, Today et les fiches d’entités.
+- Nature Sujet / Tâche modifiable, filtre permettant de séparer les listes,
+  bouton Modifier visible et compteurs respectant les filtres de champ.
+- Tous les nouveaux champs peuvent être créés et modifiés par les deux agents,
+  avec conservation des champs omis et des liens préexistants.
+
 ## 0.1.129
 
 - Fiches des entités corrigées dans le graphe commun à VS Code et Copilot 0.6.3 :

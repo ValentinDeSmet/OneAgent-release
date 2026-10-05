@@ -614,6 +614,7 @@ function renderCockpitHtml(payload, assets = {}) {
       .task-entity-filter-option small { color: var(--dim); font-size: 10px; }
       .task-entity-filter-empty { margin: 4px; color: var(--muted); font-size: 12px; }
       .columns { display: grid; grid-template-columns: repeat(5, minmax(180px, 1fr)); gap: 12px; min-width: 960px; }
+      #tasks .columns { grid-template-columns: repeat(6, minmax(180px, 1fr)); min-width: 1150px; }
       .task-groups { display: grid; gap: 16px; min-width: 960px; }
       .task-group { display: grid; gap: 8px; }
       .task-group > h2 { display: flex; align-items: center; justify-content: space-between; margin: 0; color: var(--text); font-size: 13px; letter-spacing: 0; }
@@ -6650,7 +6651,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function renderTasks() {
-        const lanes = ["pending", "open", "blocked", "ready", "done"];
+        const lanes = ["pending", "open", "in_progress", "blocked", "ready", "done"];
         const allTasks = state.tasks || [];
         const entityOptions = taskEntityOptions(allTasks);
         pruneTaskEntityFilters(entityOptions);
@@ -6701,7 +6702,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function renderTaskLane(lane, laneTasks) {
-        return '<section class="lane" data-task-lane="' + escapeAttr(lane) + '"><h2>' + lane + '<span>' + laneTasks.length + '</span></h2>' + laneTasks.map((task) => renderTaskCard(task)).join("") + '</section>';
+        return '<section class="lane" data-task-lane="' + escapeAttr(lane) + '"><h2>' + lane.replace(/_/g, " ") + '<span>' + laneTasks.length + '</span></h2>' + laneTasks.map((task) => renderTaskCard(task)).join("") + '</section>';
       }
 
       function bindTaskBoardInteractions() {
@@ -6865,7 +6866,7 @@ function renderCockpitHtml(payload, assets = {}) {
           '<div class="detail-title"><b>Edit task</b><span>' + escapeHtml(task.origin || "") + '</span></div>' +
           '<div class="field"><label>Title</label><input id="taskTitle" maxlength="180" value="' + escapeAttr(task.title) + '"></div>' +
           '<div class="field"><label>Description</label><textarea id="taskBody" maxlength="2000" placeholder="Task description">' + escapeHtml(task.body || "") + '</textarea></div>' +
-          customMenuHtml("taskStatus", "Status", ["pending", "open", "blocked", "ready", "done"], normalizeTaskStatus(task.status)) +
+          customMenuHtml("taskStatus", "Status", ["pending", "open", "in_progress", "blocked", "ready", "done"].map(value => ({ value, label: value.replace(/_/g, " ") })), normalizeTaskStatus(task.status)) +
           customMenuHtml("taskPriority", "Priority", ["low", "medium", "high", "critical"], task.priority || "medium") +
           customMenuHtml("taskAssignee", "Assignee", ["me", "agent"], task.assignee || "me") +
           '<div class="field"><label>Deadline</label><input id="taskDeadline" type="date" value="' + escapeAttr(task.deadline || "") + '"></div>' +
@@ -6901,7 +6902,7 @@ function renderCockpitHtml(payload, assets = {}) {
           '<div class="detail-title"><b>Add task</b><span>manual</span></div>' +
           '<div class="field"><label>Title</label><input id="newTaskTitle" maxlength="180" placeholder="Task title"></div>' +
           '<div class="field"><label>Description</label><textarea id="newTaskBody" maxlength="2000" placeholder="Task description"></textarea></div>' +
-          customMenuHtml("newTaskStatus", "Status", ["pending", "open", "blocked", "ready", "done"], "open") +
+          customMenuHtml("newTaskStatus", "Status", ["pending", "open", "in_progress", "blocked", "ready", "done"].map(value => ({ value, label: value.replace(/_/g, " ") })), "open") +
           customMenuHtml("newTaskPriority", "Priority", ["low", "medium", "high", "critical"], "medium") +
           customMenuHtml("newTaskAssignee", "Assignee", ["me", "agent"], "me") +
           '<div class="field"><label>Deadline</label><input id="newTaskDeadline" type="date"></div>' +
@@ -9061,7 +9062,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function normalizeTaskStatus(status) {
-        if (status === "blocked" || status === "ready" || status === "open" || status === "done") return status;
+        if (status === "blocked" || status === "ready" || status === "open" || status === "in_progress" || status === "done") return status;
         return "pending";
       }
 

@@ -3,7 +3,7 @@
   "displayName": "OneAgent",
   "description": "Local-first product knowledge, curation, readiness, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.129",
+  "version": "0.1.130",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",
@@ -144,7 +144,7 @@
           "priorities",
           "tasks"
         ],
-        "modelDescription": "Read my explicit requests/tasks across the bound memory, ordered by priority and deadline, with description, linked entity, product, requester, URL, next action and revision. Returns existing entity choices for creation. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.",
+        "modelDescription": "Read my explicit requests/tasks across the bound memory, ordered by priority and deadline, with description, linked entity, primary product, partner products/teams, requester, separate documentation and source URLs, subject/task classification, next action and revision. Returns existing entity choices for creation. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -190,12 +190,15 @@
                 "body",
                 "entity",
                 "product",
+                "relatedEntities",
                 "requester",
                 "priority",
                 "deadline",
                 "url",
+                "sourceUrl",
                 "status",
-                "nextAction"
+                "nextAction",
+                "itemType"
               ]
             },
             "sortDirection": {
@@ -220,6 +223,29 @@
             "urlQuery": {
               "type": "string",
               "maxLength": 500
+            },
+            "sourceUrlQuery": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "itemType": {
+              "type": "string",
+              "enum": [
+                "all",
+                "subject",
+                "task"
+              ],
+              "description": "Filter subjects, ordinary tasks or both (default all)."
+            },
+            "involvedEntity": {
+              "type": "string",
+              "maxLength": 512,
+              "description": "Exact product:id or team:id involved as primary product, attached product/team or partner."
+            },
+            "relatedEntity": {
+              "type": "string",
+              "maxLength": 512,
+              "description": "Exact product:id or team:id among partners only."
             },
             "entity": {
               "type": "string",
@@ -248,6 +274,7 @@
                 "candidate",
                 "ready",
                 "open",
+                "in_progress",
                 "blocked",
                 "done"
               ]
@@ -296,7 +323,7 @@
           "priorities",
           "tasks"
         ],
-        "modelDescription": "Create or edit one private request at the user's direction. New requests require a title and an existing entity (kind:id from list_priorities). Legacy unlinked requests must be attached when edited; edits require the exact taskId and revision returned by list_priorities. Omitted fields are preserved; empty strings clear optional text. Never invent a requester or firm deadline. Use unknown if unspecified, approximate for estimates. No messages are sent. A retry of a creation creates another request.",
+        "modelDescription": "Create or edit one private request at the user's direction. New requests require a title and an existing entity (kind:id from workMemory_listPriorities). Legacy unlinked requests must be attached when edited; edits require the exact taskId and revision returned by workMemory_listPriorities. New rows default to subject; existing ordinary tasks keep their classification unless itemType is explicit. Omitted fields are preserved; empty strings clear optional text and an empty relatedEntityRefs array clears partners. Never invent a requester or firm deadline. Use unknown if unspecified, approximate for estimates. No messages are sent. A retry of a creation creates another request.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -320,7 +347,30 @@
             "url": {
               "type": "string",
               "maxLength": 2048,
-              "description": "Optional http(s) source or work-item link; empty string clears it."
+              "description": "Optional http(s) documentation/work-item link. Keep separate from the source Google Sheet URL. Empty string clears it."
+            },
+            "sourceUrl": {
+              "type": "string",
+              "maxLength": 2048,
+              "description": "Original source URL, e.g. the Google Sheet/tab/row from which the priority was imported. Preserve on later edits; never invent it or replace the documentation URL."
+            },
+            "itemType": {
+              "type": "string",
+              "enum": [
+                "subject",
+                "task"
+              ],
+              "description": "Subject to develop versus an ordinary task; editable independently of advancement."
+            },
+            "relatedEntityRefs": {
+              "type": "array",
+              "maxItems": 40,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "maxLength": 512
+              },
+              "description": "Existing active product:id or team:id partners from list_priorities.entities. The primary product stays productId. [] clears partners; omit to preserve."
             },
             "taskId": {
               "type": "string",
@@ -358,6 +408,7 @@
                 "candidate",
                 "ready",
                 "open",
+                "in_progress",
                 "blocked",
                 "done"
               ]
@@ -658,6 +709,7 @@
               "enum": [
                 "pending",
                 "open",
+                "in_progress",
                 "blocked",
                 "ready",
                 "done"
@@ -770,6 +822,7 @@
               "enum": [
                 "pending",
                 "open",
+                "in_progress",
                 "blocked",
                 "ready",
                 "done",

@@ -7722,7 +7722,7 @@ function validateTaskUpdate(input: {
   if (input.body !== undefined && input.body.trim().length > 2000) {
     throw new Error("Task description must be 2000 characters or less.");
   }
-  if (input.status && !["pending", "candidate", "open", "blocked", "ready", "done", "archived", "none", "clear"].includes(input.status)) {
+  if (input.status && !["pending", "candidate", "open", "in_progress", "blocked", "ready", "done", "archived", "none", "clear"].includes(input.status)) {
     throw new Error(`Unknown task status: ${input.status}`);
   }
   if (input.priority && !["low", "medium", "high", "critical", "none", "clear"].includes(input.priority)) {
@@ -8100,8 +8100,8 @@ Commands:
   pnpm wm product add <id> [--label <label>] [--description <text>] [--parent <entity-id>] [--dependencies a,b]
   pnpm wm product delete <id>
   pnpm wm tasks [--product <id>] [--scope product|dependencies|manual|portfolio] [--json]
-  pnpm wm tasks create <title> [--product <id>] [--body <text>] [--status pending|open|blocked|ready|done] [--priority low|medium|high|critical] [--assignee me|agent] [--deadline YYYY-MM-DD] [--notes <text>] [--json]
-  pnpm wm tasks update <task-id> [--title <text>] [--body <text>] [--status pending|open|blocked|ready|done] [--priority low|medium|high|critical] [--assignee me|agent] [--deadline YYYY-MM-DD|none] [--notes <text>] [--json]
+  pnpm wm tasks create <title> [--product <id>] [--body <text>] [--status pending|open|in_progress|blocked|ready|done] [--priority low|medium|high|critical] [--assignee me|agent] [--deadline YYYY-MM-DD] [--notes <text>] [--json]
+  pnpm wm tasks update <task-id> [--title <text>] [--body <text>] [--status pending|open|in_progress|blocked|ready|done] [--priority low|medium|high|critical] [--assignee me|agent] [--deadline YYYY-MM-DD|none] [--notes <text>] [--json]
   pnpm wm entities [--json]
   pnpm wm entity upsert <id> --kind <kind> [--label <label>] [--description <text>] [--body <Markdown> | --stdin] [--fail-if-exists | --require-existing] [--aliases a,b] [--status active|inactive|candidate|archived] [--parent <id>] [--owners a,b] [--contributors a,b] [--tags a,b]
   pnpm wm entity list [--kind <kind>] [--json]

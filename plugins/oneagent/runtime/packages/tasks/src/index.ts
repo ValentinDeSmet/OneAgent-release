@@ -52,7 +52,7 @@ export interface TaskReadModelItem {
   updatedAt?: string;
 }
 
-export type TaskStatus = "pending" | "candidate" | "open" | "blocked" | "ready" | "done" | "archived";
+export type TaskStatus = "pending" | "candidate" | "open" | "in_progress" | "blocked" | "ready" | "done" | "archived";
 export type TaskPriority = "low" | "medium" | "high" | "critical";
 export type TaskAssignee = "me" | "agent";
 export type TaskOrigin = "manual" | "agent" | "task" | "inbox" | "concept";
@@ -317,7 +317,7 @@ function linkToDraft(link: TaskLinkRecord): TaskLinkDraft {
 }
 
 function isTaskStatus(value: string | undefined): value is TaskStatus {
-  return value === "pending" || value === "candidate" || value === "open" || value === "blocked" || value === "ready" || value === "done" || value === "archived";
+  return value === "pending" || value === "candidate" || value === "open" || value === "in_progress" || value === "blocked" || value === "ready" || value === "done" || value === "archived";
 }
 
 function isTaskPriority(value: string | undefined): value is TaskPriority {

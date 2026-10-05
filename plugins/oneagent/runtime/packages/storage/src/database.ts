@@ -71,6 +71,9 @@ export interface TaskMetadataInput {
 }
 
 export interface TaskTracking {
+  itemType?: "subject" | "task";
+  sourceUrl?: string;
+  relatedEntityRefs?: string[];
   url?: string;
   requester?: string;
   deadlineKind?: "exact" | "approximate" | "unknown";

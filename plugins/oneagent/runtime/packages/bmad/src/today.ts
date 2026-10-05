@@ -154,7 +154,7 @@ export function buildTodayModel(input: TodayInput): TodayModel {
   const blocked = scored.filter((task) => task.status === "blocked").sort((left, right) => right.score - left.score);
   const agentQueue = scored.filter((task) => task.assignee === "agent").sort((left, right) => right.score - left.score);
   const activeWork = groupByEntity(
-    scored.filter((task) => task.status === "open" || task.status === "ready" || task.status === "pending" || task.status === "candidate")
+    scored.filter((task) => task.status === "open" || task.status === "in_progress" || task.status === "ready" || task.status === "pending" || task.status === "candidate")
   );
 
   const allowedCaptures = input.contextScope ? new Set(input.contextScope.captureIds) : undefined;
