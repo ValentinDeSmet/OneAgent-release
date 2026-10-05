@@ -1693,16 +1693,21 @@ async function runTaxonomyAction(cli, webview, message) {
   await postOperation(webview, "success", `Taxonomy updated (${action}).`);
 }
 
-async function postEntityContext(cli, webview, ref) {
+async function postEntityContext(cli, webview, ref, requestId) {
   const cleanRef = String(ref || "").trim();
-  if (!cleanRef) {
-    return;
-  }
+  if (!cleanRef) return;
   try {
-    const payload = await cli.json(["entity", "context", cleanRef, "--context-scope", "active", "--json"]);
-    await webview.postMessage({ type: "entityContext", ref: cleanRef, payload });
+    // Human graph inspection uses the same portfolio as graph-view. Reading a
+    // card must not activate, expand or clear the agent's strict context scope.
+    const payload = await cli.json(["entity", "context", cleanRef, "--json"]);
+    if (!payload?.entity || `${payload.entity.kind}:${payload.entity.id}` !== cleanRef) {
+      throw new Error("OneAgent returned an invalid entity context.");
+    }
+    await webview.postMessage({ type: "entityContext", ref: cleanRef, requestId, payload });
   } catch (error) {
-    cli.output.appendLine(`Entity context reload failed for ${cleanRef}: ${error instanceof Error ? error.message : String(error)}`);
+    const detail = error instanceof Error ? error.message : String(error);
+    cli.output?.appendLine?.(`Entity context failed for ${cleanRef}: ${detail}`);
+    await webview.postMessage({ type: "entityContext", ref: cleanRef, requestId, error: detail });
   }
 }
 
@@ -2909,12 +2914,7 @@ async function handleCockpitMessage(cli, webview, message) {
         const args = ["entity", "upsert", id, "--kind", kind, "--description", String(message.description || "")];
         await cli.run(args);
         await postOperation(webview, "success", `Updated description for ${ref}.`);
-        try {
-          const payload = await cli.json(["entity", "context", ref, "--context-scope", "active", "--json"]);
-          await webview.postMessage({ type: "entityContext", ref, payload });
-        } catch (error) {
-          cli.output.appendLine(`Entity context reload failed for ${ref}: ${error instanceof Error ? error.message : String(error)}`);
-        }
+        await postEntityContext(cli, webview, ref);
         await postCockpitState(cli, webview);
       }
     }
@@ -2926,12 +2926,7 @@ async function handleCockpitMessage(cli, webview, message) {
       if (kind && id && ["primary", "supporting", "informational"].includes(focusLevel)) {
         await cli.run(["entity", "upsert", id, "--kind", kind, "--focus-level", focusLevel]);
         await postOperation(webview, "success", `Updated focus level for ${ref}: ${focusLevel}.`);
-        try {
-          const payload = await cli.json(["entity", "context", ref, "--context-scope", "active", "--json"]);
-          await webview.postMessage({ type: "entityContext", ref, payload });
-        } catch (error) {
-          cli.output.appendLine(`Entity context reload failed for ${ref}: ${error instanceof Error ? error.message : String(error)}`);
-        }
+        await postEntityContext(cli, webview, ref);
         await postCockpitState(cli, webview);
       }
     }
@@ -2954,15 +2949,7 @@ async function handleCockpitMessage(cli, webview, message) {
       }
     }
     if (message.type === "loadEntityContext") {
-      const ref = String(message.ref || "").trim();
-      if (ref) {
-        try {
-          const payload = await cli.json(["entity", "context", ref, "--context-scope", "active", "--json"]);
-          await webview.postMessage({ type: "entityContext", ref, payload });
-        } catch (error) {
-          cli.output.appendLine(`Entity context failed for ${ref}: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      }
+      await postEntityContext(cli, webview, message.ref, message.requestId);
     }
     if (message.type === "openCapturesFolder") {
       const folder = path.join(cli.memoryWorkspaceRoot(), ".work-memory", "captures");

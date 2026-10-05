@@ -1488,6 +1488,9 @@ function renderCockpitHtml(payload, assets = {}) {
       let recentGraphChanges = undefined;
       let liveToastTimer = undefined;
       let entityContextCache = {};
+      const entityContextFailures = {};
+      const entityContextRequests = new Map();
+      let entityContextRequestSequence = 0;
       let workspaceRef = undefined;
       let graphDepth = 0;
       let graphViewer = undefined;
@@ -1859,14 +1862,7 @@ function renderCockpitHtml(payload, assets = {}) {
           renderDocumentation();
         }
         if (event.data?.type === "entityContext" && event.data.ref) {
-          entityContextCache[event.data.ref] = event.data.payload;
-          const selected = (state.graph?.nodes || []).find((node) => node.id === selectedNodeId);
-          if (selected && entityRefForNode(selected) === event.data.ref) {
-            renderEntityContext(event.data.ref);
-          }
-          if (workspaceRef === event.data.ref) {
-            renderWorkspace();
-          }
+          receiveEntityContext(event.data);
         }
         if (event.data?.type === "focusEntity" && event.data.ref) {
           focusGraphOnEntity(event.data.ref);
@@ -3804,12 +3800,8 @@ function renderCockpitHtml(payload, assets = {}) {
             entityPanelUi = { ref, tab: undefined, editing: false, composerOpen: false, descExpanded: false, expandedDocs: {} };
           }
           setDetailLegacyVisible(false);
-          if (entityContextCache[ref]) {
-            renderEntityContext(ref);
-          } else {
-            document.querySelector("#detailExtra").innerHTML = entityPanelLoadingHtml(node);
-            vscode?.postMessage({ type: "loadEntityContext", ref });
-          }
+          if (!entityContextCache[ref] && !entityContextFailures[ref]) requestEntityContext(ref);
+          renderEntityContext(ref);
         } else {
           setDetailLegacyVisible(true);
           document.querySelector("#detailTitle").textContent = node.label;
@@ -4436,12 +4428,55 @@ function renderCockpitHtml(payload, assets = {}) {
         if (article) article.scrollTop = 0;
       }
 
-      function entityPanelLoadingHtml(node) {
-        const kind = node.meta?.kind || node.type;
+      function requestEntityContext(ref) {
+        if (!ref || entityContextRequests.get(ref)?.pending) return;
+        const requestId = "entity-" + (++entityContextRequestSequence);
+        delete entityContextFailures[ref];
+        const request = { requestId, pending: true, timer: undefined };
+        entityContextRequests.set(ref, request);
+        request.timer = setTimeout(() => {
+          if (entityContextRequests.get(ref) !== request || !request.pending) return;
+          request.pending = false;
+          entityContextFailures[ref] = "OneAgent has not responded. Check the memory connection, then retry.";
+          renderRequestedEntityContext(ref);
+        }, 60000);
+        vscode?.postMessage({ type: "loadEntityContext", ref, requestId });
+      }
+
+      function receiveEntityContext(message) {
+        const ref = message.ref;
+        const request = entityContextRequests.get(ref);
+        if (message.requestId && message.requestId !== request?.requestId) return;
+        if (request) {
+          clearTimeout(request.timer);
+          request.pending = false;
+        }
+        const ctx = message.payload;
+        if (message.error || !ctx?.entity || ctx.entity.kind + ":" + ctx.entity.id !== ref) {
+          delete entityContextCache[ref];
+          entityContextFailures[ref] = String(message.error || "OneAgent returned an invalid entity context.");
+        } else {
+          entityContextCache[ref] = ctx;
+          delete entityContextFailures[ref];
+        }
+        renderRequestedEntityContext(ref);
+      }
+
+      function renderRequestedEntityContext(ref) {
+        const selected = (state.graph?.nodes || []).find((node) => node.id === selectedNodeId);
+        if (selected && entityRefForNode(selected) === ref) renderEntityContext(ref);
+        if (workspaceRef === ref) renderWorkspace();
+      }
+
+      function entityPanelStatusHtml(ref) {
+        const info = entityShortInfo(ref);
+        const error = entityContextFailures[ref];
         return '<div class="ep"><div class="ep-head">' +
-          '<div class="ep-kindrow"><span class="ep-kind"><i class="ep-dot" style="background:' + escapeAttr(colors[graphViewType(node)] || "#94a3b8") + '"></i>' + escapeHtml(String(kind).replace(/_/g, " ")) + '</span></div>' +
-          '<h3 class="ep-name">' + escapeHtml(node.label || node.id) + '</h3></div>' +
-          '<div class="ep-sec"><p class="summary" style="margin:0">Loading entity context…</p></div></div>';
+          '<div class="ep-kindrow"><span class="ep-kind"><i class="ep-dot" style="background:' + escapeAttr(entityKindColor(info.kind)) + '"></i>' + escapeHtml(String(info.kind).replace(/_/g, " ")) + '</span></div>' +
+          '<h3 class="ep-name">' + escapeHtml(info.label || ref) + '</h3></div>' +
+          '<div class="ep-sec">' + (error
+            ? '<p class="summary" role="alert">Unable to load this entity.</p><p class="summary">' + escapeHtml(error) + '</p><button class="action" data-ec="retry" data-ref="' + escapeAttr(ref) + '">Retry</button>'
+            : '<p class="summary" style="margin:0" role="status">Loading entity context…</p>') + '</div></div>';
       }
 
       function entityPanelReadHtml(ref, ctx, wikiPages) {
@@ -4736,7 +4771,14 @@ function renderCockpitHtml(payload, assets = {}) {
 
       function renderEntityContext(ref) {
         const ctx = entityContextCache[ref];
-        if (!ctx) return;
+        if (!ctx) {
+          const extra = document.querySelector("#detailExtra");
+          if (extra) {
+            extra.innerHTML = entityPanelStatusHtml(ref);
+            bindEntityContextActions(extra);
+          }
+          return;
+        }
         if (entityPanelUi.ref !== ref) {
           entityPanelUi = { ref, tab: undefined, editing: false, composerOpen: false, descExpanded: false, expandedDocs: {} };
         }
@@ -4769,7 +4811,10 @@ function renderCockpitHtml(payload, assets = {}) {
         }));
         root.querySelectorAll("[data-ec]").forEach((button) => button.addEventListener("click", () => {
           const ref = button.dataset.ref;
-          if (button.dataset.ec === "saveEntity") {
+          if (button.dataset.ec === "retry") {
+            requestEntityContext(ref);
+            renderRequestedEntityContext(ref);
+          } else if (button.dataset.ec === "saveEntity") {
             const label = document.querySelector("#ecLabel")?.value || "";
             const kind = document.querySelector("#ecKind")?.value || "";
             const status = document.querySelector("#ecStatus")?.value || "";
@@ -4855,9 +4900,7 @@ function renderCockpitHtml(payload, assets = {}) {
 
       function openEntityWorkspace(ref) {
         workspaceRef = ref;
-        if (!entityContextCache[ref]) {
-          vscode?.postMessage({ type: "loadEntityContext", ref });
-        }
+        if (!entityContextCache[ref] && !entityContextFailures[ref]) requestEntityContext(ref);
         setActiveView("workspace");
         renderWorkspace();
       }
@@ -4906,7 +4949,8 @@ function renderCockpitHtml(payload, assets = {}) {
         if (!root) return;
         const ctx = workspaceRef ? entityContextCache[workspaceRef] : undefined;
         if (!ctx) {
-          root.innerHTML = '<div class="title-row"><div><h1>Entity workspace</h1><p>Loading entity context…</p></div></div>';
+          root.innerHTML = workspaceRef ? entityPanelStatusHtml(workspaceRef) : '<div class="title-row"><div><h1>Entity workspace</h1><p>Select an entity in the graph to open its workspace.</p></div></div>';
+          bindEntityContextActions(root);
           return;
         }
         const s = ctx.summary;

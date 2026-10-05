@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.129
+
+- Fiches des entités corrigées dans le graphe commun à VS Code et Copilot 0.6.3 :
+  la consultation manuelle fonctionne aussi hors du contexte strict de l’agent,
+  sans modifier ce contexte ni ses droits de lecture.
+- Diagnostic et bouton Retry dans la fiche et l’espace de travail en cas
+  d’échec, de réponse invalide ou d’absence de réponse, avec protection contre
+  les réponses obsolètes après une nouvelle tentative.
+
 ## 0.1.128
 
 - Écran Priorités intégré au thème du cockpit commun à VS Code et Copilot 0.6.0,
