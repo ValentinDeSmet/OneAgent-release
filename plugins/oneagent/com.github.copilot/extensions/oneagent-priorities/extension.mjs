@@ -13,7 +13,9 @@ let queue = Promise.resolve();
 const call = (name, input) => {
   const operation = queue.then(() => {
     updates.assertSessionCurrent();
-    return callPriorityTool(connection.requireConfig(), name, input);
+    // The human canvas is an explicit portfolio view, like the shared cockpit.
+    // Agent MCP calls retain the active context boundary.
+    return callPriorityTool(connection.requireConfig(), name, input, { humanView: true });
   });
   queue = operation.catch(() => {});
   return operation;

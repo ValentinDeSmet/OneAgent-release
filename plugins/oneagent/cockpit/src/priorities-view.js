@@ -42,7 +42,7 @@ function prioritiesBootstrap() {
       });
     }
     ${script}
-    refreshPriorities = () => { if (!loading && !saving && !editor.open) refresh(); };
+    refreshPriorities = () => { if (!loading && !saving && !reordering && !draggedId && !editor.open) refresh(); };
     window.addEventListener("message", (event) => { if (event.data?.type === "state") autoRefresh(); });
   }`;
 }

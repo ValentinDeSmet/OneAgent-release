@@ -3,7 +3,7 @@
   "displayName": "OneAgent",
   "description": "Local-first product knowledge, curation, readiness, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.130",
+  "version": "0.1.131",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",
@@ -144,7 +144,7 @@
           "priorities",
           "tasks"
         ],
-        "modelDescription": "Read my explicit requests/tasks across the bound memory, ordered by priority and deadline, with description, linked entity, primary product, partner products/teams, requester, separate documentation and source URLs, subject/task classification, next action and revision. Returns existing entity choices for creation. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.",
+        "modelDescription": "Read my explicit requests/tasks across the bound memory, in the shared manual order by default (or an explicit column sort), with description, linked entity, primary product, partner products/teams, requester, separate documentation and source URLs, subject/task classification, next action and revision. Returns existing entity choices for creation. Returns a global orderRevision for explicit reordering. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -186,6 +186,7 @@
             "sortBy": {
               "type": "string",
               "enum": [
+                "manual",
                 "title",
                 "body",
                 "entity",
@@ -199,7 +200,8 @@
                 "status",
                 "nextAction",
                 "itemType"
-              ]
+              ],
+              "description": "Default manual order shared by both hosts. Other sorts do not alter it."
             },
             "sortDirection": {
               "type": "string",
@@ -436,6 +438,60 @@
           },
           "required": [
             "scope"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "workMemory_reorderPriority",
+        "toolReferenceName": "workMemoryReorderPriority",
+        "displayName": "OneAgent Rank Priority",
+        "userDescription": "Move one personal priority in the shared manual order.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(list-ordered)",
+        "tags": [
+          "work-memory",
+          "priorities",
+          "tasks"
+        ],
+        "modelDescription": "At the user's explicit direction, move one personal priority before or after another in the shared manual order. Read workMemory_listPriorities first and pass its exact orderRevision. Filters and pages only hide rows: all other subjects/tasks keep their relative order. Does not change business priority, deadline, status, documentation, source or entity links. Never rank subjects autonomously or retry a failed write without reading the list again.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio"
+              ],
+              "description": "Whole bound private memory; includes all subjects, independent of the VS Code selection."
+            },
+            "taskId": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "targetTaskId": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "position": {
+              "type": "string",
+              "enum": [
+                "before",
+                "after"
+              ]
+            },
+            "orderRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "Exact portfolio orderRevision from the latest list_priorities response, including filtered/paginated responses."
+            }
+          },
+          "required": [
+            "scope",
+            "taskId",
+            "targetTaskId",
+            "position",
+            "orderRevision"
           ],
           "additionalProperties": false
         }

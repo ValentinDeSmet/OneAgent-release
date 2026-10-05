@@ -36,6 +36,29 @@ function localDay(): string {
 function revision(task: TaskRecord, links: TaskLinkRecord[]): string {
   return createHash("sha256").update(JSON.stringify([task, [...links].sort((a, b) => a.id.localeCompare(b.id))])).digest("hex");
 }
+function personalTasks(db: WorkMemoryDatabase): TaskRecord[] {
+  return db.listTasks().filter(task => task.assignee === "me" && task.status !== "archived" && !task.archivedAt);
+}
+function manualRank(task: TaskRecord): number | undefined {
+  const value = task.tracking?.manualRank;
+  return Number.isSafeInteger(value) && Number(value) >= 0 ? value : undefined;
+}
+function initialOrder(a: TaskRecord, b: TaskRecord): number {
+  const date = (task: TaskRecord) => (task.deadline || task.tracking?.targetDate || "9999").slice(0, 10);
+  return rank(a.priority) - rank(b.priority) || date(a).localeCompare(date(b)) || a.id.localeCompare(b.id);
+}
+function manualOrder(tasks: TaskRecord[]): TaskRecord[] {
+  return [...tasks].sort((a, b) => {
+    const ar = manualRank(a), br = manualRank(b);
+    if (ar !== undefined || br !== undefined) return ar === undefined ? 1 : br === undefined ? -1 : ar - br || a.id.localeCompare(b.id);
+    return initialOrder(a, b);
+  });
+}
+function orderRevision(tasks: TaskRecord[]): string {
+  // Bind the whole order, including hidden rows and other pages. Ordinary edits
+  // remain possible: their updated tracking is read again inside the transaction.
+  return createHash("sha256").update(JSON.stringify(tasks.map(task => [task.id, manualRank(task) ?? null]))).digest("hex");
+}
 function entityChoices(db: WorkMemoryDatabase) {
   return db.listEntities().filter((entity) => entity.status !== "archived")
     .map(({ kind, id, label }) => ({ ref: `${kind}:${id}`, kind, id, label }));
@@ -120,7 +143,7 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   if (!validDay(today)) throw new Error("Date locale invalide (AAAA-MM-JJ).");
   const view = choice(input.view, "view", ["active", "done", "all"], "active");
   const filter = choice(input.filter, "filter", ["all", "urgent", "overdue", "soon", "clarify", "waiting", "unlinked"], "all");
-  const sortBy = choice(input.sortBy, "sortBy", ["title", "body", "entity", "product", "relatedEntities", "requester", "priority", "deadline", "url", "sourceUrl", "status", "nextAction", "itemType"], "priority");
+  const sortBy = choice(input.sortBy, "sortBy", ["manual", "title", "body", "entity", "product", "relatedEntities", "requester", "priority", "deadline", "url", "sourceUrl", "status", "nextAction", "itemType"], "manual");
   const direction = choice(input.sortDirection, "sortDirection", ["asc", "desc"], "asc") === "asc" ? 1 : -1;
   const query = text(input.query, "query", 500);
   const entity = text(input.entity, "entity", 512), productId = text(input.productId, "productId", 256);
@@ -137,10 +160,10 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   const limit = input.limit ?? 100, offset = input.offset ?? 0;
   if (!Number.isInteger(limit) || Number(limit) < 1 || Number(limit) > 100 || !Number.isInteger(offset) || Number(offset) < 0 || Number(offset) > 1000000) throw new Error("Pagination invalide.");
   const choices = entityChoices(db), byRef = new Map(choices.map((entity) => [entity.ref, entity]));
-  const tasks = db.listTasks().filter((task) => task.assignee === "me" && task.status !== "archived");
+  const tasks = manualOrder(personalTasks(db));
   const links = new Map<string, TaskLinkRecord[]>();
   for (const link of db.listTaskLinks(tasks.map((task) => task.id))) links.set(link.taskId, [...(links.get(link.taskId) ?? []), link]);
-  const all = tasks.map((task) => priorityItem(task, today, links.get(task.id) ?? [], byRef));
+  const all = tasks.map((task, index) => ({ ...priorityItem(task, today, links.get(task.id) ?? [], byRef), manualPosition: index + 1 }));
   const normalize = (value: string) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("fr");
   const matches = (value: string | undefined, search: string) => !search || normalize(value ?? "").includes(normalize(search));
   const matching = all.filter(task => (itemType === "all" || task.itemType === itemType)
@@ -167,15 +190,42 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   const collator = new Intl.Collator("fr", { sensitivity: "base", numeric: true });
   const sortValue = (task: typeof all[number]): string => sortBy === "entity" ? task.entityLabel : sortBy === "product" ? task.productLabel : sortBy === "relatedEntities" ? task.relatedEntities.map(entity => entity.label).join(", ") : String(task[sortBy as keyof typeof task] ?? "");
   items.sort((a, b) => {
+    if (sortBy === "manual") return direction * (a.manualPosition - b.manualPosition);
     const av = sortValue(a), bv = sortValue(b);
     const comparison = sortBy === "priority" ? direction * (rank(a.priority) - rank(b.priority))
       : !av !== !bv ? Number(!av) - Number(!bv) : direction * collator.compare(av, bv);
     return comparison || (sortBy === "priority" ? (a.deadline || "9999").localeCompare(b.deadline || "9999") : 0) || a.id.localeCompare(b.id);
   });
-  return { today, counts, entities: choices, items: items.slice(Number(offset), Number(offset) + Number(limit)), total: items.length,
+  return { today, counts, orderRevision: orderRevision(tasks), entities: choices, items: items.slice(Number(offset), Number(offset) + Number(limit)), total: items.length,
     nextOffset: Number(offset) + Number(limit) < items.length ? Number(offset) + Number(limit) : null };
 }
 function rank(value: string): number { const index = priorities.indexOf(value); return index < 0 ? 2 : index; }
+
+/** Move one personal row relative to another, preserving every other row's order. */
+export function reorderPriority(db: WorkMemoryDatabase, raw: unknown) {
+  const input = fields(raw, ["scope", "taskId", "targetTaskId", "position", "orderRevision"]);
+  const taskId = text(input.taskId, "taskId", 256), targetTaskId = text(input.targetTaskId, "targetTaskId", 256);
+  const position = choice(input.position, "position", ["before", "after"], "before");
+  const expected = text(input.orderRevision, "orderRevision", 64);
+  if (!taskId || !targetTaskId || !/^[a-f0-9]{64}$/.test(expected)) throw new Error("Déplacement invalide : utilise les identifiants et la révision de classement renvoyés par la liste.");
+  return db.runInImmediateTransaction(() => {
+    const ordered = manualOrder(personalTasks(db));
+    const current = orderRevision(ordered);
+    if (expected !== current) throw new Error("Le classement a changé. Actualise la liste avant de déplacer une priorité.");
+    const moved = ordered.find(task => task.id === taskId);
+    if (!moved || !ordered.some(task => task.id === targetTaskId)) throw new Error("Priorité introuvable, archivée ou hors de tes sollicitations personnelles.");
+    if (taskId === targetTaskId) return { moved: false, orderRevision: current };
+    const next = ordered.filter(task => task.id !== taskId);
+    const targetIndex = next.findIndex(task => task.id === targetTaskId);
+    next.splice(targetIndex + (position === "after" ? 1 : 0), 0, moved);
+    if (next.every((task, index) => task.id === ordered[index].id)) return { moved: false, orderRevision: current };
+    // Dense ranks avoid floating-point gaps and stay durable in the existing
+    // tracking JSON. Filters and pagination never replace the portfolio order.
+    const saved = next.map((task, index) => manualRank(task) === index ? task
+      : db.updateTask({ taskId: task.id, tracking: { ...task.tracking, manualRank: index } }));
+    return { moved: true, orderRevision: orderRevision(saved) };
+  });
+}
 
 /** One transaction, ID-based edits and optimistic conflict detection across hosts. */
 export function savePriority(db: WorkMemoryDatabase, raw: unknown) {

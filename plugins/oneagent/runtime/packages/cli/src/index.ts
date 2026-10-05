@@ -74,7 +74,7 @@ import {
   type WorkMemoryDatabase
 } from "../../storage/src/index.ts";
 import { archiveTask, createTask, listTaskReadModel, updateTask } from "../../tasks/src/index.ts";
-import { listPriorities, savePriority } from "../../tasks/src/priorities.ts";
+import { listPriorities, savePriority, reorderPriority } from "../../tasks/src/priorities.ts";
 import type { TaskDraft, TaskReadModelItem } from "../../tasks/src/index.ts";
 import {
   appendWikiLog,
@@ -342,8 +342,9 @@ async function executeCommand(argv: string[]): Promise<void> {
       if (scope?.scope.mode === "strict") throw new Error("Priorities is a portfolio view. Leave the strict context explicitly before using it.");
       if (input.scope !== "portfolio") throw new Error("Explicit portfolio scope is required.");
       const result = operation === "list" ? listPriorities(runtime.db, input)
-        : operation === "save" ? savePriority(runtime.db, input) : undefined;
-      if (!result) throw new Error("Use priorities list|save.");
+        : operation === "save" ? savePriority(runtime.db, input)
+        : operation === "reorder" ? reorderPriority(runtime.db, input) : undefined;
+      if (!result) throw new Error("Use priorities list|save|reorder.");
       console.log(JSON.stringify(result));
     } finally { runtime.close(); }
     return;

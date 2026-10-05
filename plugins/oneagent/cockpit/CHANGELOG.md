@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.131
+
+- Classement manuel des priorités par glisser-déposer, affiché par défaut et
+  commun à VS Code et Copilot 0.6.5. Les filtres et tris par colonne ne l’effacent pas.
+- Poignée avec rang, repère avant/après, déplacement au clavier avec ↑ / ↓ et
+  bouton Mon classement pour retrouver cet ordre après un tri.
+- Réordonnancement transactionnel protégé contre les déplacements simultanés,
+  sans modifier priorité, échéance, avancement, sources ou rattachements.
+- Outil agent de classement explicite avec révision globale, conservé dans la
+  mémoire et l’export privé. Les nouvelles lignes sont ajoutées en fin de liste
+  après un premier classement manuel.
+- Les outils Priorités MCP respectent le contexte strict de l’agent ; les vues
+  manuelles conservent leur périmètre portfolio explicite.
+
 ## 0.1.130
 
 - Priorités communes à VS Code et Copilot 0.6.4 : produit principal et plusieurs

@@ -157,3 +157,14 @@ standalone `oneagent-priorities` canvas remains available for a focused view.
 Do not invoke UI controller messages or confirmation replies as agent actions:
 human confirmations in the canvas are deliberately kept separate from model tools.
 Use the existing company BMAD skill for work methodology; OneAgent supplies memory.
+
+
+Manual priority order is user-owned and shared with VS Code. `list_priorities`
+defaults to `sortBy: manual` and returns a global `orderRevision`, even for filtered
+or paginated results. Do not change this order while importing or refreshing a
+sheet. Only at the user's explicit request, use `oneagent_reorder_priority` with
+current `taskId`, `targetTaskId`, `position: before|after` and that `orderRevision`.
+Other rows retain their relative order, including hidden tasks and subjects.
+Rank is independent of priority level, advancement, date, entity and source.
+After any conflict or unconfirmed write, reread before proposing another move;
+never replay the write automatically. Column sorts do not overwrite manual rank.

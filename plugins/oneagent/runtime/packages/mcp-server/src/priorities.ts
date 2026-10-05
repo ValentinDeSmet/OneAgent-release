@@ -3,10 +3,10 @@ const text = (maxLength: number) => ({ type: "string", maxLength });
 const scope = { type: "string", enum: ["portfolio"], description: "Whole bound private memory; includes all subjects, independent of the VS Code selection." };
 const schema = (properties: Record<string, unknown>, required = ["scope"]) => ({ type: "object", properties: { scope, ...properties }, required, additionalProperties: false });
 export const priorityTools = [
-  { name: "oneagent_list_priorities", description: "Read my explicit requests/tasks across the bound memory, ordered by priority and deadline, with description, linked entity, primary product, partner products/teams, requester, separate documentation and source URLs, subject/task classification, next action and revision. Returns existing entity choices for creation. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.", inputSchema: schema({
+  { name: "oneagent_list_priorities", description: "Read my explicit requests/tasks across the bound memory, in the shared manual order by default (or an explicit column sort), with description, linked entity, primary product, partner products/teams, requester, separate documentation and source URLs, subject/task classification, next action and revision. Returns existing entity choices for creation. Returns a global orderRevision for explicit reordering. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.", inputSchema: schema({
     today: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" }, query: text(500),
     view: { type: "string", enum: ["active", "done", "all"] }, filter: { type: "string", enum: ["all", "urgent", "overdue", "soon", "clarify", "waiting", "unlinked"] },
-    sortBy: { type: "string", enum: ["title", "body", "entity", "product", "relatedEntities", "requester", "priority", "deadline", "url", "sourceUrl", "status", "nextAction", "itemType"] },
+    sortBy: { type: "string", enum: ["manual", "title", "body", "entity", "product", "relatedEntities", "requester", "priority", "deadline", "url", "sourceUrl", "status", "nextAction", "itemType"], description: "Default manual order shared by both hosts. Other sorts do not alter it." },
     sortDirection: { type: "string", enum: ["asc", "desc"] },
     titleQuery: text(500), bodyQuery: text(500), requesterQuery: text(300), urlQuery: text(500), sourceUrlQuery: text(500),
     itemType: { type: "string", enum: ["all", "subject", "task"], description: "Filter subjects, ordinary tasks or both (default all)." },
@@ -29,10 +29,16 @@ export const priorityTools = [
     priority: { type: "string", enum: ["critical", "high", "medium", "low"] },
     status: { type: "string", enum: ["pending", "candidate", "ready", "open", "in_progress", "blocked", "done"] },
     deadline: text(10), deadlineKind: { type: "string", enum: ["unknown", "exact", "approximate"] }, deadlineLabel: text(150), nextAction: text(2000)
-  }), annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }
+  }), annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } },
+  { name: "oneagent_reorder_priority", description: "At the user's explicit direction, move one personal priority before or after another in the shared manual order. Read list_priorities first and pass its exact orderRevision. Filters and pages only hide rows: all other subjects/tasks keep their relative order. Does not change business priority, deadline, status, documentation, source or entity links. Never rank subjects autonomously or retry a failed write without reading the list again.", inputSchema: schema({
+    taskId: text(256), targetTaskId: text(256), position: { type: "string", enum: ["before", "after"] },
+    orderRevision: { type: "string", pattern: "^[a-f0-9]{64}$", description: "Exact portfolio orderRevision from the latest list_priorities response, including filtered/paginated responses." }
+  }, ["scope", "taskId", "targetTaskId", "position", "orderRevision"]), annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }
 ];
-export async function callPriorityTool(configPath: string, name: string, raw: unknown) {
+export async function callPriorityTool(configPath: string, name: string, raw: unknown, options: { humanView?: boolean } = {}) {
   if (!priorityTools.some((tool) => tool.name === name)) throw new Error("Unknown priorities tool.");
   if (!raw || typeof raw !== "object" || Array.isArray(raw) || Buffer.byteLength(JSON.stringify(raw)) > 65536) throw new Error("Invalid priorities input.");
-  return runMemoryCommand(configPath, ["priorities", name === "oneagent_list_priorities" ? "list" : "save", "--stdin"], JSON.stringify(raw));
+  const operations: Record<string, string> = { oneagent_list_priorities: "list", oneagent_save_priority: "save", oneagent_reorder_priority: "reorder" };
+  const operation = operations[name];
+  return runMemoryCommand(configPath, ["priorities", operation!, "--stdin", ...(options.humanView ? [] : ["--context-scope", "active"])], JSON.stringify(raw));
 }

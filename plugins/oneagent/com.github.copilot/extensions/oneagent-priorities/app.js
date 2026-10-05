@@ -4,8 +4,10 @@ const token = $('meta[name="oneagent-token"]').content;
 const openExternal = null;
 const form = $("#form"), editor = $("#editor");
 let selectedRelatedRefs = new Set();
-let entities = [], sortBy = "priority", sortDirection = "asc";
+let entities = [], sortBy = "manual", sortDirection = "asc";
 let items = [], nextOffset = null, selected = null, loading = false, saving = false, requestVersion = 0;
+let orderRevision = "", reordering = false, draggedId = "", draggedRow = null, dropRow = null;
+let rankHandles = new Map();
 const priorityLabels = { critical: "Critique", high: "Haute", medium: "Normale", low: "Basse" };
 const statusLabels = { open: "À faire", in_progress: "En cours", ready: "Prête", pending: "À clarifier", candidate: "À valider", blocked: "En attente", done: "Terminée" };
 const day = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; };
@@ -79,10 +81,79 @@ function urlCell(value, title) {
 function safeUrl(value) {
   try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password ? url.href : ""; } catch { return ""; }
 }
+const manualView = () => sortBy === "manual" && sortDirection === "asc";
+function clearDrag() {
+  if (dropRow) delete dropRow.dataset.dropPosition;
+  if (draggedRow) delete draggedRow.dataset.dragging;
+  draggedId = ""; draggedRow = null; dropRow = null;
+}
+async function movePriority(taskId, targetTaskId, position) {
+  if (!manualView() || loading || saving || reordering || !orderRevision) return;
+  clearTimeout(searchTimer);
+  clearDrag(); reordering = true; render(); error($("#error"));
+  const controls = [...document.querySelectorAll(".toolbar input, .toolbar select, .filters input, .filters select, .filters button, [data-sort], [data-filter], #add, #empty-add, #refresh, #more, #manual-order")];
+  const previous = controls.map(control => control.disabled);
+  for (const control of controls) control.disabled = true;
+  $("#rank-feedback").textContent = "Enregistrement du classement…";
+  try {
+    const result = await api("reorder", { taskId, targetTaskId, position, orderRevision });
+    orderRevision = result.orderRevision;
+    await refresh();
+    $("#rank-feedback").textContent = result.moved ? "Classement enregistré." : "Classement inchangé.";
+  } catch (failure) {
+    orderRevision = "";
+    error($("#error"), failure.message + "\nClassement non confirmé. Actualise la liste avant de réessayer le déplacement.");
+    $("#rank-feedback").textContent = "Classement non confirmé.";
+  } finally {
+    reordering = false;
+    controls.forEach((control, index) => { control.disabled = previous[index]; });
+    render(); rankHandles.get(taskId)?.focus();
+  }
+}
+function rankCell(item, row, index) {
+  const cell = node("td", "", "rank-cell"), handle = node("button", "⠿", "rank-handle");
+  handle.type = "button"; handle.draggable = manualView() && !reordering && Boolean(orderRevision); handle.disabled = !manualView() || reordering || !orderRevision;
+  handle.setAttribute("aria-label", "Déplacer " + item.title);
+  handle.setAttribute("aria-describedby", "rank-help");
+  handle.title = manualView() ? "Glisser pour classer · Flèche haut / bas pour déplacer au clavier" : "Reviens à Mon classement pour déplacer ce sujet";
+  handle.addEventListener("dragstart", event => {
+    if (!manualView() || loading || saving || reordering) { event.preventDefault(); return; }
+    draggedId = item.id; draggedRow = row; row.dataset.dragging = "true";
+    event.dataTransfer?.setData("text/plain", item.id);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+  });
+  handle.addEventListener("dragend", clearDrag);
+  handle.addEventListener("keydown", event => {
+    const target = event.key === "ArrowUp" ? items[index - 1] : event.key === "ArrowDown" ? items[index + 1] : null;
+    if (!manualView() || !target) return;
+    event.preventDefault(); return movePriority(item.id, target.id, event.key === "ArrowUp" ? "before" : "after");
+  });
+  row.addEventListener("dragover", event => {
+    if (!draggedId || draggedId === item.id || !manualView() || reordering) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    if (dropRow && dropRow !== row) delete dropRow.dataset.dropPosition;
+    dropRow = row;
+    const bounds = row.getBoundingClientRect();
+    row.dataset.dropPosition = event.clientY < bounds.top + bounds.height / 2 ? "before" : "after";
+  });
+  row.addEventListener("dragleave", event => { if (!row.contains(event.relatedTarget)) { delete row.dataset.dropPosition; if (dropRow === row) dropRow = null; } });
+  row.addEventListener("drop", event => {
+    if (!draggedId || draggedId === item.id || !manualView() || reordering) return;
+    event.preventDefault();
+    const from = draggedId, position = row.dataset.dropPosition || "before";
+    clearDrag(); return movePriority(from, item.id, position);
+  });
+  rankHandles.set(item.id, handle);
+  cell.append(handle, node("span", String(item.manualPosition || index + 1), "rank-number"));
+  return cell;
+}
 function render() {
+  rankHandles = new Map();
   const fragment = document.createDocumentFragment();
-  for (const item of items) {
+  for (const [index, item] of items.entries()) {
     const row = node("tr"), subject = node("td"), button = node("button", item.title, "subject");
+    row.dataset.taskId = item.id;
     button.type = "button"; button.addEventListener("click", () => edit(item));
     const titleLine = node("div", "", "subject-line"), modify = node("button", "Modifier", "edit-link");
     modify.type = "button"; modify.setAttribute("aria-label", "Modifier " + item.title); modify.addEventListener("click", () => edit(item));
@@ -109,7 +180,7 @@ function render() {
       due.append(node("p", `Estimation${item.deadlineLabel && item.deadline ? " · cible " + dateLabel(item.deadline) : ""}`, "estimate"));
     } else due.append(node("span", "À préciser", "muted"));
     const status = node("td"); status.append(node("span", statusLabels[item.status] || item.status, "badge"));
-    row.append(subject, description, product, related, requester, priority, due, link, source, status);
+    row.append(rankCell(item, row, index), subject, description, product, related, requester, priority, due, link, source, status);
     fragment.append(row);
   }
   $("#rows").replaceChildren(fragment);
@@ -118,17 +189,23 @@ function render() {
     button.title = "Trier par " + button.textContent.trim() + (button.dataset.sort === sortBy && sortDirection === "asc" ? " · décroissant" : " · croissant");
   }
   const sorted = $("[data-sort='" + sortBy + "']");
-  $("#sort-summary").textContent = `Tri : ${sorted?.textContent.trim() || sortBy} · ${sortDirection === "asc" ? "croissant" : "décroissant"}`;
+  $("#sort-summary").textContent = manualView() ? "Ordre : mon classement" : `Tri : ${sorted?.textContent.trim() || sortBy} · ${sortDirection === "asc" ? "croissant" : "décroissant"}`;
+  $("#manual-order").setAttribute("aria-pressed", String(manualView()));
+  $("#rank-help").textContent = manualView()
+    ? "Glisse la poignée ⠿ pour classer les sujets, ou utilise les flèches ↑ / ↓ au clavier. Les filtres conservent l’ordre commun à VS Code et Copilot."
+    : "Un tri par colonne est appliqué. Reviens à « Mon classement » pour déplacer les sujets.";
   const count = activeFilterCount();
   $("#filter-count").textContent = count ? `(${count} actif${count > 1 ? "s" : ""})` : "";
 }
 async function refresh(append = false) {
+  clearDrag();
   const version = ++requestVersion;
   loading = true; $("#refresh").disabled = true; $("#more").disabled = true;
   try {
     const data = await api("list", { today: day(), query: $("#search").value, view: $("#view").value, filter: $("#filter").value, ...filters(), sortBy, sortDirection, limit: 100, offset: append ? nextOffset : 0 });
     if (version !== requestVersion) return;
     items = append ? [...items, ...data.items.filter((item) => !items.some((old) => old.id === item.id))] : data.items;
+    orderRevision = data.orderRevision || "";
     nextOffset = data.nextOffset;
     entities = data.entities || [];
     selectOptions($("#entity-filter"), entityOptions(), "Toutes les entités");
@@ -148,7 +225,7 @@ async function refresh(append = false) {
     $("#summary").textContent = `${items.length} sur ${data.total} sollicitation${data.total > 1 ? "s" : ""} · Actualisé à ${new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
     error($("#error"));
   } catch (failure) {
-    if (version === requestVersion) { error($("#error"), failure.message); $("#summary").textContent = "Actualisation impossible · les données affichées peuvent être anciennes"; }
+    if (version === requestVersion) { orderRevision = ""; render(); error($("#error"), failure.message); $("#summary").textContent = "Actualisation impossible · les données affichées peuvent être anciennes"; }
   } finally {
     if (version === requestVersion) { loading = false; $("#refresh").disabled = false; $("#more").disabled = false; }
   }
@@ -164,6 +241,7 @@ function deadlineFields() {
   $("#date-help").textContent = kind === "approximate" ? "La période suffit. Une date cible peut aider au tri ; elle ne déclenche pas d’alerte de retard." : kind === "exact" ? "Une date ferme dépassée apparaîtra dans les retards." : "Une échéance inconnue reste visible comme « À préciser ».";
 }
 function edit(item = null) {
+  if (reordering) return;
   selected = item; form.reset(); error($("#form-error"));
   selectedRelatedRefs = new Set(item?.relatedEntityRefs || []);
   $("#partner-search").value = "";
@@ -207,16 +285,19 @@ let searchTimer;
 for (const id of ["search", "title-query", "body-query", "requester-query", "url-query", "source-url-query"]) $("#" + id).addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => refresh(), 250); });
 for (const id of Object.values(filterFields).filter((id) => !id.endsWith("-query"))) $("#" + id).addEventListener("change", () => refresh());
 for (const button of document.querySelectorAll("[data-sort]")) button.addEventListener("click", () => {
-  sortDirection = sortBy === button.dataset.sort && sortDirection === "asc" ? "desc" : "asc";
-  sortBy = button.dataset.sort; refresh();
+  if (reordering) return;
+  if (sortBy === button.dataset.sort && sortDirection === "desc") { sortBy = "manual"; sortDirection = "asc"; }
+  else { sortDirection = sortBy === button.dataset.sort ? "desc" : "asc"; sortBy = button.dataset.sort; }
+  refresh();
 });
+$("#manual-order").addEventListener("click", () => { if (reordering) return; sortBy = "manual"; sortDirection = "asc"; refresh(); });
 $("#reset-filters").addEventListener("click", () => {
   clearTimeout(searchTimer);
   for (const id of ["search", ...Object.values(filterFields)]) $("#" + id).value = "";
   $("#item-type").value = "all";
   $("#filter").value = "all"; $("#view").value = "active"; refresh();
 });
-const autoRefresh = () => { if (!loading && !saving && !editor.open && !document.hidden) refresh(); };
+const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !editor.open && !document.hidden) refresh(); };
 document.addEventListener("visibilitychange", autoRefresh);
 setInterval(autoRefresh, 60000);
 $("#add").disabled = true; $("#empty-add").disabled = true;

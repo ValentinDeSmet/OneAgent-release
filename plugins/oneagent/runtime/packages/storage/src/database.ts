@@ -71,6 +71,7 @@ export interface TaskMetadataInput {
 }
 
 export interface TaskTracking {
+  manualRank?: number;
   itemType?: "subject" | "task";
   sourceUrl?: string;
   relatedEntityRefs?: string[];

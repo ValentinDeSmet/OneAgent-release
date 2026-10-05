@@ -32,7 +32,14 @@ under the subject. Every new or edited request needs an existing entity; request
 from earlier versions without one stay visible under **Sans entité · à rattacher**.
 A product is optional when the request is attached to a different entity type.
 
-Click any column heading to sort in either direction. Open **Filtres par champ**
+The default **Mon classement** order is shared with Copilot. Drag the ⠿ handle
+before or after another row, or focus it and use Arrow Up / Down. Filters hide
+rows without replacing the shared order. Column headings cycle ascending,
+descending, then back to manual order; **Mon classement** restores it directly.
+Dragging is available only in manual order. Newly added rows append once an
+order has been established. Rank changes leave all task fields and links intact.
+
+Click any column heading to apply an explicit sort. Open **Filtres par champ**
 to combine text, entity, product, requester, priority, date range and URL filters.
 The visible product/team filter matches primary or partner involvement. Nature
 can show subjects and tasks, subjects only or tasks only; the default retains
