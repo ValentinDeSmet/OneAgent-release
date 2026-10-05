@@ -168,3 +168,15 @@ Other rows retain their relative order, including hidden tasks and subjects.
 Rank is independent of priority level, advancement, date, entity and source.
 After any conflict or unconfirmed write, reread before proposing another move;
 never replay the write automatically. Column sorts do not overwrite manual rank.
+
+
+## Local Markdown files
+
+The cockpit opens Markdown files in an `oneagent-document` canvas tab titled
+after the file, with formatted reading and optional editing of the original.
+An existing tab is focused on another click. This is a OneAgent document canvas,
+not an API call into the app’s internal file editor. For a user-requested file,
+resolve an existing absolute path in the bound memory or configured repositories
+before opening this canvas. Do not create a copy or a substitute document.
+Opening a tab never authorizes a file edit. Host sandbox and canvas availability
+still apply. Never ask for a Git repository just to use the memory.

@@ -3,6 +3,7 @@ import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { pathToFileURL } from "node:url";
+import { createDocumentStore } from "./documents.mjs";
 
 const require = createRequire(import.meta.url);
 export const pluginRoot = path.resolve(import.meta.dirname, "../../..");
@@ -11,12 +12,10 @@ const { createCockpitRuntime } = require(path.join(cockpitRoot, "src/extension.j
 const { createCopilotTools } = require(path.join(cockpitRoot, "src/copilot-tools.js"));
 const { readMemoryLocations } = require(path.join(cockpitRoot, "src/memory-location.js"));
 const { runMemoryTextCommand } = await import(pathToFileURL(path.join(pluginRoot, "runtime/packages/mcp-server/src/cli-bridge.ts")));
-const { loadConfig } = await import(pathToFileURL(path.join(pluginRoot, "runtime/packages/registry/src/config.ts")));
 const digest = (value) => createHash("sha256").update(value).digest("hex");
-const inside = (file, root) => file === root || file.startsWith(root + path.sep);
 
 /** One UI instance, one injected host. No VS Code module or real workspace activation. */
-export function createCockpitHost({ connection, updates, emit, runAgentLoop, runCommand = runMemoryTextCommand }) {
+export function createCockpitHost({ connection, updates, emit, runAgentLoop, openFile, runCommand = runMemoryTextCommand }) {
   const pending = new Map(), tools = new Map();
   let closed = false, cli, controller;
   let operationQueue = Promise.resolve();
@@ -72,27 +71,17 @@ export function createCockpitHost({ connection, updates, emit, runAgentLoop, run
     }
   };
   const uri = (file) => ({ fsPath: file, scheme: "file", toString: () => pathToFileURL(file).href });
-  const allowedPath = (file) => {
-    const config = loadConfig(connection.requireConfig());
-    const roots = [config.workspaceRoot, cockpitRoot, ...config.products.flatMap((p) => p.repositories.map((r) => r.path))]
-      .filter((p) => fs.existsSync(p)).map((p) => fs.realpathSync(p));
-    const physical = fs.realpathSync(file);
-    if (!roots.some((root) => inside(physical, root))) throw new Error("Ce fichier est hors de la mémoire et de ses dépôts configurés.");
-    return physical;
-  };
+  const documents = createDocumentStore({ connection, updates, assetsRoot: cockpitRoot });
+  const allowedPath = documents.allowedPath;
   const openDocument = async (target) => {
     if (target.content !== undefined) return { content: String(target.content), title: "OneAgent", language: target.language };
-    const file = allowedPath(target.fsPath || target);
-    const stat = fs.statSync(file);
-    if (stat.isDirectory()) {
-      return { title: file, content: fs.readdirSync(file).join("\n") };
-    }
-    if (stat.size > 2 * 1024 * 1024) throw new Error("Fichier trop volumineux pour l’aperçu (2 Mio maximum).");
-    const bytes = fs.readFileSync(file), content = bytes.toString("utf8");
-    if (bytes.includes(0) || !bytes.equals(Buffer.from(content))) throw new Error("L’aperçu prend en charge les fichiers texte UTF-8.");
-    return { title: file, content, file, revision: digest(bytes), editable: /\.(md|txt)$/i.test(file) && !inside(file, fs.realpathSync(cockpitRoot)) };
+    return documents.read(target.fsPath || target);
   };
-  const showDocument = async (document) => { emitHost({ kind: "document", ...document }); return { document }; };
+  const showDocument = async (document) => {
+    if (document.markdown && document.file && openFile) await openFile(document.file);
+    else emitHost({ kind: "document", ...document });
+    return { document };
+  };
   const host = {
     TreeItem: class {}, ThemeIcon: class {}, ProgressLocation: { Notification: 1 }, ViewColumn: { One: 1, Beside: 2 }, ConfigurationTarget: { Workspace: 1 },
     Uri: { file: uri, joinPath: (base, ...parts) => uri(path.join(base.fsPath, ...parts)), parse: (value) => { const url = new URL(value); return { scheme: url.protocol.slice(0, -1), toString: () => url.href }; } },
@@ -201,12 +190,7 @@ export function createCockpitHost({ connection, updates, emit, runAgentLoop, run
     },
     replayDialogs() { for (const [id, entry] of pending) emitHost({ kind: "dialog", id, ...entry.question }); },
     async saveDocument({ file, revision, content }) {
-      updates.assertSessionCurrent();
-      const current = await openDocument(uri(file));
-      if (!current.editable || typeof content !== "string" || Buffer.byteLength(content) > 2 * 1024 * 1024) throw new Error("Modification de fichier refusée.");
-      if (current.revision !== revision) throw new Error("Le fichier a changé. Fermer puis rouvrir l’aperçu avant de réessayer.");
-      fs.writeFileSync(current.file, content, "utf8");
-      return { revision: digest(content) };
+      return documents.save({ file, revision, content });
     },
     async close() { closed = true; for (const entry of pending.values()) entry.resolve(undefined); pending.clear(); await operationQueue; if (cli) await cli.commandQueue; }
   };

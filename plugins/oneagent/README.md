@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.6.6 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.6.7 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -38,12 +38,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.6.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.7.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.4/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.7/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -92,6 +92,23 @@ Pour essayer ensuite :
 
 > Crée une note privée OneAgent intitulée Test installation, avec le contenu
 > Première utilisation sur ce Mac, puis relis-la.
+
+## Ouvrir les fichiers Markdown
+
+Depuis le cockpit, les boutons d’ouverture d’un fichier `.md` ouvrent un onglet
+document dans Copilot, intitulé comme le fichier. Un second clic retrouve le
+même onglet. Le mode **Lecture** affiche le Markdown formaté (titres, listes,
+tableaux et blocs de code). **Modifier** et **Enregistrer** travaillent sur le
+fichier original ; ouvrir le document ne le modifie pas.
+
+Un changement concurrent refuse l’enregistrement et conserve le brouillon.
+Les liens vers d’autres fichiers Markdown autorisés ouvrent un autre onglet.
+Le rendu est embarqué dans le plugin et fonctionne sans téléchargement depuis
+un CDN. Les fichiers internes du plugin restent en lecture seule.
+
+Cet onglet est un Canvas document fourni par OneAgent, ouvert dans Copilot.
+L’API publique utilisée ne donne pas accès à l’éditeur interne de fichiers de
+l’application. Il faut une session locale prenant en charge les Canvas.
 
 ## Mettre à jour sans télécharger de fichier
 
@@ -254,7 +271,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.6.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.7.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.

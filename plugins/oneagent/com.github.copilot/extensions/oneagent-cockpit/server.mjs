@@ -12,12 +12,12 @@ const { renderCockpitHtml } = require(path.join(cockpitRoot, "src/cockpit.js"));
 const controllerSource = fs.readFileSync(path.join(cockpitRoot, "src/extension.js"), "utf8");
 export const cockpitActions = new Set([...controllerSource.matchAll(/message\.type === "([^"]+)"/g)].map((match) => match[1]));
 
-export async function startCockpitServer({ connection, updates, callOnboarding, agentLoop = runAgentLoop }) {
+export async function startCockpitServer({ connection, updates, callOnboarding, openFile, agentLoop = runAgentLoop }) {
   const token = randomBytes(32).toString("hex"), nonce = randomBytes(24).toString("hex");
   const clients = new Set();
   let authority, closed = false;
   const emit = (value) => { for (const client of clients) client.write(`data: ${JSON.stringify(value)}\n\n`); };
-  const host = createCockpitHost({ connection, updates, emit, runAgentLoop: agentLoop });
+  const host = createCockpitHost({ connection, updates, emit, openFile, runAgentLoop: agentLoop });
   const assets = new Map([
     ["/bridge.js", [fs.readFileSync(new URL("bridge.js", import.meta.url), "utf8"), "text/javascript"]],
     ["/host.css", [fs.readFileSync(new URL("host.css", import.meta.url), "utf8"), "text/css"]],
