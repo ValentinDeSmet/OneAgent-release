@@ -2,8 +2,10 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.3](docs/copilot.md) : ajouter ce dépôt comme catalogue, puis installer ou mettre à jour OneAgent. Le paquet inclut le **cockpit complet partagé avec VS Code** : graphe 2D/3D, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
+- [GitHub Copilot 0.6.4](docs/copilot.md) : ajouter ce dépôt comme catalogue, puis installer ou mettre à jour OneAgent. Le paquet inclut le **cockpit complet partagé avec VS Code** : graphe 2D/3D, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
+
+Priorités 0.6.4 : produit principal et partenaires, filtres par produit ou équipe, liens de documentation et de source distincts, avancement « En cours », choix entre sujets et tâches.
 
 Après mise à jour, ouvrir une nouvelle session Copilot et demander **« Ouvre le cockpit OneAgent »**. [Guide du cockpit](docs/copilot.md) · [Code partagé de l’interface](plugins/oneagent/cockpit/src/cockpit.js) · [Adaptateur Copilot](plugins/oneagent/com.github.copilot/extensions/oneagent-cockpit).
 

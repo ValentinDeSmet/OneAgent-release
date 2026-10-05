@@ -1,32 +1,50 @@
 # Priorités — sollicitations personnelles
 
-Mise à jour du 4 octobre 2026, Copilot 0.6.0 et VS Code 0.1.128. Le catalogue public
+Mise à jour du 5 octobre 2026, Copilot 0.6.4 et VS Code 0.1.130. Le catalogue public
 `ValentinDeSmet/OneAgent-release` distribue le front et le moteur dans un même
 plugin ; aucune installation séparée de l’interface n’est nécessaire.
 
 ## Usage et choix de présentation
 
 Un tableau permet de comparer des demandes sans lien entre elles : une ligne
-par résultat attendu : sujet, description, produit concerné, attendu par, priorité,
-deadline, URL et avancement. L’entité rattachée figure sous le sujet. Une fiche d’édition conserve le contexte sans alourdir la lecture.
+par résultat attendu : sujet, description, produit principal, autres produits ou
+équipes concernés, attendu par, priorité, deadline, documentation, source et
+avancement. L’entité rattachée figure sous le sujet. Une fiche d’édition conserve le contexte sans alourdir la lecture.
 
 - Ajouter une sollicitation avec une entité existante obligatoire (projet, produit,
   personne ou autre type du graphe). Le produit est facultatif pour les autres
   entités ; une entité produit renseigne ce même produit.
+- Ajouter plusieurs produits ou équipes partenaires depuis toute la mémoire,
+  sans les limiter au produit principal. Le champ permet une recherche et un
+  choix multiple ; les partenaires doivent être des entités existantes.
+- Distinguer le lien de documentation (`url`) de l’URL du Google Sheet d’origine
+  (`sourceUrl`). Le lien source reste disponible pour une demande d’actualisation
+  à l’agent ; son enregistrement ne déclenche pas une synchronisation distante.
+- Classer chaque ligne comme sujet à développer ou tâche/action. L’affichage
+  initial garde **Sujets et tâches**, avec un filtre pour ne voir que l’un ou
+  l’autre ; la classification reste modifiable dans la fiche.
 - Choisir une priorité basse, normale, haute ou critique.
 - Indiquer une date ferme, une estimation libre (date cible facultative) ou laisser
   l’échéance à préciser. Seules les dates fermes peuvent être signalées en retard.
 - Retrouver un sujet ou un demandeur via la recherche.
 - Filtrer les sujets actifs/terminés, les priorités hautes, les retards, les
   échéances d’ici 7 jours, les attentes ou les informations à préciser.
-- Modifier ou terminer une demande ; les demandes terminées peuvent être rouvertes.
+- Utiliser **En cours** lorsque le travail a commencé ; cet état reste reconnu
+  dans Tasks, Today et les fiches d’entités.
+- Cliquer sur le titre ou **Modifier** pour modifier ou terminer une demande ;
+  les demandes terminées peuvent être rouvertes.
 
 Le tri initial compare la priorité puis les dates. Chaque en-tête permet un tri
 ascendant ou descendant. Les filtres par sujet, description, entité, produit,
-demandeur, priorité, intervalle de dates, nature de la deadline, URL et avancement
-sont combinables. Tris et filtres s’appliquent avant la pagination. Il n’y a pas de score
+demandeur, priorité, intervalle de dates, nature de la deadline, documentation,
+source et avancement sont combinables. Le filtre visible **Produit / équipe
+concerné** retrouve l’entité comme produit principal, rattachement produit/équipe
+ou partenaire ; les filtres avancés **Produit principal** et **Produit / équipe
+partenaire** ciblent chaque rôle séparément. Tris et filtres s’appliquent avant la pagination. Il n’y a pas de score
 opaque qui requalifie automatiquement une demande. Les compteurs portent sur
-l’ensemble des tâches actives, indépendamment de la recherche. « À préciser »
+les lignes actives correspondant aux filtres de champ, à la recherche et à la
+nature sélectionnée, avant pagination. Le choix d’une métrique ne réduit pas
+les autres compteurs à cette seule catégorie. « À préciser »
 signifie demandeur absent, échéance inconnue ou entité à rattacher. Le tableau se recharge chaque
 minute lorsqu’aucune fiche n’est en cours d’édition et lorsque le panneau est
 visible. La date de mise à jour figure dans la fiche ; ce n’est pas un journal
@@ -44,7 +62,9 @@ explicite et refusent d’élargir implicitement un contexte strict actif.
 Les demandes sont des tâches natives assignées à `me`. Le lien principal est un
 lien `about` vers l’entité, marqué `priorityPrimary` dans ses métadonnées. Un
 changement de rattachement retire uniquement l’ancien lien créé par cette vue ;
-les liens préexistants et les autres relations restent conservés. Les tâches
+les liens préexistants et les autres relations restent conservés. Les partenaires
+créent des liens `concerns` marqués `priorityRelated` : le retrait d’un partenaire
+ne supprime que les liens créés par cette vue, et conserve les liens antérieurs. Les tâches
 anciennes avec un seul lien `about` valide ou un produit explicite conservent ce
 rattachement. Les tâches orphelines ou ambiguës restent dans **À rattacher** et
 exigent un choix à la prochaine édition. Les propositions Inbox,
@@ -53,8 +73,11 @@ Les tâches identiques par leur titre gardent des identifiants distincts. Les
 liens, notes et références des tâches existantes sont conservés à l’édition.
 
 La migration 016 ajoute un objet `tracking_json` aux tâches : `requester`,
-`deadlineKind`, `deadlineLabel`, `targetDate`, `nextAction` et désormais `url`.
-Aucune nouvelle migration SQL n’est nécessaire pour ajouter l’URL. La date ferme reste
+`deadlineKind`, `deadlineLabel`, `targetDate`, `nextAction`, `url`, `sourceUrl`,
+`itemType` et `relatedEntityRefs`.
+Aucune nouvelle migration SQL n’est nécessaire. Les anciennes lignes créées dans
+Priorités (lien principal `priorityPrimary`) sont lues comme sujets ; les autres
+tâches restent des tâches. Une classification explicite prévaut toujours. La date ferme reste
 le champ `deadline` existant. Les estimations n’alimentent pas ce champ afin que
 Today et les anciens clients n’affichent pas de faux retards. Une date ferme
 ajoutée ensuite depuis VS Code prévaut sur l’estimation.
@@ -69,7 +92,8 @@ Il ne s’agit pas d’une synchronisation automatique entre deux ordinateurs.
 Une révision calculée sur le contenu de la tâche et ses liens protège chaque édition :
 relecture et écriture s’exécutent dans la même transaction. Une fiche obsolète
 est refusée avec un message demandant son actualisation. Les champs omis restent
-intacts ; une chaîne vide efface un texte facultatif. Les créations ne sont pas
+intacts ; une chaîne vide efface un texte facultatif et `relatedEntityRefs: []`
+retire les partenaires. Les créations ne sont pas
 réessayées automatiquement après une erreur réseau.
 
 Le canvas utilise le SDK fourni par Copilot pour `createCanvas` et `joinSession`.
