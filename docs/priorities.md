@@ -1,6 +1,6 @@
 # Priorités — sollicitations personnelles
 
-Mise à jour du 6 octobre 2026, Copilot 0.6.8 et VS Code 0.1.133. Le catalogue public
+Mise à jour du 6 octobre 2026, Copilot 0.6.9 et VS Code 0.1.134. Le catalogue public
 `ValentinDeSmet/OneAgent-release` distribue le front et le moteur dans un même
 plugin ; aucune installation séparée de l’interface n’est nécessaire.
 
@@ -181,15 +181,31 @@ L’agent peut envoyer une chaîne (compatibilité) ou un tableau de valeurs dan
 les filtres catégoriels. La réponse de liste ajoute `facets` ; `entities` conserve
 son rôle de choix complet pour l’édition.
 
-**Supprimer** est disponible sur la ligne et dans la fiche. Une confirmation
-nomme l’élément et rappelle qu’il disparaît des Priorités et des Tâches sans être
-marqué terminé. Il s’agit de la suppression de la tâche native et de ses liens
-vivants, pas de la suppression de l’entité, des captures, des notes privées ni
-des documents référencés. Les anciens packs de contexte restent des instantanés
-historiques. Une nouvelle sollicitation du même titre recevra un nouvel ID.
+Le crayon ouvre la fiche de modification. Le menu **⋯** contient **Retirer des
+priorités**, disponible aussi dans la fiche. La confirmation rappelle que seule
+la présence dans cette liste change : la tâche native conserve son ID, son état
+d’avancement, ses informations, ses notes, sa source et tous ses liens entrants
+et sortants. Elle reste disponible dans Tâches et Today selon leurs filtres.
 
-`oneagent_delete_priority` et `workMemory_deletePriority` utilisent `taskId` et
-la `revision` de la dernière lecture. Une modification concurrente ou une tâche
-hors des sollicitations personnelles est refusée sous transaction. Une erreur
-ne déclenche aucun nouvel essai automatique ; relire la liste avant de réessayer.
-Une disparition dans un Google Sheet ne constitue pas une instruction de suppression.
+Le champ durable `tracking.inPriorities=false` exclut l’élément des vues actives,
+terminées et toutes, des compteurs, des facettes et du classement des priorités.
+Les tâches existantes sans indicateur restent incluses pour compatibilité. Une
+modification ordinaire depuis Tâches ou par l’agent ne réactive pas cet indicateur.
+L’export privé et la restauration conservent ce champ dans le suivi de la tâche.
+
+La vue **Retirées des priorités** (`view=excluded`) permet de retrouver les éléments
+retirés, puis de choisir **Remettre dans mes priorités** dans le menu ou la fiche.
+Cela conserve la même identité et ne crée aucune tâche supplémentaire. Le
+classement manuel est désactivé dans cette vue.
+
+`oneagent_delete_priority` et `workMemory_deletePriority` conservent leur nom pour
+compatibilité mais retirent uniquement la ligne des priorités. Ils utilisent
+`taskId` et la `revision` de la dernière lecture. Pour la remise en liste, lire
+`view=excluded`, puis appeler l’outil de sauvegarde avec `inPriorities=true` et
+la révision courante. Si seuls ces champs sont envoyés, aucun autre champ ni lien
+n’est modifié, même pour une tâche ancienne sans entité rattachée.
+
+Une modification concurrente ou une tâche hors des sollicitations personnelles
+est refusée sous transaction. Une erreur ne déclenche aucun nouvel essai
+automatique ; relire la liste avant de réessayer. Une disparition dans un Google
+Sheet ne constitue pas une instruction de retrait.
