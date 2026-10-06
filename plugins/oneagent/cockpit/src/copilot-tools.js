@@ -107,9 +107,9 @@ function registerLanguageModelTools(cli) {
       { compileContextPack: false }
     )),
     vscode.lm.registerTool(TOOL_IDS.deletePriority, new WorkMemoryTool(
-      "Delete OneAgent Priority", "Deleting a personal solicitation",
+      "Remove OneAgent Priority", "Removing a row from priorities; keeping the task",
       (input) => priorityCommand(cli, "delete", input),
-      (input) => `Delete personal priority ${input.taskId || ""} and its links.`,
+      (input) => `Remove ${input.taskId || ""} from Priorities only. Keep its native task and links.`,
       { compileContextPack: false }
     )),
     vscode.lm.registerTool(TOOL_IDS.createTask, new WorkMemoryTool(

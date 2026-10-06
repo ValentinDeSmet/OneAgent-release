@@ -23,7 +23,7 @@
     <div class="filter-field"><span>Nature</span><details id="item-type" class="multi-filter"><summary><span id="item-type-summary">Sujets et tâches</span></summary><div class="filter-popover"><label class="sr-only" for="item-type-search">Rechercher dans nature</label><input id="item-type-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="item-type-clear" type="button" class="filter-clear">Tout afficher</button><div id="item-type-choices" class="filter-options" role="group" aria-label="Nature"></div></div></details></div>
     <div class="filter-field"><span>Produit / équipe concerné</span><details id="involved-filter" class="multi-filter"><summary><span id="involved-filter-summary">Tous les produits et équipes</span></summary><div class="filter-popover"><label class="sr-only" for="involved-filter-search">Rechercher dans produit / équipe concerné</label><input id="involved-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="involved-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="involved-filter-choices" class="filter-options" role="group" aria-label="Produit / équipe concerné"></div></div></details></div>
     <div class="filter-field"><span>Avancement</span><details id="status-filter" class="multi-filter"><summary><span id="status-filter-summary">Tous les avancements</span></summary><div class="filter-popover"><label class="sr-only" for="status-filter-search">Rechercher dans avancement</label><input id="status-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="status-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="status-filter-choices" class="filter-options" role="group" aria-label="Avancement"></div></div></details></div>
-    <label>Afficher<select id="view"><option value="active">Sollicitations actives</option><option value="done">Terminées</option><option value="all">Toutes</option></select></label>
+    <label>Afficher<select id="view"><option value="active">Sollicitations actives</option><option value="done">Terminées</option><option value="all">Toutes les priorités</option><option value="excluded">Retirées des priorités</option></select></label>
     <div class="filter-field"><span>Attention particulière</span><details id="filter" class="multi-filter"><summary><span id="filter-summary">Toutes les priorités</span></summary><div class="filter-popover"><label class="sr-only" for="filter-search">Rechercher dans attention particulière</label><input id="filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="filter-choices" class="filter-options" role="group" aria-label="Attention particulière"></div></div></details></div>
   </section>
   <details class="filters"><summary>Filtres par champ <span id="filter-count"></span></summary>
@@ -49,6 +49,9 @@
   <section id="empty" class="empty" hidden><h2 id="empty-title">Aucune sollicitation pour le moment</h2><p id="empty-text">Ajoute ce que l’on attend de toi, même si la personne ou la date reste à préciser.</p><button id="empty-add" class="primary">Ajouter une sollicitation</button></section>
   <footer><span id="summary" aria-live="polite">Chargement…</span><span id="sort-summary">Ordre : mon classement</span><button id="more" hidden>Afficher la suite</button></footer>
 </main>
+<div id="row-menu" class="row-menu" role="menu" aria-label="Actions de la priorité" hidden>
+  <button id="row-menu-action" type="button" role="menuitem"><span id="row-menu-label">Retirer des priorités</span><small id="row-menu-help">La tâche et ses liens sont conservés.</small></button>
+</div>
 <dialog id="editor" aria-labelledby="editor-title">
   <form id="form">
     <div class="dialog-head"><h2 id="editor-title">Nouvelle sollicitation</h2><button id="close" type="button" aria-label="Fermer">✕</button></div>
@@ -73,14 +76,14 @@
     <p class="hint">Le lien source sert à retrouver la liste d’origine pour demander à l’agent une actualisation ultérieure.</p>
     <label>Prochaine action<textarea name="nextAction" rows="2" maxlength="2000" placeholder="Une action concrète pour avancer ou relancer"></textarea></label>
     <p class="hint" id="updated"></p>
-    <div class="dialog-actions"><button id="remove" type="button" class="danger" hidden>Supprimer</button><button id="done" type="button" hidden>Marquer terminée</button><button id="cancel" type="button">Annuler</button><button id="save" type="submit" class="primary">Enregistrer</button></div>
+    <div class="dialog-actions"><button id="remove" type="button" class="subtle" hidden>Retirer des priorités</button><button id="restore" type="button" hidden>Remettre dans mes priorités</button><button id="done" type="button" hidden>Marquer terminée</button><button id="cancel" type="button">Annuler</button><button id="save" type="submit" class="primary">Enregistrer</button></div>
   </form>
 </dialog>
 <dialog id="delete-confirm" aria-labelledby="delete-title" aria-describedby="delete-description">
-  <h2 id="delete-title">Supprimer cette sollicitation ?</h2>
+  <h2 id="delete-title">Retirer cette sollicitation des priorités ?</h2>
   <p id="delete-name"></p>
-  <p id="delete-description">Elle sera supprimée de tes priorités et tâches, sans être marquée terminée. L’entité, les documents et les notes liés seront conservés. Tu pourras créer une nouvelle sollicitation plus tard.</p>
+  <p id="delete-description">Elle ne sera plus affichée dans tes priorités. La tâche restera dans Tâches avec son avancement, ses informations et tous ses liens. Tu pourras la remettre dans les priorités depuis la vue « Retirées des priorités ».</p>
   <p id="delete-error" class="error" role="alert" hidden></p>
-  <div class="dialog-actions"><button id="delete-cancel" type="button" autofocus>Annuler</button><button id="delete-submit" type="button" class="danger">Supprimer la sollicitation</button></div>
+  <div class="dialog-actions"><button id="delete-cancel" type="button" autofocus>Annuler</button><button id="delete-submit" type="button" class="primary">Retirer des priorités</button></div>
 </dialog>
 </body></html>

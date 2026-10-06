@@ -188,9 +188,14 @@ present in matching requests before pagination. Each facet ignores its own
 selection to allow adding alternatives. Keep list_priorities.entities for creation
 and attachment choices. Never invent a product/team because a filter is empty.
 
-Only when explicitly asked to delete a personal solicitation, read the latest list
-and call oneagent_delete_priority with its exact taskId and revision. It permanently
-removes the native task and live links from Priorities and Tasks, without completing
-it or deleting its entity, source files or private notes. Never delete merely because
-an imported source omits a row, and do not automatically retry an uncertain deletion.
-If later explicitly asked to recreate it, create a new request with a new identity.
+Only when explicitly asked to remove a row from Priorities, read the latest list
+and call oneagent_delete_priority with its exact taskId and revision. Despite its
+compatibility name, this tool only sets inPriorities=false: the native task remains
+in Tasks with unchanged status, information and all incoming/outgoing links. Never
+delete or archive the underlying task just to remove it from priorities. Ordinary
+task edits must not re-add excluded rows. Never remove merely because an imported
+source omits a row, and do not automatically retry an uncertain write.
+To explicitly restore a removed row, read list_priorities with view=excluded and
+save its exact taskId/revision with inPriorities=true. This restores the same task,
+including unlinked legacy tasks; do not create a duplicate. Without other fields,
+the visibility-only save preserves all task fields and links.

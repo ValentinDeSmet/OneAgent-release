@@ -3,7 +3,7 @@
   "displayName": "OneAgent",
   "description": "Local-first product knowledge, curation, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.133",
+  "version": "0.1.134",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",
@@ -136,7 +136,7 @@
     "languageModelTools": [
       {
         "name": "workMemory_deletePriority",
-        "displayName": "Delete OneAgent Priority",
+        "displayName": "Remove OneAgent Priority",
         "toolReferenceName": "oneagentDeletePriority",
         "canBeReferencedInPrompt": true,
         "tags": [
@@ -144,7 +144,7 @@
           "priorities",
           "tasks"
         ],
-        "modelDescription": "At the user's explicit direction, permanently delete one personal solicitation/task and its live links. This removes it from Priorities and Tasks without marking it done. Its entity, documentation, source and private notes remain. First read list_priorities and use its exact taskId and revision. A changed row is refused. Never remove items merely because they disappear from an imported sheet; never automatically retry an uncertain deletion.",
+        "modelDescription": "At the user's explicit direction, remove one personal row from Priorities only. The native task remains in Tasks with its unchanged status, information and all links; entities, documentation, sources and notes remain. This is a visibility change, never a task deletion. Restore the same task with save_priority inPriorities=true after reading list_priorities view=excluded. First read list_priorities and use its exact taskId and revision. A changed row is refused. Never remove items merely because they disappear from an imported sheet; never automatically retry an uncertain removal.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -182,7 +182,7 @@
           "priorities",
           "tasks"
         ],
-        "modelDescription": "Read my explicit requests/tasks across the bound memory, in the shared manual order by default (or an explicit column sort), with description, linked entity, primary product, partner products/teams, requester, separate documentation and source URLs, subject/task classification, next action and revision. Returns existing entity choices for creation. Returns a global orderRevision for explicit reordering. Categorical filters accept one value or an array (OR within a field, AND across fields). Returns facets from matching rows before pagination, ignoring each facet’s own selection; entities remain the full choices for editing. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.",
+        "modelDescription": "Read my explicit requests/tasks included in Priorities across the bound memory, in the shared manual order by default (or an explicit column sort), with description, linked entity, primary product, partner products/teams, requester, separate documentation and source URLs, subject/task classification, next action and revision. Returns existing entity choices for creation. Returns a global orderRevision for explicit reordering. Categorical filters accept one value or an array (OR within a field, AND across fields). Returns facets from matching rows before pagination, ignoring each facet’s own selection; entities remain the full choices for editing. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -206,8 +206,10 @@
               "enum": [
                 "active",
                 "done",
-                "all"
-              ]
+                "all",
+                "excluded"
+              ],
+              "description": "Default active. all/done still exclude removed priorities. excluded reads only removed rows for explicit restoration of the same task."
             },
             "filter": {
               "anyOf": [
@@ -523,7 +525,7 @@
           "priorities",
           "tasks"
         ],
-        "modelDescription": "Create or edit one private request at the user's direction. New requests require a title and an existing entity (kind:id from workMemory_listPriorities). Legacy unlinked requests must be attached when edited; edits require the exact taskId and revision returned by workMemory_listPriorities. New rows default to subject; existing ordinary tasks keep their classification unless itemType is explicit. Omitted fields are preserved; empty strings clear optional text and an empty relatedEntityRefs array clears partners. Never invent a requester or firm deadline. Use unknown if unspecified, approximate for estimates. No messages are sent. A retry of a creation creates another request.",
+        "modelDescription": "Create or edit one private request at the user's direction. New requests require a title and an existing entity (kind:id from list_priorities). Legacy unlinked requests must be attached when edited; edits require the exact taskId and revision returned by list_priorities. New rows default to subject; existing ordinary tasks keep their classification unless itemType is explicit. Rows removed from Priorities stay excluded on ordinary edits. To restore the same task, first list view=excluded, then save its taskId/revision with inPriorities=true. A visibility-only save preserves all fields and links, even for unlinked legacy tasks. Omitted fields are preserved; empty strings clear optional text and an empty relatedEntityRefs array clears partners. Never invent a requester or firm deadline. Use unknown if unspecified, approximate for estimates. No messages are sent. A retry of a creation creates another request.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -533,6 +535,10 @@
                 "portfolio"
               ],
               "description": "Whole bound private memory; includes all subjects, independent of the VS Code selection."
+            },
+            "inPriorities": {
+              "type": "boolean",
+              "description": "Whether this task is shown in Priorities. Omit to preserve. false hides only from priorities, never deletes/archives/completes the native task or its links. true explicitly restores it."
             },
             "entity": {
               "type": "string",
@@ -652,7 +658,7 @@
           "priorities",
           "tasks"
         ],
-        "modelDescription": "At the user's explicit direction, move one personal priority before or after another in the shared manual order. Read workMemory_listPriorities first and pass its exact orderRevision. Filters and pages only hide rows: all other subjects/tasks keep their relative order. Does not change business priority, deadline, status, documentation, source or entity links. Never rank subjects autonomously or retry a failed write without reading the list again.",
+        "modelDescription": "At the user's explicit direction, move one personal priority before or after another in the shared manual order. Read list_priorities first and pass its exact orderRevision. Filters and pages only hide rows: all other subjects/tasks keep their relative order. Does not change business priority, deadline, status, documentation, source or entity links. Never rank subjects autonomously or retry a failed write without reading the list again.",
         "inputSchema": {
           "type": "object",
           "properties": {

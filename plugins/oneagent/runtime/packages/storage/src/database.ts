@@ -71,6 +71,8 @@ export interface TaskMetadataInput {
 }
 
 export interface TaskTracking {
+  /** False hides the task only from Priorities; native tasks and links remain. */
+  inPriorities?: boolean;
   manualRank?: number;
   itemType?: "subject" | "task";
   sourceUrl?: string;
@@ -3541,16 +3543,6 @@ export class WorkMemoryDatabase {
         next.id
       );
     return this.getTask(input.taskId) as TaskRecord;
-  }
-
-  /** Delete the native task and its live links; referenced entities/sources survive. */
-  deleteTask(taskId: string): void {
-    this.runInImmediateTransaction(() => {
-      this.db.prepare("DELETE FROM task_links WHERE task_id = ? OR (target_kind = 'task' AND target_id = ?)").run(taskId, taskId);
-      this.db.prepare("DELETE FROM task_metadata WHERE task_id = ?").run(taskId);
-      const result = this.db.prepare("DELETE FROM tasks WHERE id = ?").run(taskId);
-      if (!result.changes) throw new Error(`Task not found: ${taskId}`);
-    });
   }
 
   archiveTask(taskId: string): void {

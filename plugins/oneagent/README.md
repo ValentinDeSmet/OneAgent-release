@@ -1,12 +1,15 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.6.8 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.6.9 : cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
 
 Les priorités proposent des filtres multiples à cases à cocher, limités aux
-valeurs présentes dans les sollicitations, et la suppression explicite d’un élément.
+valeurs présentes dans les sollicitations. Les actions de ligne utilisent un crayon
+et un menu ⋯. « Retirer des priorités » conserve la tâche native, son avancement
+et ses liens dans Tâches. La vue « Retirées des priorités » permet de remettre
+la même tâche dans la liste, sans la recréer.
 
 BMAD Readiness a été supprimé du cockpit et du moteur. Today, les priorités,
 les tâches et les autres intégrations BMAD restent disponibles.
@@ -41,12 +44,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.8.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.9.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.8/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.9/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -274,7 +277,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.8.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.9.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.

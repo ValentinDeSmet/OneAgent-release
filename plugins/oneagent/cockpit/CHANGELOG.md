@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.134
+
+- Correction du retrait des priorités (Copilot 0.6.9) : la tâche native reste dans
+  Tâches avec son état, ses informations et tous ses liens.
+- Indicateur de présence indépendant du statut, exclu des compteurs, facettes
+  et du classement. Les éditions ordinaires ne réactivent pas la priorité.
+- Actions de ligne compactes : crayon et menu ⋯, avec confirmation de retrait.
+- Vue « Retirées des priorités » et remise en liste de la même tâche, disponible
+  aussi pour l’agent avec contrôle de révision.
+
 ## 0.1.133
 
 - Priorités communes à VS Code et Copilot 0.6.8 : filtres à cases à cocher,

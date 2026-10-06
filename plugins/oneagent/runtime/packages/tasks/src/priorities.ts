@@ -48,8 +48,9 @@ function localDay(): string {
 function revision(task: TaskRecord, links: TaskLinkRecord[]): string {
   return createHash("sha256").update(JSON.stringify([task, [...links].sort((a, b) => a.id.localeCompare(b.id))])).digest("hex");
 }
-function personalTasks(db: WorkMemoryDatabase): TaskRecord[] {
-  return db.listTasks().filter(task => task.assignee === "me" && task.status !== "archived" && !task.archivedAt);
+function personalTasks(db: WorkMemoryDatabase, excluded = false): TaskRecord[] {
+  return db.listTasks().filter(task => task.assignee === "me" && task.status !== "archived" && !task.archivedAt
+    && (task.tracking?.inPriorities === false) === excluded);
 }
 function manualRank(task: TaskRecord): number | undefined {
   const value = task.tracking?.manualRank;
@@ -137,7 +138,7 @@ export function priorityItem(task: TaskRecord, today: string, links: TaskLinkRec
   const active = task.status !== "done";
   const daysUntil = deadline ? Math.round((Date.parse(deadline) - Date.parse(today)) / 86400000) : null;
   return {
-    ...task, ...placement, tracking: undefined, revision: revision(task, links), url: tracking.url ?? "", sourceUrl: tracking.sourceUrl ?? "",
+    ...task, ...placement, tracking: undefined, inPriorities: tracking.inPriorities !== false, revision: revision(task, links), url: tracking.url ?? "", sourceUrl: tracking.sourceUrl ?? "",
     itemType: priorityType(task, links), relatedEntityRefs: tracking.relatedEntityRefs ?? [],
     relatedEntities: (tracking.relatedEntityRefs ?? []).map(ref => ({ ref, kind: ref.split(":")[0], label: entities.get(ref)?.label ?? ref })),
     requester: tracking.requester ?? "", nextAction: tracking.nextAction ?? "",
@@ -153,7 +154,7 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   const input = fields(raw, ["scope", "today", "query", "view", "filter", "offset", "limit", "sortBy", "sortDirection", "titleQuery", "bodyQuery", "requesterQuery", "urlQuery", "entity", "productId", "priority", "status", "deadlineKind", "deadlineFrom", "deadlineTo", "sourceUrlQuery", "itemType", "involvedEntity", "relatedEntity"]);
   const today = text(input.today, "today", 10, localDay());
   if (!validDay(today)) throw new Error("Date locale invalide (AAAA-MM-JJ).");
-  const view = choice(input.view, "view", ["active", "done", "all"], "active");
+  const view = choice(input.view, "view", ["active", "done", "all", "excluded"], "active");
   const filter = selections(input.filter, "filter", 32, ["all", "urgent", "overdue", "soon", "clarify", "waiting", "unlinked"]);
   const sortBy = choice(input.sortBy, "sortBy", ["manual", "title", "body", "entity", "product", "relatedEntities", "requester", "priority", "deadline", "url", "sourceUrl", "status", "nextAction", "itemType"], "manual");
   const direction = choice(input.sortDirection, "sortDirection", ["asc", "desc"], "asc") === "asc" ? 1 : -1;
@@ -172,7 +173,7 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   const limit = input.limit ?? 100, offset = input.offset ?? 0;
   if (!Number.isInteger(limit) || Number(limit) < 1 || Number(limit) > 100 || !Number.isInteger(offset) || Number(offset) < 0 || Number(offset) > 1000000) throw new Error("Pagination invalide.");
   const choices = entityChoices(db), byRef = new Map(choices.map((entity) => [entity.ref, entity]));
-  const tasks = manualOrder(personalTasks(db));
+  const tasks = manualOrder(personalTasks(db, view === "excluded"));
   const links = new Map<string, TaskLinkRecord[]>();
   for (const link of db.listTaskLinks(tasks.map((task) => task.id))) links.set(link.taskId, [...(links.get(link.taskId) ?? []), link]);
   const all = tasks.map((task, index) => ({ ...priorityItem(task, today, links.get(task.id) ?? [], byRef), manualPosition: index + 1 }));
@@ -196,11 +197,11 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
     && (!from || !!task.deadline && task.deadline >= from) && (!to || !!task.deadline && task.deadline <= to);
   const matchFields = (task: typeof all[number], omit = "", attention = true) => Object.entries(selected).every(([key, selectedValues]) =>
     key === omit || key === "filter" && !attention || !selectedValues.length || selectedValues.some(value => valuesById.get(task.id)![key].includes(value)));
-  const inView = (task: typeof all[number]) => view === "all" || (view === "done" ? task.status === "done" : task.status !== "done");
+  const inView = (task: typeof all[number]) => view === "all" || view === "excluded" || (view === "done" ? task.status === "done" : task.status !== "done");
   const candidates = all.filter(matchText);
   const matching = candidates.filter(task => matchFields(task, "", false));
   // Metrics follow field filters, before pagination and attention presets.
-  const active = matching.filter(task => task.status !== "done");
+  const active = matching.filter(task => task.inPriorities && task.status !== "done");
   const counts = { active: active.length, urgent: active.filter(task => ["high", "critical"].includes(task.priority)).length,
     overdue: active.filter(task => task.overdue).length, soon: active.filter(task => task.dueSoon).length,
     clarify: active.filter(task => task.needsClarification).length, waiting: active.filter(task => task.status === "blocked").length,
@@ -235,7 +236,7 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
       : !av !== !bv ? Number(!av) - Number(!bv) : direction * collator.compare(av, bv);
     return comparison || (sortBy === "priority" ? (a.deadline || "9999").localeCompare(b.deadline || "9999") : 0) || a.id.localeCompare(b.id);
   });
-  return { today, counts, orderRevision: orderRevision(tasks), entities: choices, facets, items: items.slice(Number(offset), Number(offset) + Number(limit)), total: items.length,
+  return { today, counts, orderRevision: orderRevision(view === "excluded" ? manualOrder(personalTasks(db)) : tasks), entities: choices, facets, items: items.slice(Number(offset), Number(offset) + Number(limit)), total: items.length,
     nextOffset: Number(offset) + Number(limit) < items.length ? Number(offset) + Number(limit) : null };
 }
 function rank(value: string): number { const index = priorities.indexOf(value); return index < 0 ? 2 : index; }
@@ -268,7 +269,8 @@ export function reorderPriority(db: WorkMemoryDatabase, raw: unknown) {
 
 /** One transaction, ID-based edits and optimistic conflict detection across hosts. */
 export function savePriority(db: WorkMemoryDatabase, raw: unknown) {
-  const input = fields(raw, ["scope", "taskId", "revision", "title", "body", "requester", "priority", "status", "deadline", "deadlineKind", "deadlineLabel", "nextAction", "entity", "productId", "url", "sourceUrl", "itemType", "relatedEntityRefs"]);
+  const input = fields(raw, ["scope", "taskId", "revision", "title", "body", "requester", "priority", "status", "deadline", "deadlineKind", "deadlineLabel", "nextAction", "entity", "productId", "url", "sourceUrl", "itemType", "relatedEntityRefs", "inPriorities"]);
+  if (input.inPriorities !== undefined && typeof input.inPriorities !== "boolean") throw new Error("inPriorities doit être un booléen.");
   return db.runInImmediateTransaction(() => {
     const id = text(input.taskId, "taskId", 256);
     if (input.taskId !== undefined && !id) throw new Error("Identifiant de sollicitation vide.");
@@ -278,6 +280,12 @@ export function savePriority(db: WorkMemoryDatabase, raw: unknown) {
     const entities = new Map(entityChoices(db).map((entity) => [entity.ref, entity]));
     if (existing && text(input.revision, "revision", 64) !== revision(existing, links)) throw new Error("Cette sollicitation a changé. Actualise la liste et rouvre la fiche avant de réappliquer tes modifications.");
     if (!existing && input.revision !== undefined) throw new Error("Une création ne prend pas de révision.");
+    // Visibility-only changes must preserve every native task field and link,
+    // including legacy tasks that have not been attached to an entity yet.
+    if (existing && input.inPriorities !== undefined && Object.keys(input).every(key => ["scope", "taskId", "revision", "inPriorities"].includes(key))) {
+      const saved = db.updateTask({ taskId: existing.id, tracking: { ...existing.tracking, inPriorities: input.inPriorities as boolean } });
+      return priorityItem(saved, localDay(), links, entities);
+    }
     const before = existing ? priorityItem(existing, localDay(), links, entities) : undefined;
     const title = text(input.title, "title", 300, existing?.title);
     if (!title) throw new Error("Indique le sujet attendu.");
@@ -307,7 +315,7 @@ export function savePriority(db: WorkMemoryDatabase, raw: unknown) {
       status: choice(input.status, "status", statuses, existing?.status ?? "open"),
       // Only firm commitments enter the legacy deadline column used by Today.
       deadline: deadlineKind === "exact" ? deadline : null,
-      tracking: { ...existing?.tracking, itemType, relatedEntityRefs,
+      tracking: { ...existing?.tracking, inPriorities: (input.inPriorities as boolean | undefined) ?? existing?.tracking?.inPriorities ?? true, itemType, relatedEntityRefs,
         sourceUrl: checkedUrl(text(input.sourceUrl, "sourceUrl", 2048, before?.sourceUrl)), url: checkedUrl(text(input.url, "url", 2048, before?.url)), requester: text(input.requester, "requester", 300, before?.requester), deadlineKind: deadlineKind as "exact" | "approximate" | "unknown",
         deadlineLabel, targetDate: deadlineKind === "approximate" ? deadline : "", nextAction: text(input.nextAction, "nextAction", 2000, before?.nextAction) }
     };
@@ -328,16 +336,16 @@ export function savePriority(db: WorkMemoryDatabase, raw: unknown) {
   });
 }
 
-/** Remove a personal solicitation, never its entity, source or private notes. */
+/** Compatibility name: remove from Priorities only; keep the native task intact. */
 export function deletePriority(db: WorkMemoryDatabase, raw: unknown) {
   const input = fields(raw, ["scope", "taskId", "revision"]);
   const id = text(input.taskId, "taskId", 256), expected = text(input.revision, "revision", 64);
   if (!id || !/^[a-f0-9]{64}$/.test(expected)) throw new Error("Identifiant et révision de sollicitation requis.");
   return db.runInImmediateTransaction(() => {
     const task = db.getTask(id);
-    if (!task || task.assignee !== "me" || task.archivedAt || task.status === "archived") throw new Error("Sollicitation introuvable ou hors de tes priorités personnelles.");
-    if (revision(task, db.listTaskLinks([id])) !== expected) throw new Error("Cette sollicitation a changé. Actualise la liste avant de la supprimer.");
-    db.deleteTask(id);
-    return { deleted: true, taskId: id };
+    if (!task || task.assignee !== "me" || task.archivedAt || task.status === "archived" || task.tracking?.inPriorities === false) throw new Error("Sollicitation introuvable ou hors de tes priorités personnelles.");
+    if (revision(task, db.listTaskLinks([id])) !== expected) throw new Error("Cette sollicitation a changé. Actualise la liste avant de la retirer des priorités.");
+    const saved = db.updateTask({ taskId: id, tracking: { ...task.tracking, inPriorities: false } });
+    return { removed: true, taskId: id, revision: revision(saved, db.listTaskLinks([id])) };
   });
 }

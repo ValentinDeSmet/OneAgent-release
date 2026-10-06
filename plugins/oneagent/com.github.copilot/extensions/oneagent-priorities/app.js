@@ -10,6 +10,8 @@ let orderRevision = "", reordering = false, draggedId = "", draggedRow = null, d
 let rankHandles = new Map();
 let pendingDelete = null;
 const deletion = $("#delete-confirm");
+const rowMenu = $("#row-menu");
+let menuItem = null, menuTrigger = null;
 const priorityLabels = { critical: "Critique", high: "Haute", medium: "Normale", low: "Basse" };
 const statusLabels = { open: "À faire", in_progress: "En cours", ready: "Prête", pending: "À clarifier", candidate: "À valider", blocked: "En attente", done: "Terminée" };
 const day = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; };
@@ -114,7 +116,7 @@ function urlCell(value, title) {
 function safeUrl(value) {
   try { const url = new URL(value); return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password ? url.href : ""; } catch { return ""; }
 }
-const manualView = () => sortBy === "manual" && sortDirection === "asc";
+const manualView = () => sortBy === "manual" && sortDirection === "asc" && $("#view").value !== "excluded";
 function clearDrag() {
   if (dropRow) delete dropRow.dataset.dropPosition;
   if (draggedRow) delete draggedRow.dataset.dragging;
@@ -181,18 +183,53 @@ function rankCell(item, row, index) {
   cell.append(handle, node("span", String(item.manualPosition || index + 1), "rank-number"));
   return cell;
 }
+function closeRowMenu(returnFocus = false) {
+  const trigger = menuTrigger;
+  rowMenu.hidden = true; menuTrigger?.setAttribute("aria-expanded", "false");
+  menuItem = null; menuTrigger = null;
+  if (returnFocus) trigger?.focus();
+}
+function showRowMenu(item, trigger) {
+  if (saving || reordering) return;
+  if (menuTrigger === trigger && !rowMenu.hidden) { closeRowMenu(true); return; }
+  closeRowMenu(); closeFilterMenus();
+  menuItem = item; menuTrigger = trigger;
+  trigger.setAttribute("aria-expanded", "true");
+  const restore = item.inPriorities === false;
+  $("#row-menu-label").textContent = restore ? "Remettre dans mes priorités" : "Retirer des priorités";
+  $("#row-menu-help").textContent = restore ? "La même tâche retrouve la liste." : "La tâche et ses liens sont conservés.";
+  rowMenu.setAttribute("aria-label", "Actions pour " + item.title);
+  rowMenu.hidden = false;
+  const bounds = trigger.getBoundingClientRect(), width = 270, height = rowMenu.getBoundingClientRect().height;
+  rowMenu.style.left = Math.max(12, Math.min(bounds.right - width, window.innerWidth - width - 12)) + "px";
+  rowMenu.style.top = Math.max(12, Math.min(bounds.bottom + 6, window.innerHeight - height - 12)) + "px";
+  $("#row-menu-action").focus();
+}
+function actionButton(label, icon) {
+  const button = node("button", "", "row-action"); button.type = "button";
+  button.title = label; button.setAttribute("aria-label", label);
+  // Static line icons; user content always remains text.
+  button.innerHTML = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg>`;
+  button.disabled = saving || reordering;
+  return button;
+}
 function render() {
+  closeRowMenu();
   rankHandles = new Map();
   const fragment = document.createDocumentFragment();
   for (const [index, item] of items.entries()) {
     const row = node("tr"), subject = node("td"), button = node("button", item.title, "subject");
     row.dataset.taskId = item.id;
     button.type = "button"; button.addEventListener("click", () => edit(item));
-    const titleLine = node("div", "", "subject-line"), modify = node("button", "Modifier", "edit-link");
-    modify.type = "button"; modify.setAttribute("aria-label", "Modifier " + item.title); modify.addEventListener("click", () => edit(item));
-        const remove = node("button", "Supprimer", "edit-link danger");
-    remove.type = "button"; remove.disabled = saving || reordering; remove.setAttribute("aria-label", "Supprimer " + item.title); remove.addEventListener("click", () => askDelete(item));
-    titleLine.append(button, modify, remove); subject.append(titleLine);
+    const titleLine = node("div", "", "subject-line"), actions = node("div", "", "row-actions");
+    const modify = actionButton("Modifier " + item.title, '<path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m14 5 5 5"/>');
+    modify.addEventListener("click", () => edit(item));
+    const more = actionButton("Actions pour " + item.title, '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>');
+    more.setAttribute("aria-haspopup", "menu"); more.setAttribute("aria-controls", "row-menu"); more.setAttribute("aria-expanded", "false");
+    more.addEventListener("click", () => showRowMenu(item, more));
+    more.addEventListener("keydown", event => { if (event.key === "ArrowDown") { event.preventDefault(); showRowMenu(item, more); } });
+    actions.append(modify, more); titleLine.append(button, actions); subject.append(titleLine);
+    if (item.inPriorities === false) subject.append(node("span", "Retirée des priorités", "badge excluded"));
     subject.append(node("span", item.itemType === "task" ? "Tâche" : "Sujet", "badge nature"));
     subject.append(node("p", item.entityLabel ? `${item.entityLabel} · ${item.entity.split(":")[0]}` : "Entité à rattacher", item.needsAttachment ? "overdue" : "muted"));
     const description = node("td"), content = node("span", item.body || "—", "description");
@@ -226,7 +263,8 @@ function render() {
   const sorted = $("[data-sort='" + sortBy + "']");
   $("#sort-summary").textContent = manualView() ? "Ordre : mon classement" : `Tri : ${sorted?.textContent.trim() || sortBy} · ${sortDirection === "asc" ? "croissant" : "décroissant"}`;
   $("#manual-order").setAttribute("aria-pressed", String(manualView()));
-  $("#rank-help").textContent = manualView()
+  $("#rank-help").textContent = $("#view").value === "excluded"
+    ? "Ces éléments restent dans Tâches. Utilise le menu ⋯ pour les remettre dans tes priorités." : manualView()
     ? "Glisse la poignée ⠿ pour classer les sujets, ou utilise les flèches ↑ / ↓ au clavier. Les filtres conservent l’ordre commun à VS Code et Copilot."
     : "Un tri par colonne est appliqué. Reviens à « Mon classement » pour déplacer les sujets.";
   const count = activeFilterCount();
@@ -274,7 +312,7 @@ function deadlineFields() {
 }
 function edit(item = null) {
   if (reordering || saving) return;
-  closeFilterMenus(); selected = item; form.reset(); error($("#form-error"));
+  closeRowMenu(); closeFilterMenus(); selected = item; form.reset(); error($("#form-error"));
   selectedRelatedRefs = new Set(item?.relatedEntityRefs || []);
   $("#partner-search").value = "";
   form.elements.itemType.value = item?.itemType || "subject";
@@ -286,7 +324,8 @@ function edit(item = null) {
   if (item) for (const key of ["url", "sourceUrl", "title", "body", "requester", "priority", "status", "deadline", "deadlineKind", "deadlineLabel", "nextAction"]) form.elements[key].value = item[key] || "";
   $("#updated").textContent = item ? `Créée le ${new Date(item.createdAt).toLocaleDateString("fr-FR")} · Modifiée le ${new Date(item.updatedAt).toLocaleString("fr-FR")}` : "Sujet et entité sont obligatoires. Le produit est facultatif pour les autres types d’entités.";
   $("#done").hidden = !item || item.status === "done";
-  $("#remove").hidden = !item;
+  $("#remove").hidden = !item || item.inPriorities === false;
+  $("#restore").hidden = !item || item.inPriorities !== false;
   deadlineFields(); editor.showModal(); form.elements.title.focus();
 }
 async function save(event) {
@@ -299,11 +338,11 @@ async function save(event) {
   error($("#form-error"));
   try { await api("save", input); editor.close(); await refresh(); }
   catch (failure) { error($("#form-error"), failure.message + "\nEn cas de coupure, vérifie la liste avant de réessayer une création."); }
-  finally { saving = false; for (const button of form.querySelectorAll("button")) button.disabled = false; renderFacets(); }
+  finally { saving = false; for (const button of form.querySelectorAll("button")) button.disabled = false; renderFacets(); render(); }
 }
 function askDelete(item) {
   if (!item || saving || reordering) return;
-  clearTimeout(searchTimer); closeFilterMenus(); pendingDelete = item;
+  clearTimeout(searchTimer); closeRowMenu(); closeFilterMenus(); pendingDelete = item;
   $("#delete-name").textContent = item.title; error($("#delete-error"));
   $("#delete-submit").disabled = false; deletion.showModal();
 }
@@ -318,11 +357,36 @@ $("#delete-submit").addEventListener("click", async () => {
     await api("delete", { taskId: item.id, revision: item.revision });
     pendingDelete = null; deletion.close();
     if (selected?.id === item.id) { selected = null; editor.close(); }
-    $("#action-feedback").textContent = `« ${item.title} » a été supprimée.`; $("#action-feedback").hidden = false;
+    $("#action-feedback").textContent = `« ${item.title} » a été retirée des priorités. La tâche est conservée.`; $("#action-feedback").hidden = false;
     await refresh();
-  } catch (failure) { error($("#delete-error"), failure.message + "\nSuppression non confirmée. Ferme cette fenêtre et actualise la liste avant de réessayer."); }
-  finally { saving = false; $("#delete-cancel").disabled = false; renderFacets(); }
+  } catch (failure) { error($("#delete-error"), failure.message + "\nRetrait non confirmé. Ferme cette fenêtre et actualise la liste avant de réessayer."); }
+  finally { saving = false; $("#delete-cancel").disabled = false; renderFacets(); render(); }
 });
+async function restorePriority(item) {
+  if (!item || saving || reordering) return;
+  closeRowMenu(); clearTimeout(searchTimer); saving = true; render();
+  for (const button of form.querySelectorAll("button")) button.disabled = true;
+  try {
+    await api("save", { taskId: item.id, revision: item.revision, inPriorities: true });
+    if (selected?.id === item.id) { selected = null; editor.close(); }
+    $("#action-feedback").textContent = `« ${item.title} » a été remise dans les priorités.`; $("#action-feedback").hidden = false;
+    await refresh();
+  } catch (failure) { error(editor.open ? $("#form-error") : $("#error"), failure.message + "\nRemise dans les priorités non confirmée. Actualise la liste avant de réessayer."); }
+  finally { saving = false; for (const button of form.querySelectorAll("button")) button.disabled = false; renderFacets(); render(); }
+}
+$("#restore").addEventListener("click", () => restorePriority(selected));
+$("#row-menu-action").addEventListener("click", () => { const item = menuItem; closeRowMenu(); return item?.inPriorities === false ? restorePriority(item) : askDelete(item); });
+rowMenu.addEventListener("keydown", event => {
+  if (event.key === "Escape") { event.preventDefault(); closeRowMenu(true); }
+  else if (event.key === "Tab") closeRowMenu(true);
+});
+document.addEventListener("pointerdown", event => {
+  if (rowMenu.hidden) return;
+  const path = event.composedPath();
+  if (!path.includes(rowMenu) && !path.includes(menuTrigger)) closeRowMenu();
+}, true);
+document.addEventListener("scroll", event => { if (!rowMenu.contains(event.target)) closeRowMenu(); }, true);
+window.addEventListener("resize", () => closeRowMenu());
 form.addEventListener("submit", save);
 form.elements.entity.addEventListener("change", syncProduct);
 form.elements.productId.addEventListener("change", syncProduct);
@@ -358,7 +422,7 @@ for (const [key, [id]] of Object.entries(facetFields)) {
   $("#" + id + "-clear").addEventListener("click", () => { if (reordering || saving) return; selectedFilters[key].clear(); renderFacet(key); refresh(); });
   $("#" + id).addEventListener("keydown", event => { if (event.key === "Escape") { event.preventDefault(); $("#" + id).open = false; } });
 }
-const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !editor.open && !deletion.open && !Object.values(facetFields).some(([id]) => $("#" + id).open) && !document.hidden) refresh(); };
+const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !editor.open && !deletion.open && rowMenu.hidden && !Object.values(facetFields).some(([id]) => $("#" + id).open) && !document.hidden) refresh(); };
 document.addEventListener("visibilitychange", autoRefresh);
 setInterval(autoRefresh, 60000);
 $("#add").disabled = true; $("#empty-add").disabled = true;
