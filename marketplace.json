@@ -5,17 +5,17 @@
   },
   "metadata": {
     "description": "OneAgent stable releases for GitHub Copilot",
-    "version": "0.6.7"
+    "version": "0.6.8"
   },
   "plugins": [
     {
       "name": "oneagent",
       "description": "Private professional memory shared with the OneAgent VS Code extension.",
-      "version": "0.6.7",
+      "version": "0.6.8",
       "source": {
         "source": "github",
         "repo": "ValentinDeSmet/OneAgent-release",
-        "sha": "7e91da1bb51acb8aca73222f567d1a78750e817e",
+        "sha": "f984dafdfe914294bfc3926470864030f0766771",
         "path": "plugins/oneagent"
       }
     }

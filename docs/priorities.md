@@ -1,6 +1,6 @@
 # Priorités — sollicitations personnelles
 
-Mise à jour du 5 octobre 2026, Copilot 0.6.6 et VS Code 0.1.132. Le catalogue public
+Mise à jour du 6 octobre 2026, Copilot 0.6.8 et VS Code 0.1.133. Le catalogue public
 `ValentinDeSmet/OneAgent-release` distribue le front et le moteur dans un même
 plugin ; aucune installation séparée de l’interface n’est nécessaire.
 
@@ -68,7 +68,7 @@ Le canvas `oneagent-priorities` est livré dans
 `com.github.copilot/extensions/oneagent-priorities/`, conformément au format
 Agent Plugins 1.0. Il réutilise la liaison mémoire de l’onboarding, les outils
 `oneagent_list_priorities` / `oneagent_save_priority` et les commandes CLI
-`priorities list|save|reorder --stdin --json`. Ces commandes exigent un périmètre portfolio
+`priorities list|save|reorder|delete --stdin --json`. Ces commandes exigent un périmètre portfolio
 explicite. Les appels agent utilisent le contexte actif et refusent d’élargir
 implicitement un contexte strict. Le canvas et le cockpit manuels restent des
 vues portfolio explicites, sans modifier le contexte actif de l’agent.
@@ -161,3 +161,35 @@ schémas. L’agent peut modifier tous les champs de la fiche à la demande de
 l’utilisateur, en conservant les champs omis et la révision courante. Une URL
 non HTTP(S), une entité inexistante/archivée ou un produit incohérent sont refusés.
 Les règles de périmètre strict restent appliquées.
+
+## Filtres multiples et suppression
+
+Les menus Nature, Produit / équipe concerné, Avancement, Attention particulière,
+Entité rattachée, Produit principal, Partenaire, Priorité et Nature de la deadline
+proposent des cases à cocher et une recherche. Aucune sélection signifie « tout
+Afficher ». Plusieurs valeurs d’un même champ sont combinées par **ou**, et les
+champs entre eux par **et**. Recherche textuelle et intervalle de dates restent
+indépendants ; Afficher choisit les sollicitations actives, terminées ou toutes.
+
+Les choix viennent de toutes les sollicitations de la vue avant pagination, et
+non de l’ensemble des entités du graphe. Chaque menu tient compte des autres
+filtres mais ignore sa propre sélection, afin de permettre l’ajout d’une autre
+valeur. Un choix sélectionné devenu indisponible reste décochable avec compteur
+zéro ; il n’est jamais effacé silencieusement. Les champs de création et de
+modification conservent toutes les entités actives comme choix possibles.
+L’agent peut envoyer une chaîne (compatibilité) ou un tableau de valeurs dans
+les filtres catégoriels. La réponse de liste ajoute `facets` ; `entities` conserve
+son rôle de choix complet pour l’édition.
+
+**Supprimer** est disponible sur la ligne et dans la fiche. Une confirmation
+nomme l’élément et rappelle qu’il disparaît des Priorités et des Tâches sans être
+marqué terminé. Il s’agit de la suppression de la tâche native et de ses liens
+vivants, pas de la suppression de l’entité, des captures, des notes privées ni
+des documents référencés. Les anciens packs de contexte restent des instantanés
+historiques. Une nouvelle sollicitation du même titre recevra un nouvel ID.
+
+`oneagent_delete_priority` et `workMemory_deletePriority` utilisent `taskId` et
+la `revision` de la dernière lecture. Une modification concurrente ou une tâche
+hors des sollicitations personnelles est refusée sous transaction. Une erreur
+ne déclenche aucun nouvel essai automatique ; relire la liste avant de réessayer.
+Une disparition dans un Google Sheet ne constitue pas une instruction de suppression.
