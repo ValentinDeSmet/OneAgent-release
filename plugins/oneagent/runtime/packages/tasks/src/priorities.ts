@@ -25,6 +25,18 @@ function choice(value: unknown, name: string, options: string[], fallback: strin
   if (!options.includes(result)) throw new Error(`Valeur invalide : ${name}`);
   return result;
 }
+
+/** Empty means all; legacy callers can still supply one string. */
+function selections(value: unknown, name: string, max: number, options?: string[]): string[] {
+  const values = value === undefined ? [] : Array.isArray(value) ? value : [value];
+  if (values.length > 40) throw new Error(`Trop de valeurs : ${name}`);
+  return [...new Set(values.map(value => {
+    const item = text(value, name, max);
+    if (options && item && !options.includes(item)) throw new Error(`Valeur invalide : ${name}`);
+    return item;
+  }).filter(value => value && !(value === "all" && options?.includes("all"))))];
+}
+
 export function validDay(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number(value.slice(0, 4)) >= 1900
     && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
@@ -142,16 +154,16 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   const today = text(input.today, "today", 10, localDay());
   if (!validDay(today)) throw new Error("Date locale invalide (AAAA-MM-JJ).");
   const view = choice(input.view, "view", ["active", "done", "all"], "active");
-  const filter = choice(input.filter, "filter", ["all", "urgent", "overdue", "soon", "clarify", "waiting", "unlinked"], "all");
+  const filter = selections(input.filter, "filter", 32, ["all", "urgent", "overdue", "soon", "clarify", "waiting", "unlinked"]);
   const sortBy = choice(input.sortBy, "sortBy", ["manual", "title", "body", "entity", "product", "relatedEntities", "requester", "priority", "deadline", "url", "sourceUrl", "status", "nextAction", "itemType"], "manual");
   const direction = choice(input.sortDirection, "sortDirection", ["asc", "desc"], "asc") === "asc" ? 1 : -1;
   const query = text(input.query, "query", 500);
-  const entity = text(input.entity, "entity", 512), productId = text(input.productId, "productId", 256);
-  const involvedEntity = text(input.involvedEntity, "involvedEntity", 512), relatedEntity = text(input.relatedEntity, "relatedEntity", 512);
-  const itemType = choice(input.itemType, "itemType", ["all", "subject", "task"], "all");
-  const priority = choice(input.priority, "priority", ["", ...priorities], "");
-  const status = choice(input.status, "status", ["", ...statuses], "");
-  const deadlineKind = choice(input.deadlineKind, "deadlineKind", ["", ...kinds], "");
+  const entity = selections(input.entity, "entity", 512), productId = selections(input.productId, "productId", 256);
+  const involvedEntity = selections(input.involvedEntity, "involvedEntity", 512), relatedEntity = selections(input.relatedEntity, "relatedEntity", 512);
+  const itemType = selections(input.itemType, "itemType", 32, ["all", "subject", "task"]);
+  const priority = selections(input.priority, "priority", 32, priorities);
+  const status = selections(input.status, "status", 32, statuses);
+  const deadlineKind = selections(input.deadlineKind, "deadlineKind", 32, kinds);
   const from = text(input.deadlineFrom, "deadlineFrom", 10), to = text(input.deadlineTo, "deadlineTo", 10);
   if (from && !validDay(from) || to && !validDay(to) || from && to && from > to) throw new Error("Intervalle de dates invalide.");
   const titleQuery = text(input.titleQuery, "titleQuery", 500), bodyQuery = text(input.bodyQuery, "bodyQuery", 500);
@@ -166,27 +178,54 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   const all = tasks.map((task, index) => ({ ...priorityItem(task, today, links.get(task.id) ?? [], byRef), manualPosition: index + 1 }));
   const normalize = (value: string) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("fr");
   const matches = (value: string | undefined, search: string) => !search || normalize(value ?? "").includes(normalize(search));
-  const matching = all.filter(task => (itemType === "all" || task.itemType === itemType)
-    && (!query || [task.title, task.body, task.requester, task.nextAction, task.entityLabel, task.entity, task.productLabel, task.url, task.sourceUrl, task.deadline, task.deadlineLabel,
+  const values = (task: typeof all[number]): Record<string, string[]> => ({
+    itemType: [task.itemType], entity: task.entity ? [task.entity] : [], productId: task.productId ? [task.productId] : [],
+    involvedEntity: [...new Set([...task.relatedEntityRefs, ...(task.productId ? [`product:${task.productId}`] : []),
+      ...(["product", "team"].includes(task.entity.split(":")[0]) ? [task.entity] : [])])],
+    relatedEntity: task.relatedEntityRefs, priority: [task.priority], status: [task.status], deadlineKind: [task.deadlineKind],
+    filter: [...(task.status !== "done" && ["high", "critical"].includes(task.priority) ? ["urgent"] : []),
+      ...(task.overdue ? ["overdue"] : []), ...(task.dueSoon ? ["soon"] : []), ...(task.needsClarification ? ["clarify"] : []),
+      ...(task.status === "blocked" ? ["waiting"] : []), ...(task.needsAttachment ? ["unlinked"] : [])]
+  });
+  const selected: Record<string, string[]> = { itemType, entity, productId, involvedEntity, relatedEntity, priority, status, deadlineKind, filter };
+  const valuesById = new Map(all.map(task => [task.id, values(task)]));
+  const matchText = (task: typeof all[number]) =>
+    (!query || [task.title, task.body, task.requester, task.nextAction, task.entityLabel, task.entity, task.productLabel, task.url, task.sourceUrl, task.deadline, task.deadlineLabel,
       ...task.relatedEntities.flatMap(entity => [entity.label, entity.ref])].some(value => matches(value, query)))
     && matches(task.title, titleQuery) && matches(task.body, bodyQuery) && matches(task.requester, requesterQuery) && matches(task.url, urlQuery) && matches(task.sourceUrl, sourceUrlQuery)
-    && (!entity || task.entity === entity) && (!productId || task.productId === productId)
-    && (!relatedEntity || task.relatedEntityRefs.includes(relatedEntity))
-    && (!involvedEntity || task.relatedEntityRefs.includes(involvedEntity) || !!task.productId && involvedEntity === `product:${task.productId}`
-      || ["product", "team"].includes(task.entity.split(":")[0]) && task.entity === involvedEntity)
-    && (!priority || task.priority === priority) && (!status || task.status === status) && (!deadlineKind || task.deadlineKind === deadlineKind)
-    && (!from || !!task.deadline && task.deadline >= from) && (!to || !!task.deadline && task.deadline <= to));
-  // Metrics follow the user's product/team, nature and field filters, before
-  // pagination. A metric click still reports the whole matching active scope.
+    && (!from || !!task.deadline && task.deadline >= from) && (!to || !!task.deadline && task.deadline <= to);
+  const matchFields = (task: typeof all[number], omit = "", attention = true) => Object.entries(selected).every(([key, selectedValues]) =>
+    key === omit || key === "filter" && !attention || !selectedValues.length || selectedValues.some(value => valuesById.get(task.id)![key].includes(value)));
+  const inView = (task: typeof all[number]) => view === "all" || (view === "done" ? task.status === "done" : task.status !== "done");
+  const candidates = all.filter(matchText);
+  const matching = candidates.filter(task => matchFields(task, "", false));
+  // Metrics follow field filters, before pagination and attention presets.
   const active = matching.filter(task => task.status !== "done");
   const counts = { active: active.length, urgent: active.filter(task => ["high", "critical"].includes(task.priority)).length,
     overdue: active.filter(task => task.overdue).length, soon: active.filter(task => task.dueSoon).length,
     clarify: active.filter(task => task.needsClarification).length, waiting: active.filter(task => task.status === "blocked").length,
     unlinked: active.filter(task => task.needsAttachment).length };
-  const items = matching.filter(task => (view === "all" || (view === "done" ? task.status === "done" : task.status !== "done"))
-    && (filter === "all" || filter === "urgent" && task.status !== "done" && ["high", "critical"].includes(task.priority)
-      || filter === "overdue" && task.overdue || filter === "soon" && task.dueSoon
-      || filter === "clarify" && task.needsClarification || filter === "waiting" && task.status === "blocked" || filter === "unlinked" && task.needsAttachment));
+  const items = matching.filter(task => inView(task) && matchFields(task));
+  // Each menu sees every matching row before pagination, ignoring only its own
+  // selection. This lets users add a second value without undoing the first.
+  const labels: Record<string, Record<string, string>> = {
+    itemType: { subject: "Sujets", task: "Tâches" }, priority: { critical: "Critique", high: "Haute", medium: "Normale", low: "Basse" },
+    status: { open: "À faire", in_progress: "En cours", ready: "Prête à démarrer", pending: "À clarifier", candidate: "À valider", blocked: "En attente", done: "Terminée" },
+    deadlineKind: { exact: "Date ferme", approximate: "Estimation", unknown: "À préciser" },
+    filter: { urgent: "Hautes et critiques", overdue: "Dates fermes dépassées", soon: "D’ici 7 jours", waiting: "En attente", clarify: "À préciser", unlinked: "Sans entité · à rattacher" }
+  };
+  const facets = Object.fromEntries(Object.keys(selected).map(key => {
+    const frequencies = new Map<string, number>();
+    for (const task of candidates.filter(task => inView(task) && matchFields(task, key))) {
+      for (const value of new Set(valuesById.get(task.id)![key])) frequencies.set(value, (frequencies.get(value) ?? 0) + 1);
+    }
+    const options = [...frequencies].map(([value, count]) => {
+      const ref = key === "productId" ? `product:${value}` : value, entity = byRef.get(ref);
+      const label = labels[key]?.[value] ?? (entity ? entity.label + (key === "involvedEntity" || key === "relatedEntity" ? " · " + (entity.kind === "team" ? "équipe" : "produit") : "") : value);
+      return { value, label, count };
+    }).sort((a, b) => a.label.localeCompare(b.label, "fr", { sensitivity: "base", numeric: true }));
+    return [key, options];
+  }));
   const collator = new Intl.Collator("fr", { sensitivity: "base", numeric: true });
   const sortValue = (task: typeof all[number]): string => sortBy === "entity" ? task.entityLabel : sortBy === "product" ? task.productLabel : sortBy === "relatedEntities" ? task.relatedEntities.map(entity => entity.label).join(", ") : String(task[sortBy as keyof typeof task] ?? "");
   items.sort((a, b) => {
@@ -196,7 +235,7 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
       : !av !== !bv ? Number(!av) - Number(!bv) : direction * collator.compare(av, bv);
     return comparison || (sortBy === "priority" ? (a.deadline || "9999").localeCompare(b.deadline || "9999") : 0) || a.id.localeCompare(b.id);
   });
-  return { today, counts, orderRevision: orderRevision(tasks), entities: choices, items: items.slice(Number(offset), Number(offset) + Number(limit)), total: items.length,
+  return { today, counts, orderRevision: orderRevision(tasks), entities: choices, facets, items: items.slice(Number(offset), Number(offset) + Number(limit)), total: items.length,
     nextOffset: Number(offset) + Number(limit) < items.length ? Number(offset) + Number(limit) : null };
 }
 function rank(value: string): number { const index = priorities.indexOf(value); return index < 0 ? 2 : index; }
@@ -286,5 +325,19 @@ export function savePriority(db: WorkMemoryDatabase, raw: unknown) {
       label: same?.label, metadata: { ...same?.metadata, priorityPrimary: true, priorityOwnsLink: same ? same.metadata?.priorityOwnsLink === true : true } });
     syncRelatedLinks(db, saved.id, relatedEntityRefs);
     return priorityItem(saved, localDay(), db.listTaskLinks([saved.id]), entities);
+  });
+}
+
+/** Remove a personal solicitation, never its entity, source or private notes. */
+export function deletePriority(db: WorkMemoryDatabase, raw: unknown) {
+  const input = fields(raw, ["scope", "taskId", "revision"]);
+  const id = text(input.taskId, "taskId", 256), expected = text(input.revision, "revision", 64);
+  if (!id || !/^[a-f0-9]{64}$/.test(expected)) throw new Error("Identifiant et révision de sollicitation requis.");
+  return db.runInImmediateTransaction(() => {
+    const task = db.getTask(id);
+    if (!task || task.assignee !== "me" || task.archivedAt || task.status === "archived") throw new Error("Sollicitation introuvable ou hors de tes priorités personnelles.");
+    if (revision(task, db.listTaskLinks([id])) !== expected) throw new Error("Cette sollicitation a changé. Actualise la liste avant de la supprimer.");
+    db.deleteTask(id);
+    return { deleted: true, taskId: id };
   });
 }

@@ -3,7 +3,7 @@
   "displayName": "OneAgent",
   "description": "Local-first product knowledge, curation, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.132",
+  "version": "0.1.133",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",
@@ -135,6 +135,44 @@
     },
     "languageModelTools": [
       {
+        "name": "workMemory_deletePriority",
+        "displayName": "Delete OneAgent Priority",
+        "toolReferenceName": "oneagentDeletePriority",
+        "canBeReferencedInPrompt": true,
+        "tags": [
+          "oneagent",
+          "priorities",
+          "tasks"
+        ],
+        "modelDescription": "At the user's explicit direction, permanently delete one personal solicitation/task and its live links. This removes it from Priorities and Tasks without marking it done. Its entity, documentation, source and private notes remain. First read list_priorities and use its exact taskId and revision. A changed row is refused. Never remove items merely because they disappear from an imported sheet; never automatically retry an uncertain deletion.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio"
+              ],
+              "description": "Whole bound private memory; includes all subjects, independent of the VS Code selection."
+            },
+            "taskId": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "revision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "scope",
+            "taskId",
+            "revision"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
         "name": "workMemory_listPriorities",
         "displayName": "Read OneAgent Priorities",
         "toolReferenceName": "oneagentPriorities",
@@ -144,7 +182,7 @@
           "priorities",
           "tasks"
         ],
-        "modelDescription": "Read my explicit requests/tasks across the bound memory, in the shared manual order by default (or an explicit column sort), with description, linked entity, primary product, partner products/teams, requester, separate documentation and source URLs, subject/task classification, next action and revision. Returns existing entity choices for creation. Returns a global orderRevision for explicit reordering. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.",
+        "modelDescription": "Read my explicit requests/tasks across the bound memory, in the shared manual order by default (or an explicit column sort), with description, linked entity, primary product, partner products/teams, requester, separate documentation and source URLs, subject/task classification, next action and revision. Returns existing entity choices for creation. Returns a global orderRevision for explicit reordering. Categorical filters accept one value or an array (OR within a field, AND across fields). Returns facets from matching rows before pagination, ignoring each facet’s own selection; entities remain the full choices for editing. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -172,16 +210,38 @@
               ]
             },
             "filter": {
-              "type": "string",
-              "enum": [
-                "all",
-                "urgent",
-                "overdue",
-                "soon",
-                "clarify",
-                "waiting",
-                "unlinked"
-              ]
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "all",
+                    "urgent",
+                    "overdue",
+                    "soon",
+                    "clarify",
+                    "waiting",
+                    "unlinked"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "urgent",
+                      "overdue",
+                      "soon",
+                      "clarify",
+                      "waiting",
+                      "unlinked"
+                    ]
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
             },
             "sortBy": {
               "type": "string",
@@ -231,64 +291,202 @@
               "maxLength": 500
             },
             "itemType": {
-              "type": "string",
-              "enum": [
-                "all",
-                "subject",
-                "task"
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "all",
+                    "subject",
+                    "task"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "all",
+                      "subject",
+                      "task"
+                    ]
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
               ],
-              "description": "Filter subjects, ordinary tasks or both (default all)."
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
             },
             "involvedEntity": {
-              "type": "string",
-              "maxLength": 512,
-              "description": "Exact product:id or team:id involved as primary product, attached product/team or partner."
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512,
+                  "description": "Exact product:id or team:id involved as primary product, attached product/team or partner."
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 512,
+                    "description": "Exact product:id or team:id involved as primary product, attached product/team or partner."
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
             },
             "relatedEntity": {
-              "type": "string",
-              "maxLength": 512,
-              "description": "Exact product:id or team:id among partners only."
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512,
+                  "description": "Exact product:id or team:id among partners only."
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 512,
+                    "description": "Exact product:id or team:id among partners only."
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
             },
             "entity": {
-              "type": "string",
-              "maxLength": 512,
-              "description": "Exact kind:id from the entities returned by list_priorities."
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 512,
+                  "description": "Exact kind:id from entities returned by list_priorities."
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 512,
+                    "description": "Exact kind:id from entities returned by list_priorities."
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
             },
             "productId": {
-              "type": "string",
-              "maxLength": 256
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 256
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
             },
             "priority": {
-              "type": "string",
-              "enum": [
-                "",
-                "critical",
-                "high",
-                "medium",
-                "low"
-              ]
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "",
+                    "critical",
+                    "high",
+                    "medium",
+                    "low"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "",
+                      "critical",
+                      "high",
+                      "medium",
+                      "low"
+                    ]
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
             },
             "status": {
-              "type": "string",
-              "enum": [
-                "",
-                "pending",
-                "candidate",
-                "ready",
-                "open",
-                "in_progress",
-                "blocked",
-                "done"
-              ]
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "",
+                    "pending",
+                    "candidate",
+                    "ready",
+                    "open",
+                    "in_progress",
+                    "blocked",
+                    "done"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "",
+                      "pending",
+                      "candidate",
+                      "ready",
+                      "open",
+                      "in_progress",
+                      "blocked",
+                      "done"
+                    ]
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
             },
             "deadlineKind": {
-              "type": "string",
-              "enum": [
-                "",
-                "unknown",
-                "exact",
-                "approximate"
-              ]
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "",
+                    "unknown",
+                    "exact",
+                    "approximate"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "",
+                      "unknown",
+                      "exact",
+                      "approximate"
+                    ]
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
             },
             "deadlineFrom": {
               "type": "string",

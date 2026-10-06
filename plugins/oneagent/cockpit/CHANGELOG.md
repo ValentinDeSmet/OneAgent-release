@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.133
+
+- Priorités communes à VS Code et Copilot 0.6.8 : filtres à cases à cocher,
+  sélection multiple et recherche dans les choix présents dans les sollicitations.
+- Choix et compteurs calculés avant pagination, en tenant compte des autres
+  filtres. Les choix de création conservent toutes les entités disponibles.
+- Suppression explicite d’une sollicitation depuis la ligne ou la fiche, sans
+  la marquer terminée. L’entité, les sources et les notes liées sont conservées.
+- Suppression transactionnelle avec contrôle de révision, disponible aussi
+  pour l’agent sur demande explicite, et sans répétition automatique en cas d’erreur.
+
 ## 0.1.132
 
 - Suppression de BMAD Readiness dans les deux plugins (Copilot 0.6.6) : score

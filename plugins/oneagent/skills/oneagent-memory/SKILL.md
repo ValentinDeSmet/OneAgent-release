@@ -180,3 +180,17 @@ resolve an existing absolute path in the bound memory or configured repositories
 before opening this canvas. Do not create a copy or a substitute document.
 Opening a tab never authorizes a file edit. Host sandbox and canvas availability
 still apply. Never ask for a Git repository just to use the memory.
+
+
+Priority categorical filters accept one string or multiple values (OR within one
+field, AND across fields); [] means all. Use list_priorities.facets for the values
+present in matching requests before pagination. Each facet ignores its own
+selection to allow adding alternatives. Keep list_priorities.entities for creation
+and attachment choices. Never invent a product/team because a filter is empty.
+
+Only when explicitly asked to delete a personal solicitation, read the latest list
+and call oneagent_delete_priority with its exact taskId and revision. It permanently
+removes the native task and live links from Priorities and Tasks, without completing
+it or deleting its entity, source files or private notes. Never delete merely because
+an imported source omits a row, and do not automatically retry an uncertain deletion.
+If later explicitly asked to recreate it, create a new request with a new identity.

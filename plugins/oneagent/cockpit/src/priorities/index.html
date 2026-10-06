@@ -11,6 +11,7 @@
 <main>
   <header><div><h1>Priorités</h1><p class="intro">Qui attend quoi, et pour quand ?</p></div><div class="actions"><button id="manual-order" aria-pressed="true">Mon classement</button><button id="refresh">Actualiser</button><button id="add" class="primary">+ Nouvelle sollicitation</button></div></header>
   <p id="error" class="error" role="alert" hidden></p>
+  <p id="action-feedback" class="hint" role="status" hidden></p>
   <section class="metrics" aria-label="Vue d’ensemble des sollicitations actives">
     <button data-filter="all"><strong id="count-active">—</strong><span>En cours de suivi</span></button>
     <button data-filter="urgent"><strong id="count-urgent">—</strong><span>Priorité haute ou critique</span></button>
@@ -19,24 +20,24 @@
   </section>
   <section class="toolbar" aria-label="Filtres">
     <label class="search">Rechercher<input id="search" type="search" placeholder="Sujet, produit, équipe, personne ou lien source…" maxlength="500"></label>
-    <label>Nature<select id="item-type"><option value="all">Sujets et tâches</option><option value="subject">Sujets uniquement</option><option value="task">Tâches uniquement</option></select></label>
-    <label>Produit / équipe concerné<select id="involved-filter"><option value="">Tous les produits et équipes</option></select></label>
-    <label>Avancement<select id="status-filter"><option value="">Tous</option><option value="open">À faire</option><option value="in_progress">En cours</option><option value="ready">Prête à démarrer</option><option value="pending">À clarifier</option><option value="candidate">À valider</option><option value="blocked">En attente</option><option value="done">Terminée</option></select></label>
+    <div class="filter-field"><span>Nature</span><details id="item-type" class="multi-filter"><summary><span id="item-type-summary">Sujets et tâches</span></summary><div class="filter-popover"><label class="sr-only" for="item-type-search">Rechercher dans nature</label><input id="item-type-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="item-type-clear" type="button" class="filter-clear">Tout afficher</button><div id="item-type-choices" class="filter-options" role="group" aria-label="Nature"></div></div></details></div>
+    <div class="filter-field"><span>Produit / équipe concerné</span><details id="involved-filter" class="multi-filter"><summary><span id="involved-filter-summary">Tous les produits et équipes</span></summary><div class="filter-popover"><label class="sr-only" for="involved-filter-search">Rechercher dans produit / équipe concerné</label><input id="involved-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="involved-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="involved-filter-choices" class="filter-options" role="group" aria-label="Produit / équipe concerné"></div></div></details></div>
+    <div class="filter-field"><span>Avancement</span><details id="status-filter" class="multi-filter"><summary><span id="status-filter-summary">Tous les avancements</span></summary><div class="filter-popover"><label class="sr-only" for="status-filter-search">Rechercher dans avancement</label><input id="status-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="status-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="status-filter-choices" class="filter-options" role="group" aria-label="Avancement"></div></div></details></div>
     <label>Afficher<select id="view"><option value="active">Sollicitations actives</option><option value="done">Terminées</option><option value="all">Toutes</option></select></label>
-    <label>Attention particulière<select id="filter"><option value="all">Toutes les priorités</option><option value="urgent">Hautes et critiques</option><option value="overdue">Dates fermes dépassées</option><option value="soon">D’ici 7 jours</option><option value="waiting">En attente</option><option value="clarify">À préciser</option><option value="unlinked">Sans entité · à rattacher</option></select></label>
+    <div class="filter-field"><span>Attention particulière</span><details id="filter" class="multi-filter"><summary><span id="filter-summary">Toutes les priorités</span></summary><div class="filter-popover"><label class="sr-only" for="filter-search">Rechercher dans attention particulière</label><input id="filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="filter-choices" class="filter-options" role="group" aria-label="Attention particulière"></div></div></details></div>
   </section>
   <details class="filters"><summary>Filtres par champ <span id="filter-count"></span></summary>
     <div class="filter-grid">
       <label>Sujet<input id="title-query" type="search" maxlength="500"></label>
       <label>Description<input id="body-query" type="search" maxlength="500"></label>
-      <label>Entité rattachée<select id="entity-filter"><option value="">Toutes les entités</option></select></label>
-      <label>Produit principal<select id="product-filter"><option value="">Tous les produits</option></select></label>
-      <label>Produit / équipe partenaire<select id="related-filter"><option value="">Tous les partenaires</option></select></label>
+      <div class="filter-field"><span>Entité rattachée</span><details id="entity-filter" class="multi-filter"><summary><span id="entity-filter-summary">Toutes les entités</span></summary><div class="filter-popover"><label class="sr-only" for="entity-filter-search">Rechercher dans entité rattachée</label><input id="entity-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="entity-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="entity-filter-choices" class="filter-options" role="group" aria-label="Entité rattachée"></div></div></details></div>
+      <div class="filter-field"><span>Produit principal</span><details id="product-filter" class="multi-filter"><summary><span id="product-filter-summary">Tous les produits</span></summary><div class="filter-popover"><label class="sr-only" for="product-filter-search">Rechercher dans produit principal</label><input id="product-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="product-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="product-filter-choices" class="filter-options" role="group" aria-label="Produit principal"></div></div></details></div>
+      <div class="filter-field"><span>Produit / équipe partenaire</span><details id="related-filter" class="multi-filter"><summary><span id="related-filter-summary">Tous les partenaires</span></summary><div class="filter-popover"><label class="sr-only" for="related-filter-search">Rechercher dans produit / équipe partenaire</label><input id="related-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="related-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="related-filter-choices" class="filter-options" role="group" aria-label="Produit / équipe partenaire"></div></div></details></div>
       <label>Attendu par<input id="requester-query" type="search" maxlength="300"></label>
-      <label>Priorité<select id="priority-filter"><option value="">Toutes</option><option value="critical">Critique</option><option value="high">Haute</option><option value="medium">Normale</option><option value="low">Basse</option></select></label>
+      <div class="filter-field"><span>Priorité</span><details id="priority-filter" class="multi-filter"><summary><span id="priority-filter-summary">Toutes les priorités</span></summary><div class="filter-popover"><label class="sr-only" for="priority-filter-search">Rechercher dans priorité</label><input id="priority-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="priority-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="priority-filter-choices" class="filter-options" role="group" aria-label="Priorité"></div></div></details></div>
       <label>Deadline à partir du<input id="deadline-from" type="date" min="1900-01-01" max="9999-12-31"></label>
       <label>Deadline jusqu’au<input id="deadline-to" type="date" min="1900-01-01" max="9999-12-31"></label>
-      <label>Nature de la deadline<select id="deadline-kind-filter"><option value="">Toutes</option><option value="exact">Date ferme</option><option value="approximate">Estimation</option><option value="unknown">À préciser</option></select></label>
+      <div class="filter-field"><span>Nature de la deadline</span><details id="deadline-kind-filter" class="multi-filter"><summary><span id="deadline-kind-filter-summary">Toutes les échéances</span></summary><div class="filter-popover"><label class="sr-only" for="deadline-kind-filter-search">Rechercher dans nature de la deadline</label><input id="deadline-kind-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="deadline-kind-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="deadline-kind-filter-choices" class="filter-options" role="group" aria-label="Nature de la deadline"></div></div></details></div>
       <label>URL documentation<input id="url-query" type="search" maxlength="500" placeholder="Domaine ou partie du lien"></label>
       <label>URL source<input id="source-url-query" type="search" maxlength="500" placeholder="Google Sheet, domaine ou partie du lien"></label>
       <button type="button" id="reset-filters">Réinitialiser les filtres</button>
@@ -72,7 +73,14 @@
     <p class="hint">Le lien source sert à retrouver la liste d’origine pour demander à l’agent une actualisation ultérieure.</p>
     <label>Prochaine action<textarea name="nextAction" rows="2" maxlength="2000" placeholder="Une action concrète pour avancer ou relancer"></textarea></label>
     <p class="hint" id="updated"></p>
-    <div class="dialog-actions"><button id="done" type="button" hidden>Marquer terminée</button><button id="cancel" type="button">Annuler</button><button id="save" type="submit" class="primary">Enregistrer</button></div>
+    <div class="dialog-actions"><button id="remove" type="button" class="danger" hidden>Supprimer</button><button id="done" type="button" hidden>Marquer terminée</button><button id="cancel" type="button">Annuler</button><button id="save" type="submit" class="primary">Enregistrer</button></div>
   </form>
+</dialog>
+<dialog id="delete-confirm" aria-labelledby="delete-title" aria-describedby="delete-description">
+  <h2 id="delete-title">Supprimer cette sollicitation ?</h2>
+  <p id="delete-name"></p>
+  <p id="delete-description">Elle sera supprimée de tes priorités et tâches, sans être marquée terminée. L’entité, les documents et les notes liés seront conservés. Tu pourras créer une nouvelle sollicitation plus tard.</p>
+  <p id="delete-error" class="error" role="alert" hidden></p>
+  <div class="dialog-actions"><button id="delete-cancel" type="button" autofocus>Annuler</button><button id="delete-submit" type="button" class="danger">Supprimer la sollicitation</button></div>
 </dialog>
 </body></html>

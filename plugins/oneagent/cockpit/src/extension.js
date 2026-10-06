@@ -2429,7 +2429,7 @@ async function handleCockpitMessage(cli, webview, message) {
   try {
     if (message.type === "priorityRequest") {
       try {
-        if (!["list", "save", "reorder"].includes(message.operation)) throw new Error("Unknown priorities action.");
+        if (!["list", "save", "reorder", "delete"].includes(message.operation)) throw new Error("Unknown priorities action.");
         const payload = JSON.parse(await cli.run(["priorities", message.operation, "--stdin", "--json"], { input: JSON.stringify({ ...message.input, scope: "portfolio" }), logOutput: false }));
         await webview.postMessage({ type: "priorityResult", requestId: message.requestId, payload });
         if (message.operation !== "list") {

@@ -8,6 +8,8 @@ let entities = [], sortBy = "manual", sortDirection = "asc";
 let items = [], nextOffset = null, selected = null, loading = false, saving = false, requestVersion = 0;
 let orderRevision = "", reordering = false, draggedId = "", draggedRow = null, dropRow = null;
 let rankHandles = new Map();
+let pendingDelete = null;
+const deletion = $("#delete-confirm");
 const priorityLabels = { critical: "Critique", high: "Haute", medium: "Normale", low: "Basse" };
 const statusLabels = { open: "À faire", in_progress: "En cours", ready: "Prête", pending: "À clarifier", candidate: "À valider", blocked: "En attente", done: "Terminée" };
 const day = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; };
@@ -22,9 +24,40 @@ async function api(operation, input) {
 function node(tag, text = "", className = "") {
   const result = document.createElement(tag); result.textContent = text; result.className = className; return result;
 }
-const filterFields = { itemType: "item-type", involvedEntity: "involved-filter", relatedEntity: "related-filter", sourceUrlQuery: "source-url-query", titleQuery: "title-query", bodyQuery: "body-query", entity: "entity-filter", productId: "product-filter", requesterQuery: "requester-query", priority: "priority-filter", deadlineFrom: "deadline-from", deadlineTo: "deadline-to", deadlineKind: "deadline-kind-filter", urlQuery: "url-query", status: "status-filter" };
-function filters() { return Object.fromEntries(Object.entries(filterFields).map(([key, id]) => [key, $("#" + id).value])); }
-function activeFilterCount() { return Object.entries(filters()).filter(([key, value]) => value && !(key === "itemType" && value === "all")).length; }
+const filterFields = { sourceUrlQuery: "source-url-query", titleQuery: "title-query", bodyQuery: "body-query", requesterQuery: "requester-query", deadlineFrom: "deadline-from", deadlineTo: "deadline-to", urlQuery: "url-query" };
+const facetFields = { itemType: ["item-type", "Sujets et tâches"], involvedEntity: ["involved-filter", "Tous les produits et équipes"], status: ["status-filter", "Tous les avancements"], filter: ["filter", "Toutes les priorités"],
+  entity: ["entity-filter", "Toutes les entités"], productId: ["product-filter", "Tous les produits"], relatedEntity: ["related-filter", "Tous les partenaires"], priority: ["priority-filter", "Toutes les priorités"], deadlineKind: ["deadline-kind-filter", "Toutes les échéances"] };
+const selectedFilters = Object.fromEntries(Object.keys(facetFields).map(key => [key, new Set()]));
+let facets = {}, knownChoices = {};
+function filters() { return { ...Object.fromEntries(Object.entries(filterFields).map(([key, id]) => [key, $("#" + id).value])), ...Object.fromEntries(Object.entries(selectedFilters).map(([key, values]) => [key, [...values]])) }; }
+function activeFilterCount() { return Object.values(filters()).filter(value => Array.isArray(value) ? value.length : value).length; }
+const normalize = value => String(value).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("fr");
+function renderFacet(key) {
+  const [id, placeholder] = facetFields[key], chosen = selectedFilters[key];
+  const choices = [...(facets[key] || [])];
+  for (const choice of choices) (knownChoices[key] ||= new Map()).set(choice.value, choice.label);
+  // Preserve unavailable selections so users can uncheck them; never widen a
+  // filter silently when another host edits/deletes its last matching row.
+  for (const value of chosen) if (!choices.some(choice => choice.value === value)) choices.push({ value, label: knownChoices[key]?.get(value) || value, count: 0 });
+  const labels = choices.filter(choice => chosen.has(choice.value)).map(choice => choice.label);
+  $("#" + id + "-summary").textContent = chosen.size > 1 ? `${chosen.size} sélectionnés` : labels[0] || placeholder;
+  $("#" + id).dataset.active = String(chosen.size > 0);
+  const query = normalize($("#" + id + "-search").value), list = $("#" + id + "-choices");
+  const activeElement = document.activeElement?.shadowRoot?.activeElement || document.activeElement;
+  const focused = list.contains(activeElement) ? activeElement?.value : undefined;
+  let nextFocus;
+  const options = choices.filter(choice => normalize(choice.label + " " + choice.value).includes(query)).map(choice => {
+    const label = node("label", "", "filter-option"), checkbox = node("input");
+    checkbox.type = "checkbox"; checkbox.value = choice.value; checkbox.checked = chosen.has(choice.value); checkbox.disabled = reordering || saving;
+    checkbox.addEventListener("change", () => { if (reordering || saving) return; checkbox.checked ? chosen.add(choice.value) : chosen.delete(choice.value); clearTimeout(searchTimer); renderFacet(key); refresh(); });
+    if (choice.value === focused) nextFocus = checkbox;
+    label.append(checkbox, node("span", choice.label), node("small", String(choice.count), "muted")); return label;
+  });
+  list.replaceChildren(...(options.length ? options : [node("p", "Aucune valeur dans cette vue.", "hint")]));
+  nextFocus?.focus();
+}
+function renderFacets() { for (const key of Object.keys(facetFields)) renderFacet(key); }
+function closeFilterMenus() { for (const [id] of Object.values(facetFields)) $("#" + id).open = false; }
 function selectOptions(select, choices, placeholder, value = select.value) {
   const options = [Object.assign(node("option", placeholder), { value: "" })];
   for (const choice of choices) options.push(Object.assign(node("option", choice.label), { value: choice.value }));
@@ -91,7 +124,7 @@ async function movePriority(taskId, targetTaskId, position) {
   if (!manualView() || loading || saving || reordering || !orderRevision) return;
   clearTimeout(searchTimer);
   clearDrag(); reordering = true; render(); error($("#error"));
-  const controls = [...document.querySelectorAll(".toolbar input, .toolbar select, .filters input, .filters select, .filters button, [data-sort], [data-filter], #add, #empty-add, #refresh, #more, #manual-order")];
+  const controls = [...document.querySelectorAll(".toolbar input, .toolbar select, .toolbar button, .filters input, .filters select, .filters button, [data-sort], [data-filter], #add, #empty-add, #refresh, #more, #manual-order")];
   const previous = controls.map(control => control.disabled);
   for (const control of controls) control.disabled = true;
   $("#rank-feedback").textContent = "Enregistrement du classement…";
@@ -107,7 +140,7 @@ async function movePriority(taskId, targetTaskId, position) {
   } finally {
     reordering = false;
     controls.forEach((control, index) => { control.disabled = previous[index]; });
-    render(); rankHandles.get(taskId)?.focus();
+    renderFacets(); render(); rankHandles.get(taskId)?.focus();
   }
 }
 function rankCell(item, row, index) {
@@ -157,7 +190,9 @@ function render() {
     button.type = "button"; button.addEventListener("click", () => edit(item));
     const titleLine = node("div", "", "subject-line"), modify = node("button", "Modifier", "edit-link");
     modify.type = "button"; modify.setAttribute("aria-label", "Modifier " + item.title); modify.addEventListener("click", () => edit(item));
-    titleLine.append(button, modify); subject.append(titleLine);
+        const remove = node("button", "Supprimer", "edit-link danger");
+    remove.type = "button"; remove.disabled = saving || reordering; remove.setAttribute("aria-label", "Supprimer " + item.title); remove.addEventListener("click", () => askDelete(item));
+    titleLine.append(button, modify, remove); subject.append(titleLine);
     subject.append(node("span", item.itemType === "task" ? "Tâche" : "Sujet", "badge nature"));
     subject.append(node("p", item.entityLabel ? `${item.entityLabel} · ${item.entity.split(":")[0]}` : "Entité à rattacher", item.needsAttachment ? "overdue" : "muted"));
     const description = node("td"), content = node("span", item.body || "—", "description");
@@ -202,22 +237,19 @@ async function refresh(append = false) {
   const version = ++requestVersion;
   loading = true; $("#refresh").disabled = true; $("#more").disabled = true;
   try {
-    const data = await api("list", { today: day(), query: $("#search").value, view: $("#view").value, filter: $("#filter").value, ...filters(), sortBy, sortDirection, limit: 100, offset: append ? nextOffset : 0 });
+    const data = await api("list", { today: day(), query: $("#search").value, view: $("#view").value, ...filters(), sortBy, sortDirection, limit: 100, offset: append ? nextOffset : 0 });
     if (version !== requestVersion) return;
     items = append ? [...items, ...data.items.filter((item) => !items.some((old) => old.id === item.id))] : data.items;
     orderRevision = data.orderRevision || "";
     nextOffset = data.nextOffset;
     entities = data.entities || [];
-    selectOptions($("#entity-filter"), entityOptions(), "Toutes les entités");
-    selectOptions($("#product-filter"), productOptions(), "Tous les produits");
-    selectOptions($("#involved-filter"), partnerOptions(), "Tous les produits et équipes");
-    selectOptions($("#related-filter"), partnerOptions(), "Tous les partenaires");
+    facets = data.facets || {}; renderFacets();
     for (const key of ["active", "urgent", "overdue", "clarify"]) $("#count-" + key).textContent = data.counts[key];
-    for (const button of document.querySelectorAll("[data-filter]")) button.setAttribute("aria-pressed", String(button.dataset.filter === $("#filter").value && $("#view").value === "active"));
+    for (const button of document.querySelectorAll("[data-filter]")) button.setAttribute("aria-pressed", String((button.dataset.filter === "all" ? !selectedFilters.filter.size : selectedFilters.filter.has(button.dataset.filter)) && $("#view").value === "active"));
     render();
     $("#empty").hidden = items.length > 0;
     $(".table-wrap").hidden = false;
-    const filtered = Boolean(activeFilterCount() || $("#search").value || $("#filter").value !== "all" || $("#view").value !== "active");
+    const filtered = Boolean(activeFilterCount() || $("#search").value || $("#view").value !== "active");
     $("#empty-title").textContent = filtered ? "Aucune sollicitation dans cette vue" : "Aucune sollicitation active";
     $("#empty-text").textContent = filtered ? "Ajuste les filtres ou recherche un autre sujet ou demandeur." : "Ajoute ce que l’on attend de toi, même si la personne ou la date reste à préciser.";
     $("#add").disabled = false; $("#empty-add").disabled = false;
@@ -241,8 +273,8 @@ function deadlineFields() {
   $("#date-help").textContent = kind === "approximate" ? "La période suffit. Une date cible peut aider au tri ; elle ne déclenche pas d’alerte de retard." : kind === "exact" ? "Une date ferme dépassée apparaîtra dans les retards." : "Une échéance inconnue reste visible comme « À préciser ».";
 }
 function edit(item = null) {
-  if (reordering) return;
-  selected = item; form.reset(); error($("#form-error"));
+  if (reordering || saving) return;
+  closeFilterMenus(); selected = item; form.reset(); error($("#form-error"));
   selectedRelatedRefs = new Set(item?.relatedEntityRefs || []);
   $("#partner-search").value = "";
   form.elements.itemType.value = item?.itemType || "subject";
@@ -254,6 +286,7 @@ function edit(item = null) {
   if (item) for (const key of ["url", "sourceUrl", "title", "body", "requester", "priority", "status", "deadline", "deadlineKind", "deadlineLabel", "nextAction"]) form.elements[key].value = item[key] || "";
   $("#updated").textContent = item ? `Créée le ${new Date(item.createdAt).toLocaleDateString("fr-FR")} · Modifiée le ${new Date(item.updatedAt).toLocaleString("fr-FR")}` : "Sujet et entité sont obligatoires. Le produit est facultatif pour les autres types d’entités.";
   $("#done").hidden = !item || item.status === "done";
+  $("#remove").hidden = !item;
   deadlineFields(); editor.showModal(); form.elements.title.focus();
 }
 async function save(event) {
@@ -266,8 +299,30 @@ async function save(event) {
   error($("#form-error"));
   try { await api("save", input); editor.close(); await refresh(); }
   catch (failure) { error($("#form-error"), failure.message + "\nEn cas de coupure, vérifie la liste avant de réessayer une création."); }
-  finally { saving = false; for (const button of form.querySelectorAll("button")) button.disabled = false; }
+  finally { saving = false; for (const button of form.querySelectorAll("button")) button.disabled = false; renderFacets(); }
 }
+function askDelete(item) {
+  if (!item || saving || reordering) return;
+  clearTimeout(searchTimer); closeFilterMenus(); pendingDelete = item;
+  $("#delete-name").textContent = item.title; error($("#delete-error"));
+  $("#delete-submit").disabled = false; deletion.showModal();
+}
+$("#remove").addEventListener("click", () => askDelete(selected));
+$("#delete-cancel").addEventListener("click", () => { if (!saving) { pendingDelete = null; deletion.close(); } });
+deletion.addEventListener("cancel", event => { if (saving) event.preventDefault(); else pendingDelete = null; });
+$("#delete-submit").addEventListener("click", async () => {
+  if (!pendingDelete || saving || reordering || $("#delete-submit").disabled) return;
+  const item = pendingDelete; saving = true;
+  $("#delete-submit").disabled = true; $("#delete-cancel").disabled = true;
+  try {
+    await api("delete", { taskId: item.id, revision: item.revision });
+    pendingDelete = null; deletion.close();
+    if (selected?.id === item.id) { selected = null; editor.close(); }
+    $("#action-feedback").textContent = `« ${item.title} » a été supprimée.`; $("#action-feedback").hidden = false;
+    await refresh();
+  } catch (failure) { error($("#delete-error"), failure.message + "\nSuppression non confirmée. Ferme cette fenêtre et actualise la liste avant de réessayer."); }
+  finally { saving = false; $("#delete-cancel").disabled = false; renderFacets(); }
+});
 form.addEventListener("submit", save);
 form.elements.entity.addEventListener("change", syncProduct);
 form.elements.productId.addEventListener("change", syncProduct);
@@ -279,8 +334,8 @@ editor.addEventListener("cancel", (event) => { if (saving) event.preventDefault(
 $("#done").addEventListener("click", () => { form.elements.status.value = "done"; form.requestSubmit(); });
 $("#refresh").addEventListener("click", () => refresh());
 $("#more").addEventListener("click", () => { if (!loading && nextOffset !== null) refresh(true); });
-for (const id of ["view", "filter"]) $("#" + id).addEventListener("change", () => refresh());
-for (const button of document.querySelectorAll("[data-filter]")) button.addEventListener("click", () => { $("#filter").value = button.dataset.filter; $("#view").value = "active"; refresh(); });
+for (const id of ["view"]) $("#" + id).addEventListener("change", () => refresh());
+for (const button of document.querySelectorAll("[data-filter]")) button.addEventListener("click", () => { selectedFilters.filter = new Set(button.dataset.filter === "all" ? [] : [button.dataset.filter]); renderFacet("filter"); $("#view").value = "active"; refresh(); });
 let searchTimer;
 for (const id of ["search", "title-query", "body-query", "requester-query", "url-query", "source-url-query"]) $("#" + id).addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => refresh(), 250); });
 for (const id of Object.values(filterFields).filter((id) => !id.endsWith("-query"))) $("#" + id).addEventListener("change", () => refresh());
@@ -294,10 +349,16 @@ $("#manual-order").addEventListener("click", () => { if (reordering) return; sor
 $("#reset-filters").addEventListener("click", () => {
   clearTimeout(searchTimer);
   for (const id of ["search", ...Object.values(filterFields)]) $("#" + id).value = "";
-  $("#item-type").value = "all";
-  $("#filter").value = "all"; $("#view").value = "active"; refresh();
+  for (const key of Object.keys(facetFields)) { selectedFilters[key].clear(); $("#" + facetFields[key][0] + "-search").value = ""; }
+  $("#view").value = "active"; renderFacets(); refresh();
 });
-const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !editor.open && !document.hidden) refresh(); };
+for (const [key, [id]] of Object.entries(facetFields)) {
+  $("#" + id).addEventListener("toggle", () => { if ($("#" + id).open) for (const [other] of Object.values(facetFields)) if (other !== id) $("#" + other).open = false; });
+  $("#" + id + "-search").addEventListener("input", () => renderFacet(key));
+  $("#" + id + "-clear").addEventListener("click", () => { if (reordering || saving) return; selectedFilters[key].clear(); renderFacet(key); refresh(); });
+  $("#" + id).addEventListener("keydown", event => { if (event.key === "Escape") { event.preventDefault(); $("#" + id).open = false; } });
+}
+const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !editor.open && !deletion.open && !Object.values(facetFields).some(([id]) => $("#" + id).open) && !document.hidden) refresh(); };
 document.addEventListener("visibilitychange", autoRefresh);
 setInterval(autoRefresh, 60000);
 $("#add").disabled = true; $("#empty-add").disabled = true;

@@ -23,6 +23,7 @@ const TOOL_IDS = {
   listPriorities: "workMemory_listPriorities",
   savePriority: "workMemory_savePriority",
   reorderPriority: "workMemory_reorderPriority",
+  deletePriority: "workMemory_deletePriority",
   createTask: "workMemory_createTask",
   updateTask: "workMemory_updateTask",
   createNote: "workMemory_createNote",
@@ -103,6 +104,12 @@ function registerLanguageModelTools(cli) {
       "Rank OneAgent Priority", "Updating personal priority order",
       (input) => priorityCommand(cli, "reorder", input),
       (input) => `Move priority ${input.taskId || ""} ${input.position || "before"} ${input.targetTaskId || ""}.`,
+      { compileContextPack: false }
+    )),
+    vscode.lm.registerTool(TOOL_IDS.deletePriority, new WorkMemoryTool(
+      "Delete OneAgent Priority", "Deleting a personal solicitation",
+      (input) => priorityCommand(cli, "delete", input),
+      (input) => `Delete personal priority ${input.taskId || ""} and its links.`,
       { compileContextPack: false }
     )),
     vscode.lm.registerTool(TOOL_IDS.createTask, new WorkMemoryTool(
