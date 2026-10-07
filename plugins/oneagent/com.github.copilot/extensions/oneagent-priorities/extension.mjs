@@ -12,10 +12,11 @@ const instances = new Map();
 let queue = Promise.resolve();
 const call = (name, input) => {
   const operation = queue.then(() => {
-    updates.assertSessionCurrent();
-    // The human canvas is an explicit portfolio view, like the shared cockpit.
-    // Agent MCP calls retain the active context boundary.
-    return callPriorityTool(connection.requireConfig(), name, input, { humanView: true });
+    return updates.run(async () => {
+      // The human canvas is an explicit portfolio view, like the shared cockpit.
+      // Agent MCP calls retain the active context boundary.
+      return callPriorityTool(connection.requireConfig(), name, input, { humanView: true });
+    });
   });
   queue = operation.catch(() => {});
   return operation;
@@ -29,7 +30,9 @@ await joinSession({ canvases: [createCanvas({
   open: async (ctx) => {
     let entry = instances.get(ctx.instanceId);
     if (!entry) {
-      entry = startPriorityServer(call);
+      updates.assertSessionCurrent();
+      const end = updates.reload.begin();
+      entry = startPriorityServer(call).then((server) => ({ ...server, async close() { try { await server.close(); } finally { end(); } } }), (error) => { end(); throw error; });
       instances.set(ctx.instanceId, entry);
       entry.catch(() => instances.delete(ctx.instanceId));
     }

@@ -1,3 +1,4 @@
+import { createSessionReloader, reloadTool } from "./reload.mjs";
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 import { startCockpitServer } from "./server.mjs";
 import { startDocumentServer } from "./document-server.mjs";
@@ -11,12 +12,14 @@ const updates = new PluginUpdates(), instances = new Map();
 const documentInstances = new Map();
 const store = createDocumentStore({ connection, updates, assetsRoot: cockpitRoot });
 const openFile = (extensionId, file) => createDocumentOpener(session, extensionId, store)(file);
-const session = joinSession({ canvases: [createCanvas({
+const reload = createSessionReloader({ session: Promise.resolve().then(() => session), updates, canvases: () => instances.size + documentInstances.size, notify: (status) => { for (const entry of instances.values()) void entry.then((server) => server.notifyReload(status)).catch(() => {}); } });
+const session = joinSession({ tools: [reloadTool(reload)], canvases: [createCanvas({
   id: "oneagent-cockpit", displayName: "OneAgent · Cockpit",
   description: "Interface complète OneAgent, commune avec VS Code : graphe 2D/3D, notes, priorités, tâches, inbox, sources, Today, contexte, aide et réglages. Ouvrir aussi pour configurer la mémoire après installation.",
   inputSchema: { type: "object", properties: {}, additionalProperties: false },
   // UI controller messages and confirmation replies are deliberately not agent-callable actions.
   open: async (ctx) => {
+    updates.assertSessionCurrent();
     let entry = instances.get(ctx.instanceId);
     if (!entry) {
       entry = startCockpitServer({ connection, updates, openFile: (file) => openFile(ctx.extensionId, file), callOnboarding: (name, input) => callSetupTool(connection, name, input) });
@@ -24,7 +27,7 @@ const session = joinSession({ canvases: [createCanvas({
     }
     return { title: "OneAgent · Cockpit", url: (await entry).url };
   },
-  onClose: async (ctx) => { const entry = instances.get(ctx.instanceId); instances.delete(ctx.instanceId); if (entry) await (await entry).close(); }
+  onClose: async (ctx) => { const entry = instances.get(ctx.instanceId); try { if (entry) await (await entry).close(); } finally { instances.delete(ctx.instanceId); } }
 }), createCanvas({
   id: "oneagent-document", displayName: "OneAgent · Document",
   description: "Ouvrir un fichier Markdown de la mémoire OneAgent ou de ses dépôts dans un onglet de lecture formatée, avec édition du fichier original.",
@@ -41,12 +44,12 @@ const session = joinSession({ canvases: [createCanvas({
     const server = await entry.server;
     return { title: server.title, url: server.url };
   },
-  onClose: async (ctx) => { const entry = documentInstances.get(ctx.instanceId); documentInstances.delete(ctx.instanceId); if (entry) await (await entry.server).close(); }
+  onClose: async (ctx) => { const entry = documentInstances.get(ctx.instanceId); try { if (entry) await (await entry.server).close(); } finally { documentInstances.delete(ctx.instanceId); } }
 })] });
 await session;
 let closing = false;
 async function shutdown() {
-  if (closing) return; closing = true;
+  if (closing) return; closing = true; reload.stop();
   await Promise.allSettled([...instances.values(), ...[...documentInstances.values()].map((entry) => entry.server)].map(async (entry) => (await entry).close()));
   process.exit(0);
 }

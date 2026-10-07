@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
+import { RuntimeReload } from "./runtime-reload.ts";
 import { readCopilotSettings, saveMarketplace } from "./copilot-settings.ts";
 
 export const RELEASE_REPOSITORY = "ValentinDeSmet/OneAgent-release";
@@ -13,7 +14,7 @@ const pluginRoot = path.dirname(runtimeRoot);
 const manifestPath = fs.existsSync(path.join(pluginRoot, "plugin.json"))
   ? path.join(pluginRoot, "plugin.json") : path.join(runtimeRoot, "apps/copilot-plugin/plugin.json");
 type Invoke = (args: string[]) => Promise<string>;
-interface Options { home?: string; copilotHome?: string; currentVersion?: string; invoke?: Invoke; fetch?: typeof fetch; }
+interface Options { home?: string; copilotHome?: string; currentVersion?: string; invoke?: Invoke; fetch?: typeof fetch; manifestPath?: string; }
 const object = (value: any): value is Record<string, any> => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const officialSource = (value: unknown): boolean => {
   if (!object(value)) return false;
@@ -72,15 +73,19 @@ export class PluginUpdates {
   private readonly invoke: Invoke;
   private readonly request: typeof fetch;
   private restart = false;
-  private readonly inspectManifest: boolean;
+  readonly reload: RuntimeReload;
+  private readonly manifest: string | undefined;
+  private readonly initialRequest: string | undefined;
 
   constructor(options: Options = {}) {
     const home = options.home ?? os.homedir();
     const copilotHome = options.copilotHome ?? process.env.COPILOT_HOME ?? path.join(home, ".copilot");
     this.settingsPath = path.join(copilotHome, "settings.json");
     if (!path.isAbsolute(copilotHome)) throw new Error("COPILOT_HOME doit désigner un dossier absolu.");
-    this.currentVersion = options.currentVersion ?? JSON.parse(fs.readFileSync(manifestPath, "utf8")).version;
-    this.inspectManifest = options.currentVersion === undefined;
+    this.manifest = options.manifestPath ?? (options.currentVersion === undefined ? manifestPath : undefined);
+    this.currentVersion = options.currentVersion ?? JSON.parse(fs.readFileSync(this.manifest!, "utf8")).version;
+    this.reload = new RuntimeReload(path.join(copilotHome, "oneagent-runtime"), this.currentVersion);
+    this.initialRequest = this.reload.request()?.id;
     version(this.currentVersion);
     this.request = options.fetch ?? fetch;
     this.invoke = options.invoke ?? ((args) => new Promise((resolve, reject) => {
@@ -91,7 +96,7 @@ export class PluginUpdates {
         if (error) reject(new Error((error as NodeJS.ErrnoException).code === "ENOENT"
           ? "Copilot CLI est introuvable. Installer le CLI et le rendre accessible à l’application pour utiliser cette commande."
           : args[0] === "plugin" && args[1] === "update"
-            ? "Copilot n’a pas confirmé la fin de l’installation. Consulter le gestionnaire de plugins, puis ouvrir une nouvelle session avant de réessayer."
+            ? "Copilot n’a pas confirmé la fin de l’installation. Consulter le gestionnaire de plugins, puis recharger les plugins dans cette conversation, sans relancer automatiquement l’installation."
             : "Copilot n’a pas terminé la lecture ou l’actualisation du catalogue, avant installation. Vérifier son accès GitHub et ses règles d’entreprise. Aucun redémarrage de session requis pour cet échec."));
         else resolve(stdout);
       });
@@ -99,15 +104,36 @@ export class PluginUpdates {
     }));
   }
 
-  assertSessionCurrent(): void {
-    if (this.inspectManifest) {
-      try { if (JSON.parse(fs.readFileSync(manifestPath, "utf8")).version !== this.currentVersion) this.restart = true; }
+  reloadRequired(): boolean {
+    if (this.manifest) {
+      try { if (JSON.parse(fs.readFileSync(this.manifest, "utf8")).version !== this.currentVersion) this.restart = true; }
       catch { this.restart = true; }
     }
-    if (this.restart) throw new Error("Une mise à jour du plugin a été lancée. Ouvrir une nouvelle session Copilot avant d’utiliser la mémoire ; ne pas relancer automatiquement l’installation.");
+    const request = this.reload.request();
+    if (request && (request.installedVersion ? newerVersion(request.installedVersion, this.currentVersion) : request.id !== this.initialRequest)) this.restart = true;
+    return this.restart;
+  }
+
+  assertSessionCurrent(): void {
+    if (this.reloadRequired()) throw new Error("OneAgent attend son rechargement dans cette conversation. Enregistrer les brouillons puis fermer les Canvas OneAgent ; le plugin demandera à Copilot de recharger ses outils ici. Sinon demander à Copilot de recharger les plugins, extensions et serveurs MCP dans ce chat. Ne pas relancer l’installation ni fermer le chat.");
+  }
+
+  async run<T>(operation: () => Promise<T>): Promise<T> {
+    const end = this.reload.begin();
+    try { this.assertSessionCurrent(); return await operation(); }
+    finally { end(); }
   }
 
   status(): Record<string, unknown> {
+    const reloadRequired = this.reloadRequired();
+    const target = this.reload.request()?.installedVersion;
+    let installedVersion = target && newerVersion(target, this.currentVersion) ? target : this.currentVersion;
+    if (this.manifest) {
+      try {
+        const disk = JSON.parse(fs.readFileSync(this.manifest, "utf8")).version;
+        if (newerVersion(disk, installedVersion)) installedVersion = disk;
+      } catch { /* Reload/manager inspection still required; do not claim success. */ }
+    }
     const { value } = readCopilotSettings(this.settingsPath);
     const entry = value.extraKnownMarketplaces?.[MARKETPLACE];
     const official = officialSource(entry?.source);
@@ -116,7 +142,9 @@ export class PluginUpdates {
       marketplaceUrl: `https://github.com/${RELEASE_REPOSITORY}`,
       automaticUpdates: official && typeof entry?.autoUpdate === "boolean" ? entry.autoUpdate : null,
       officialSourceConfigured: official,
-      restartRequired: this.restart,
+      restartRequired: false, reloadRequired,
+      installedVersion: target === null && reloadRequired ? null : installedVersion,
+      reloadMode: "current_conversation",
       automaticUpdateScope: "Préférence utilisateur pour les sessions Copilot CLI compatibles. Les politiques d’entreprise priment. Le déclenchement automatique dans l’application macOS reste à valider.",
       globallyDisabled: value.autoUpdate === false || process.env.COPILOT_AUTO_UPDATE === "false"
     };
@@ -170,33 +198,40 @@ export class PluginUpdates {
 
   async update(): Promise<Record<string, unknown>> {
     this.assertSessionCurrent();
-    // The installer owns catalogue refresh and package retrieval. A separate
-    // Node fetch to the GitHub API must not block Copilot's network configuration.
-    if (!this.status().officialSourceConfigured) throw new Error("Configurer d’abord les mises à jour OneAgent (automatiques ou manuelles) pour relier le catalogue officiel. Aucun plugin modifié.");
-    const installed = JSON.parse(await this.invoke(["plugin", "list", "--json"]));
-    const matches = Array.isArray(installed) ? installed.filter((item) => item.name === "oneagent") : [];
-    if (matches.length !== 1 || matches[0].marketplace !== MARKETPLACE || matches[0].enabled === false) {
-      throw new Error("Installer ou activer OneAgent depuis le catalogue officiel avant de le mettre à jour. Pour une ancienne installation ZIP, suivre le passage au catalogue décrit dans le guide ; aucun plugin n’a été désinstallé.");
-    }
-    const beforeVersion = matches[0].version;
-    version(beforeVersion);
-    // Refresh is distinct from installation. Both operations are scoped to OneAgent.
-    await this.invoke(["plugin", "marketplace", "update", MARKETPLACE]);
-    this.restart = true; // Also after an uncertain/partial failure: no mixed runtime.
-    await this.invoke(["plugin", "update", "oneagent"]);
-    const after = JSON.parse(await this.invoke(["plugin", "list", "--json"]));
-    const candidates = Array.isArray(after) ? after.filter((item) => item.name === "oneagent") : [];
-    const item = candidates[0];
-    if (candidates.length !== 1 || item.marketplace !== MARKETPLACE || item.enabled === false ||
-      newerVersion(this.currentVersion, item.version) || newerVersion(beforeVersion, item.version)) {
-      throw new Error("Copilot n’a pas confirmé une version valide. Ouvrir une nouvelle session et vérifier le gestionnaire de plugins.");
-    }
-    const updated = newerVersion(item.version, this.currentVersion);
-    this.restart = updated;
-    return { updated, installedVersion: item.version, restartRequired: updated,
-      message: updated
-        ? "Mise à jour installée par Copilot. Ouvrir une nouvelle session pour charger le plugin et son skill. La liaison de mémoire est conservée."
-        : `Copilot confirme OneAgent ${item.version} déjà installé après actualisation du catalogue. Aucune nouvelle session nécessaire.` };
+    const end = this.reload.begin();
+    try {
+      // The installer owns catalogue refresh and package retrieval. A separate
+      // Node fetch to the GitHub API must not block Copilot's network configuration.
+      if (!this.status().officialSourceConfigured) throw new Error("Configurer d’abord les mises à jour OneAgent (automatiques ou manuelles) pour relier le catalogue officiel. Aucun plugin modifié.");
+      const installed = JSON.parse(await this.invoke(["plugin", "list", "--json"]));
+      const matches = Array.isArray(installed) ? installed.filter((item) => item.name === "oneagent") : [];
+      if (matches.length !== 1 || matches[0].marketplace !== MARKETPLACE || matches[0].enabled === false) {
+        throw new Error("Installer ou activer OneAgent depuis le catalogue officiel avant de le mettre à jour. Pour une ancienne installation ZIP, suivre le passage au catalogue décrit dans le guide ; aucun plugin n’a été désinstallé.");
+      }
+      const beforeVersion = matches[0].version;
+      version(beforeVersion);
+      // Refresh is distinct from installation. Both operations are scoped to OneAgent.
+      await this.invoke(["plugin", "marketplace", "update", MARKETPLACE]);
+      this.restart = true; // Also after an uncertain/partial failure: no mixed runtime.
+      await this.invoke(["plugin", "update", "oneagent"]);
+      const after = JSON.parse(await this.invoke(["plugin", "list", "--json"]));
+      const candidates = Array.isArray(after) ? after.filter((item) => item.name === "oneagent") : [];
+      const item = candidates[0];
+      if (candidates.length !== 1 || item.marketplace !== MARKETPLACE || item.enabled === false ||
+        newerVersion(this.currentVersion, item.version) || newerVersion(beforeVersion, item.version)) {
+        throw new Error("Copilot n’a pas confirmé une version valide. Vérifier le gestionnaire de plugins puis recharger les plugins dans ce chat ; ne pas répéter l’installation.");
+      }
+      const updated = newerVersion(item.version, this.currentVersion);
+      this.restart = updated;
+      if (updated) this.reload.requestReload(item.version);
+      return { updated, installedVersion: item.version, runningVersion: this.currentVersion, restartRequired: false, reloadRequired: updated, reloadMode: "current_conversation",
+        message: updated
+          ? "Mise à jour installée par Copilot. OneAgent va demander le rechargement des plugins et outils dans cette conversation dès que ses opérations sont terminées et ses Canvas fermés. Enregistrer les brouillons avant de fermer les Canvas, puis les rouvrir si nécessaire. Le chat et la liaison de mémoire sont conservés. Si le rechargement automatique est indisponible, demander à Copilot de recharger les plugins, extensions et serveurs MCP ici, sans réinstaller."
+          : `Copilot confirme OneAgent ${item.version} déjà installé après actualisation du catalogue. Aucune nouvelle session nécessaire.` };
+    } catch (error) {
+      if (this.restart) this.reload.requestReload(null);
+      throw error;
+    } finally { end(); }
   }
 }
 
@@ -208,7 +243,7 @@ export const updateTools = [
   tool("oneagent_update_status", "Read the installed plugin version and user update preference without network access or memory access. Use during onboarding to offer updates once; null means not chosen yet."),
   tool("oneagent_check_updates", "Check the official OneAgent GitHub catalogue for a stable plugin update. Does not install or change settings."),
   tool("oneagent_configure_updates", "Save the user's automatic/manual update choice for only the official OneAgent marketplace in Copilot user settings. Preserve other settings and company policies. CLI automation is documented; macOS app automation remains to be validated.", { automatic: { type: "boolean" } }, ["automatic"], false),
-  tool("oneagent_update_plugin", "After the user requests a plugin update, let Copilot CLI refresh and update only OneAgent from its official marketplace. Uses Copilot directly without requiring a separate GitHub API check. A failed catalogue lookup is not a reason to restart. Requires a new session only after a changed version or uncertain installation errors; update_status reports restartRequired. Never retry automatically or uninstall other plugins.", {}, [], false)
+  tool("oneagent_update_plugin", "After the user requests a plugin update, let Copilot CLI refresh and update only OneAgent from its official marketplace. Uses Copilot directly without requiring a separate GitHub API check. A failed catalogue lookup is not a reason to restart. A changed version schedules a host reload in this conversation after OneAgent operations finish and its canvases close. update_status reports running/currentVersion, installedVersion and reloadRequired. The extension exposes oneagent_reload_plugin for an explicit same-chat reload request; host support is experimental. Never require a new chat merely for an update, retry installation automatically, or uninstall other plugins.", {}, [], false)
 ];
 export async function callUpdateTool(updates: PluginUpdates, name: string, raw: unknown): Promise<unknown> {
   const definition = updateTools.find((tool) => tool.name === name);

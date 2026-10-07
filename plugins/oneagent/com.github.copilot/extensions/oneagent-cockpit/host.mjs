@@ -16,6 +16,7 @@ const digest = (value) => createHash("sha256").update(value).digest("hex");
 
 /** One UI instance, one injected host. No VS Code module or real workspace activation. */
 export function createCockpitHost({ connection, updates, emit, runAgentLoop, openFile, runCommand = runMemoryTextCommand }) {
+  const tracked = (operation) => updates.run ? updates.run(operation) : operation();
   const pending = new Map(), tools = new Map();
   let closed = false, cli, controller;
   let operationQueue = Promise.resolve();
@@ -152,13 +153,13 @@ export function createCockpitHost({ connection, updates, emit, runAgentLoop, ope
     extensionVersion() { return updates.currentVersion; }
     ensureDefaultConfig() { connection.requireConfig(); }
     run(args, options = {}) {
-      return this.enqueueCommand(async () => {
+      return this.enqueueCommand(() => tracked(async () => {
         if (closed) throw new Error("Le cockpit a été fermé.");
         updates.assertSessionCurrent();
         const value = await runCommand(connection.requireConfig(), args, options.input);
         if (options.logOutput !== false && value.trim()) output.appendLine(value.trim());
         return value;
-      });
+      }));
     }
   }
   const ensureCli = () => {
@@ -171,10 +172,10 @@ export function createCockpitHost({ connection, updates, emit, runAgentLoop, ope
   };
   const webview = { postMessage: async (value) => { emit(value); return true; } };
   return {
-    async state() { updates.assertSessionCurrent(); connection.requireConfig(); return controller.loadCockpitState(ensureCli(), { silent: true, includeDocumentation: true }); },
+    async state() { return tracked(async () => { updates.assertSessionCurrent(); connection.requireConfig(); return controller.loadCockpitState(ensureCli(), { silent: true, includeDocumentation: true }); }); },
     fallback(error) { output.appendLine(`Cockpit: ${error.message}`); const local = ensureCli(); return Promise.all([local.documentationPayload(), local.documentationState()]).then(([documentation]) => controller.createDocumentationOnlyCockpitState({ documentation, extensionVersion: updates.currentVersion })); },
     dispatch(message) {
-      const next = operationQueue.then(async () => { if (closed) throw new Error("Cockpit fermé."); updates.assertSessionCurrent(); connection.requireConfig(); await controller.handleCockpitMessage(ensureCli(), webview, message); });
+      const next = operationQueue.then(() => tracked(async () => { if (closed) throw new Error("Cockpit fermé."); updates.assertSessionCurrent(); connection.requireConfig(); await controller.handleCockpitMessage(ensureCli(), webview, message); }));
       operationQueue = next.catch((error) => emitHost({ kind: "notice", level: "error", message: error.message }));
       return next;
     },

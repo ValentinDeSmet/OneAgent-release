@@ -59,14 +59,16 @@ export function createProtocolHandler(binding: string | MemoryConnection, update
           const data = await callUpdateTool(updates, params.name, params.arguments ?? {});
           return result(id, { content: [{ type: "text", text: JSON.stringify(data) }], isError: false });
         }
-        updates.assertSessionCurrent();
-        const data = setupTools.some((tool) => tool.name === params.name)
-          ? await callSetupTool(connection, params.name, params.arguments ?? {})
-          : priorityTools.some((tool) => tool.name === params.name)
-            ? await callPriorityTool(connection.requireConfig(), params.name, params.arguments ?? {})
-            : documentTools.some((tool) => tool.name === params.name)
-              ? await callDocumentTool(connection.requireConfig(), params.name, params.arguments ?? {})
-            : await callMemoryTool(connection.requireConfig(), params.name, params.arguments ?? {});
+        const name = params.name;
+        const data = await updates.run(async () => {
+          return setupTools.some((tool) => tool.name === name)
+            ? await callSetupTool(connection, name, params.arguments ?? {})
+            : priorityTools.some((tool) => tool.name === name)
+              ? await callPriorityTool(connection.requireConfig(), name, params.arguments ?? {})
+              : documentTools.some((tool) => tool.name === name)
+                ? await callDocumentTool(connection.requireConfig(), name, params.arguments ?? {})
+              : await callMemoryTool(connection.requireConfig(), name, params.arguments ?? {});
+        });
         return result(id, { content: [{ type: "text", text: JSON.stringify(data) }], isError: false });
       } catch (failure) {
         return result(id, { content: [{ type: "text", text: failure instanceof Error ? failure.message : "OneAgent operation failed." }], isError: true });
@@ -78,7 +80,8 @@ export function createProtocolHandler(binding: string | MemoryConnection, update
 
 /** Newline-delimited UTF-8, serialized operations, bounded framing and clean EOF. */
 export async function serveStdio(binding: string | MemoryConnection, input: Readable = process.stdin, output: Writable = process.stdout): Promise<void> {
-  const handle = createProtocolHandler(binding);
+  const updates = new PluginUpdates();
+  const handle = createProtocolHandler(binding, updates);
   input.setEncoding("utf8");
   let pending = "", discarding = false;
   const send = async (message: unknown) => {
@@ -92,7 +95,10 @@ export async function serveStdio(binding: string | MemoryConnection, input: Read
       const line = pending.slice(0, end);
       pending = pending.slice(end + 1);
       if (discarding || Buffer.byteLength(line) > MAX_MESSAGE) await send(error(null, -32600, "MCP message exceeds 1 MiB."));
-      else if (line.trim()) await send(await handle(line));
+      else if (line.trim()) {
+        const endOperation = updates.reload.begin();
+        try { await send(await handle(line)); } finally { endOperation(); }
+      }
       discarding = false;
     }
     if (Buffer.byteLength(pending) > MAX_MESSAGE || discarding) { pending = ""; discarding = true; }

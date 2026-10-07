@@ -48,7 +48,7 @@ Copilot CLI on PATH. It updates this plugin only, not the host or other plugins.
 Do not require oneagent_check_updates before an explicitly requested update:
 oneagent_update_plugin delegates directly to Copilot, even if Node's GitHub API
 lookup fails. After an error, call the offline oneagent_update_status to inspect
-restartRequired. A failed lookup or catalogue refresh occurs before installation;
+reloadRequired and both currentVersion / installedVersion. A failed lookup or catalogue refresh occurs before installation;
 it leaves memory usable and does not call for a new chat or app restart. Report
 the specific network/DNS/certificate/timeout detail when provided; do not guess
 which applies from "fetch failed" alone. If this is an older plugin blocked by
@@ -56,11 +56,33 @@ that lookup and Copilot CLI is available on the same post, use the documented
 scoped Terminal commands to update the official installation. Never disable TLS
 verification or change company network/BMAD settings.
 
-After a confirmed version change or an uncertain installation failure with
-restartRequired true, ask the user to open a new session. Do not call memory tools
-or automatically repeat installation in that old session. No memory transfer or reconfiguration is required. For a legacy local
-ZIP installation, follow the guide's explicit migration to the official catalogue;
-do not silently uninstall it or claim it receives remote updates already.
+After a confirmed version change, keep this conversation. The OneAgent cockpit
+extension observes the shared installation receipt, waits for in-flight OneAgent
+operations and closed OneAgent Canvas tabs, then calls the host's experimental
+session.plugins.reload API. Ask the user to save drafts and close those Canvas
+tabs; never clear their conversation. Other extensions and MCP connections in
+this chat may restart too, but settings and hooks are not changed. This is a
+runtime reload, not another installation.
+
+If automatic reload is unavailable, or the update happened in another session,
+call the extension's oneagent_reload_plugin tool when available. Otherwise use
+Copilot's native plugin/extension/MCP reload capabilities in the CURRENT chat;
+refresh the plugin set before restarting MCP/extensions so the new install paths
+are used. Only reopening Canvas does NOT reload cached extension modules.
+The old versions before 0.6.11 have no observer or reload tool: native host reload
+is needed once to bootstrap this feature. Do not invent shell commands if the
+Copilot CLI is unavailable, or promise a native reload option the host lacks.
+
+After reload, call oneagent_update_status again: currentVersion must match
+installedVersion and reloadRequired must be false before claiming the new engine
+is usable. A scheduled reload or resolved reload RPC is not proof. If the host
+cannot refresh the current chat, state this host limitation honestly; preserve the
+conversation and offer a fresh chat only as a last resort, without making the user
+repeat their work. Never automatically replay an uncertain memory write or retry
+installation. If installation was uncertain, inspect the plugin manager first.
+No memory transfer or reconfiguration is required. For a legacy local ZIP install,
+follow the guide's explicit migration to the official catalogue; never silently
+uninstall it or claim it receives remote updates already.
 
 ## Memory worker startup failures
 

@@ -86,7 +86,7 @@ export async function startCockpitServer({ connection, updates, callOnboarding, 
   authority = `127.0.0.1:${server.address().port}`;
   const keepalive = setInterval(() => { for (const client of clients) client.write(": keepalive\n\n"); }, 15000);
   keepalive.unref();
-  return { url: `http://${authority}/?token=${token}`, async close() {
+  return { notifyReload(status) { emit({ type: "host", kind: "notice", level: "info", message: status.message }); }, url: `http://${authority}/?token=${token}`, async close() {
     if (closed) return; closed = true; clearInterval(keepalive);
     for (const client of clients) client.end(); clients.clear();
     await host.close();
