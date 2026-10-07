@@ -1,13 +1,13 @@
 # Priorités — sollicitations personnelles
 
-Mise à jour du 7 octobre 2026, Copilot 0.6.12 et VS Code 0.1.136. Le catalogue public
+Mise à jour du 7 octobre 2026, Copilot 0.6.13 et VS Code 0.1.137. Le catalogue public
 `ValentinDeSmet/OneAgent-release` distribue le front et le moteur dans un même
 plugin ; aucune installation séparée de l’interface n’est nécessaire.
 
 ## Usage et choix de présentation
 
 Un tableau permet de comparer des demandes sans lien entre elles : une ligne
-par résultat attendu : sujet, description, produit principal, autres produits ou
+par résultat attendu : sujet, description, type de travail, produit principal, autres produits ou
 équipes concernés, attendu par, priorité, deadline, documentation, source et
 avancement. L’entité rattachée figure sous le sujet. Une fiche d’édition conserve le contexte sans alourdir la lecture.
 
@@ -33,8 +33,13 @@ son état, sa description, ses notes, sa source et ses liens : aucune copie n’
   **Sujets et tâches** porte uniquement sur les éléments déjà suivis comme priorités ;
   il ne fait pas apparaître les tâches ordinaires. La classification reste modifiable.
 - Choisir une priorité basse, normale, haute ou critique.
-- Indiquer une date ferme, une estimation libre (date cible facultative) ou laisser
-  l’échéance à préciser. Seules les dates fermes peuvent être signalées en retard.
+- Indiquer une date ferme avec le calendrier, une période **Q1, Q2, Q3 ou Q4**
+  avec une année, ou laisser l’échéance à préciser. Le trimestre et l’année se
+  choisissent par listes déroulantes ; aucune nouvelle période libre n’est acceptée.
+  Seules les dates fermes peuvent être signalées en retard.
+- Choisir le type de travail : **Discovery**, **Étude technique**,
+  **Développement / implémentation**, **Validation / recette**, **Documentation**
+  ou **Autre**. **À préciser** conserve les anciennes lignes sans supposition.
 - Retrouver un sujet ou un demandeur via la recherche.
 - Filtrer les sujets actifs/terminés, les priorités hautes, les retards, les
   échéances d’ici 7 jours, les attentes ou les informations à préciser.
@@ -57,7 +62,7 @@ de liste. Une modification de priorité ou de deadline ne réordonne pas les
 lignes déjà classées. Chaque en-tête alterne croissant, décroissant puis retour
 au classement manuel ; **Mon classement** permet aussi ce retour directement.
 Le glisser-déposer est disponible uniquement dans le classement manuel. Les filtres par sujet, description, entité, produit,
-demandeur, priorité, intervalle de dates, nature de la deadline, documentation,
+demandeur, priorité, type de travail, trimestre, année, intervalle de dates, nature de la deadline, documentation,
 source et avancement sont combinables. Le filtre visible **Produit / équipe
 concerné** retrouve l’entité comme produit principal, rattachement produit/équipe
 ou partenaire ; les filtres avancés **Produit principal** et **Produit / équipe
@@ -77,7 +82,7 @@ Le canvas `oneagent-priorities` est livré dans
 `com.github.copilot/extensions/oneagent-priorities/`, conformément au format
 Agent Plugins 1.0. Il réutilise la liaison mémoire de l’onboarding, les outils
 `oneagent_list_priorities` / `oneagent_save_priority` et les commandes CLI
-`priorities list|save|promote|reorder|delete --stdin --json`. Ces commandes exigent un périmètre portfolio
+`priorities list|save|promote|reorder|delete|tasks|task-attach|task-detach|task-save --stdin --json`. Ces commandes exigent un périmètre portfolio
 explicite. Les appels agent utilisent le contexte actif et refusent d’élargir
 implicitement un contexte strict. Le canvas et le cockpit manuels restent des
 vues portfolio explicites, sans modifier le contexte actif de l’agent.
@@ -97,7 +102,8 @@ liens, notes et références des tâches existantes sont conservés à l’édit
 
 La migration 016 ajoute un objet `tracking_json` aux tâches : `requester`,
 `deadlineKind`, `deadlineLabel`, `targetDate`, `nextAction`, `url`, `sourceUrl`,
-`itemType`, `relatedEntityRefs`, `manualRank`, `inPriorities` et `priorityRemoved`.
+`itemType`, `relatedEntityRefs`, `manualRank`, `inPriorities`, `priorityRemoved`,
+`deadlineQuarter`, `deadlineYear` et `workType`.
 Aucune nouvelle migration SQL n’est nécessaire. Les anciennes lignes créées dans
 Priorités (lien principal `priorityPrimary`) sont lues comme sujets ; les autres
 tâches restent des tâches. Une classification explicite prévaut toujours. La date ferme reste
@@ -177,7 +183,8 @@ Les règles de périmètre strict restent appliquées.
 ## Filtres multiples et suppression
 
 Les menus Nature, Produit / équipe concerné, Avancement, Attention particulière,
-Entité rattachée, Produit principal, Partenaire, Priorité et Nature de la deadline
+Entité rattachée, Produit principal, Partenaire, Priorité, Type de travail,
+Trimestre, Année et Nature de la deadline
 proposent des cases à cocher et une recherche. Aucune sélection signifie « tout
 Afficher ». Plusieurs valeurs d’un même champ sont combinées par **ou**, et les
 champs entre eux par **et**. Recherche textuelle et intervalle de dates restent
@@ -235,3 +242,40 @@ Une modification concurrente ou une tâche hors des sollicitations personnelles
 est refusée sous transaction. Une erreur ne déclenche aucun nouvel essai
 automatique ; relire la liste avant de réessayer. Une disparition dans un Google
 Sheet ne constitue pas une instruction de retrait.
+
+
+## Trimestres et tâches rattachées
+
+Les filtres Type de travail, Trimestre et Année utilisent les valeurs présentes
+dans les priorités, avec choix multiple. Une période Q1–Q4 et son année déterminent
+une date de fin de trimestre pour le tri, sans devenir une date ferme dans Today.
+Les anciennes périodes `Q2 2027` / `T2 2027` sont reconnues à la lecture ; le stockage
+n’est pas modifié automatiquement. Une période ambiguë reste affichée et conservée
+jusqu’à son remplacement explicite dans la fiche. Les modifications API qui omettent
+les champs de période conservent cette information historique.
+
+Sous le sujet, **Tâches · terminées/total** ouvre un accordéon. **Ajouter une tâche**
+permet de créer une tâche native ou de sélectionner une tâche déjà présente dans
+Tâches, avec recherche et pagination. Le crayon modifie cette même tâche ;
+**Détacher** retire uniquement son association avec cette priorité. Depuis une
+fiche Tâches, **Gérer les priorités liées** propose le rattachement ou le détachement.
+Enregistrer les modifications de la fiche avant cette action.
+
+Une tâche peut servir plusieurs priorités. Son ID, son avancement et ses informations
+sont communs à toutes les vues ; aucune copie n’est créée. Une nouvelle tâche hérite
+du produit et de l’entité de sa priorité, mais ne devient pas elle-même une priorité.
+Retirer une priorité du suivi conserve les tâches rattachées. Archiver une tâche
+la retire de l’accordéon et de ses compteurs.
+
+L’association est un lien natif `supports` de la tâche vers la priorité, marqué
+`metadata.priorityWork=true`. Les liens antérieurs et leur provenance sont conservés ;
+les éditions ordinaires dans Tâches ne perdent pas l’association. L’export privé
+conserve les champs et les liens sans migration SQL supplémentaire.
+
+L’agent dispose de `oneagent_list_priority_tasks`, `oneagent_attach_priority_task`,
+`oneagent_detach_priority_task` et `oneagent_save_priority_task`, avec leurs équivalents
+VS Code `workMemory_listPriorityTasks`, `workMemory_attachPriorityTask`,
+`workMemory_detachPriorityTask` et `workMemory_savePriorityTask`. La lecture renvoie
+la révision de la priorité et celle de chaque tâche ; les écritures vérifient les
+deux sous transaction. Les cycles et rattachements à soi-même sont refusés. Un échec
+incertain ne rejoue aucune écriture et conserve le brouillon du formulaire.
