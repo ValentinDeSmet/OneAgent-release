@@ -5,6 +5,20 @@ type Input = Record<string, unknown>;
 const priorities = ["critical", "high", "medium", "low"];
 const statuses = ["pending", "candidate", "ready", "open", "in_progress", "blocked", "done"];
 const kinds = ["exact", "approximate", "unknown"];
+export const deadlineQuarters = ["Q1", "Q2", "Q3", "Q4"] as const;
+export const workTypeLabels = { unspecified: "À préciser", discovery: "Discovery", technical_study: "Étude technique", implementation: "Développement / implémentation", validation: "Validation / recette", documentation: "Documentation", other: "Autre" };
+
+function period(task: TaskRecord) {
+  const tracking = task.tracking ?? {};
+  const legacy = /^(?:Q|T)([1-4])(?:\s+(\d{4}))?$/i.exec((tracking.deadlineLabel ?? "").trim());
+  const quarter = deadlineQuarters.includes(tracking.deadlineQuarter!) ? tracking.deadlineQuarter! : legacy ? `Q${legacy[1]}` as typeof deadlineQuarters[number] : "";
+  const year = tracking.deadlineYear ?? (legacy?.[2] ? Number(legacy[2]) : quarter && tracking.targetDate ? Number(tracking.targetDate.slice(0, 4)) : undefined);
+  const validYear = Number.isInteger(year) && Number(year) >= 1900 && Number(year) <= 9999 ? year : undefined;
+  return { quarter, year: validYear, legacyLabel: !quarter ? tracking.deadlineLabel ?? "" : "" };
+}
+function quarterEnd(quarter: string, year: number): string {
+  return `${year}-${({ Q1: "03-31", Q2: "06-30", Q3: "09-30", Q4: "12-31" } as Record<string, string>)[quarter]}`;
+}
 const object = (raw: unknown): Input => {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Objet JSON attendu.");
   return raw as Input;
@@ -165,7 +179,8 @@ function syncRelatedLinks(db: WorkMemoryDatabase, taskId: string, refs: string[]
 export function priorityItem(task: TaskRecord, today: string, links: TaskLinkRecord[] = [], entities = new Map<string, EntityChoice>()) {
   const placement = taskPlacement(task, links, entities);
   const tracking = task.tracking ?? {};
-  const day = (task.deadline || tracking.targetDate)?.slice(0, 10) ?? "";
+  const quarter = period(task);
+  const day = (task.deadline || (quarter.quarter && quarter.year ? quarterEnd(quarter.quarter, quarter.year) : tracking.targetDate))?.slice(0, 10) ?? "";
   const deadline = validDay(day) ? day : "";
   const deadlineKind = task.deadline && validDay(task.deadline.slice(0, 10)) ? "exact"
     : tracking.deadlineKind === "approximate" ? "approximate" : "unknown";
@@ -176,26 +191,33 @@ export function priorityItem(task: TaskRecord, today: string, links: TaskLinkRec
     itemType: priorityType(task, links), relatedEntityRefs: tracking.relatedEntityRefs ?? [],
     relatedEntities: (tracking.relatedEntityRefs ?? []).map(ref => ({ ref, kind: ref.split(":")[0], label: entities.get(ref)?.label ?? ref })),
     requester: tracking.requester ?? "", nextAction: tracking.nextAction ?? "",
-    deadline, deadlineKind, deadlineLabel: tracking.deadlineLabel ?? "",
+    workType: Object.hasOwn(workTypeLabels, tracking.workType ?? "") ? tracking.workType! : "unspecified" as const,
+    deadline, deadlineKind, deadlineQuarter: deadlineKind === "approximate" ? quarter.quarter : "", deadlineYear: deadlineKind === "approximate" ? quarter.year ?? null : null,
+    deadlineLabel: deadlineKind === "approximate" && quarter.quarter ? `${quarter.quarter}${quarter.year ? " " + quarter.year : ""}` : tracking.deadlineLabel ?? "",
+    legacyDeadlineLabel: deadlineKind === "approximate" ? quarter.legacyLabel : "",
     overdue: active && deadlineKind === "exact" && daysUntil !== null && daysUntil < 0,
     dueSoon: active && deadlineKind === "exact" && daysUntil !== null && daysUntil >= 0 && daysUntil <= 7,
-    needsClarification: active && (!tracking.requester || deadlineKind === "unknown" || placement.needsAttachment), daysUntil
+    needsClarification: active && (!tracking.requester || deadlineKind === "unknown" || deadlineKind === "approximate" && (!quarter.quarter || !quarter.year) || placement.needsAttachment), daysUntil
   };
 }
 
 /** Native, explicitly created tasks only: Inbox/concept proposals are not commitments. */
 export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
-  const input = fields(raw, ["scope", "today", "query", "view", "filter", "offset", "limit", "sortBy", "sortDirection", "titleQuery", "bodyQuery", "requesterQuery", "urlQuery", "entity", "productId", "priority", "status", "deadlineKind", "deadlineFrom", "deadlineTo", "sourceUrlQuery", "itemType", "involvedEntity", "relatedEntity"]);
+  const input = fields(raw, ["scope", "today", "query", "view", "filter", "offset", "limit", "sortBy", "sortDirection", "titleQuery", "bodyQuery", "requesterQuery", "urlQuery", "entity", "productId", "priority", "status", "deadlineKind", "deadlineFrom", "deadlineTo", "sourceUrlQuery", "itemType", "involvedEntity", "relatedEntity", "workType", "deadlineQuarter", "deadlineYear"]);
   const today = text(input.today, "today", 10, localDay());
   if (!validDay(today)) throw new Error("Date locale invalide (AAAA-MM-JJ).");
   const view = choice(input.view, "view", ["active", "done", "all", "excluded"], "active");
   const filter = selections(input.filter, "filter", 32, ["all", "urgent", "overdue", "soon", "clarify", "waiting", "unlinked"]);
-  const sortBy = choice(input.sortBy, "sortBy", ["manual", "title", "body", "entity", "product", "relatedEntities", "requester", "priority", "deadline", "url", "sourceUrl", "status", "nextAction", "itemType"], "manual");
+  const sortBy = choice(input.sortBy, "sortBy", ["manual", "title", "body", "entity", "product", "relatedEntities", "requester", "priority", "deadline", "url", "sourceUrl", "status", "nextAction", "itemType", "workType"], "manual");
   const direction = choice(input.sortDirection, "sortDirection", ["asc", "desc"], "asc") === "asc" ? 1 : -1;
   const query = text(input.query, "query", 500);
   const entity = selections(input.entity, "entity", 512), productId = selections(input.productId, "productId", 256);
   const involvedEntity = selections(input.involvedEntity, "involvedEntity", 512), relatedEntity = selections(input.relatedEntity, "relatedEntity", 512);
   const itemType = selections(input.itemType, "itemType", 32, ["all", "subject", "task"]);
+  const workType = selections(input.workType, "workType", 32, Object.keys(workTypeLabels));
+  const deadlineQuarter = selections(input.deadlineQuarter, "deadlineQuarter", 2, [...deadlineQuarters]);
+  const deadlineYear = selections(input.deadlineYear, "deadlineYear", 4);
+  if (deadlineYear.some(year => !/^\d{4}$/.test(year) || Number(year) < 1900)) throw new Error("Année invalide.");
   const priority = selections(input.priority, "priority", 32, priorities);
   const status = selections(input.status, "status", 32, statuses);
   const deadlineKind = selections(input.deadlineKind, "deadlineKind", 32, kinds);
@@ -210,10 +232,15 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   const tasks = manualOrder(personalTasks(db, view === "excluded"));
   const links = new Map<string, TaskLinkRecord[]>();
   for (const link of db.listTaskLinks(tasks.map((task) => task.id))) links.set(link.taskId, [...(links.get(link.taskId) ?? []), link]);
-  const all = tasks.map((task, index) => ({ ...priorityItem(task, today, links.get(task.id) ?? [], byRef), manualPosition: index + 1 }));
+  const childLinks = db.listTaskLinksForTargets(tasks.map(task => ({ kind: "task", id: task.id }))).filter(link => link.metadata?.priorityWork === true);
+  const all = tasks.map((task, index) => {
+    const children = [...new Set(childLinks.filter(link => link.targetId === task.id).map(link => link.taskId))].map(id => db.getTask(id)).filter(child => child && !child.archivedAt && child.status !== "archived");
+    return { ...priorityItem(task, today, links.get(task.id) ?? [], byRef), manualPosition: index + 1, taskCount: children.length, taskDoneCount: children.filter(child => child!.status === "done").length };
+  });
   const normalize = (value: string) => value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("fr");
   const matches = (value: string | undefined, search: string) => !search || normalize(value ?? "").includes(normalize(search));
   const values = (task: typeof all[number]): Record<string, string[]> => ({
+    workType: [task.workType], deadlineQuarter: task.deadlineQuarter ? [task.deadlineQuarter] : [], deadlineYear: task.deadlineYear ? [String(task.deadlineYear)] : [],
     itemType: [task.itemType], entity: task.entity ? [task.entity] : [], productId: task.productId ? [task.productId] : [],
     involvedEntity: [...new Set([...task.relatedEntityRefs, ...(task.productId ? [`product:${task.productId}`] : []),
       ...(["product", "team"].includes(task.entity.split(":")[0]) ? [task.entity] : [])])],
@@ -222,7 +249,7 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
       ...(task.overdue ? ["overdue"] : []), ...(task.dueSoon ? ["soon"] : []), ...(task.needsClarification ? ["clarify"] : []),
       ...(task.status === "blocked" ? ["waiting"] : []), ...(task.needsAttachment ? ["unlinked"] : [])]
   });
-  const selected: Record<string, string[]> = { itemType, entity, productId, involvedEntity, relatedEntity, priority, status, deadlineKind, filter };
+  const selected: Record<string, string[]> = { itemType, entity, productId, involvedEntity, relatedEntity, priority, status, deadlineKind, deadlineQuarter, deadlineYear, workType, filter };
   const valuesById = new Map(all.map(task => [task.id, values(task)]));
   const matchText = (task: typeof all[number]) =>
     (!query || [task.title, task.body, task.requester, task.nextAction, task.entityLabel, task.entity, task.productLabel, task.url, task.sourceUrl, task.deadline, task.deadlineLabel,
@@ -244,9 +271,10 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   // Each menu sees every matching row before pagination, ignoring only its own
   // selection. This lets users add a second value without undoing the first.
   const labels: Record<string, Record<string, string>> = {
+    workType: workTypeLabels,
     itemType: { subject: "Sujets", task: "Tâches" }, priority: { critical: "Critique", high: "Haute", medium: "Normale", low: "Basse" },
     status: { open: "À faire", in_progress: "En cours", ready: "Prête à démarrer", pending: "À clarifier", candidate: "À valider", blocked: "En attente", done: "Terminée" },
-    deadlineKind: { exact: "Date ferme", approximate: "Estimation", unknown: "À préciser" },
+    deadlineKind: { exact: "Date ferme", approximate: "Trimestre", unknown: "À préciser" },
     filter: { urgent: "Hautes et critiques", overdue: "Dates fermes dépassées", soon: "D’ici 7 jours", waiting: "En attente", clarify: "À préciser", unlinked: "Sans entité · à rattacher" }
   };
   const facets = Object.fromEntries(Object.keys(selected).map(key => {
@@ -262,7 +290,7 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
     return [key, options];
   }));
   const collator = new Intl.Collator("fr", { sensitivity: "base", numeric: true });
-  const sortValue = (task: typeof all[number]): string => sortBy === "entity" ? task.entityLabel : sortBy === "product" ? task.productLabel : sortBy === "relatedEntities" ? task.relatedEntities.map(entity => entity.label).join(", ") : String(task[sortBy as keyof typeof task] ?? "");
+  const sortValue = (task: typeof all[number]): string => sortBy === "entity" ? task.entityLabel : sortBy === "product" ? task.productLabel : sortBy === "workType" ? workTypeLabels[task.workType] : sortBy === "relatedEntities" ? task.relatedEntities.map(entity => entity.label).join(", ") : String(task[sortBy as keyof typeof task] ?? "");
   items.sort((a, b) => {
     if (sortBy === "manual") return direction * (a.manualPosition - b.manualPosition);
     const av = sortValue(a), bv = sortValue(b);
@@ -303,7 +331,7 @@ export function reorderPriority(db: WorkMemoryDatabase, raw: unknown) {
 
 /** One transaction, ID-based edits and optimistic conflict detection across hosts. */
 export function savePriority(db: WorkMemoryDatabase, raw: unknown) {
-  const input = fields(raw, ["scope", "taskId", "revision", "title", "body", "requester", "priority", "status", "deadline", "deadlineKind", "deadlineLabel", "nextAction", "entity", "productId", "url", "sourceUrl", "itemType", "relatedEntityRefs", "inPriorities"]);
+  const input = fields(raw, ["scope", "taskId", "revision", "title", "body", "requester", "priority", "status", "deadline", "deadlineKind", "deadlineLabel", "nextAction", "entity", "productId", "url", "sourceUrl", "itemType", "relatedEntityRefs", "inPriorities", "workType", "deadlineQuarter", "deadlineYear"]);
   if (input.inPriorities !== undefined && typeof input.inPriorities !== "boolean") throw new Error("inPriorities doit être un booléen.");
   return db.runInImmediateTransaction(() => {
     const id = text(input.taskId, "taskId", 256);
@@ -327,12 +355,30 @@ export function savePriority(db: WorkMemoryDatabase, raw: unknown) {
     if (!title) throw new Error("Indique le sujet attendu.");
     const deadlineKind = choice(input.deadlineKind, "deadlineKind", kinds, before?.deadlineKind ?? "unknown");
     let deadline = text(input.deadline, "deadline", 10, before?.deadline ?? "");
-    let deadlineLabel = text(input.deadlineLabel, "deadlineLabel", 150, before?.deadlineLabel);
-    if (deadlineKind === "unknown") { deadline = ""; deadlineLabel = ""; }
-    if (deadline && !validDay(deadline)) throw new Error("Échéance invalide (AAAA-MM-JJ).");
-    if (deadlineKind === "exact" && !deadline) throw new Error("Une échéance ferme nécessite une date.");
-    if (deadlineKind === "exact") deadlineLabel = "";
-    if (deadlineKind === "approximate" && !deadline && !deadlineLabel) throw new Error("Indique une période estimée ou une date cible.");
+    let deadlineLabel = existing?.tracking?.deadlineLabel ?? "";
+    let deadlineQuarter = existing ? period(existing).quarter : "";
+    let deadlineYear = existing ? period(existing).year : undefined;
+    if (input.deadlineLabel !== undefined) deadlineQuarter = choice(input.deadlineLabel, "deadlineLabel", ["", ...deadlineQuarters], "");
+    if (input.deadlineQuarter !== undefined) deadlineQuarter = choice(input.deadlineQuarter, "deadlineQuarter", ["", ...deadlineQuarters], "");
+    if (input.deadlineYear !== undefined) {
+      if (!Number.isInteger(input.deadlineYear) || Number(input.deadlineYear) < 1900 || Number(input.deadlineYear) > 9999) throw new Error("Année invalide : choisir une année entre 1900 et 9999.");
+      deadlineYear = Number(input.deadlineYear);
+    }
+    if (deadlineKind === "unknown") { deadline = ""; deadlineLabel = ""; deadlineQuarter = ""; deadlineYear = undefined; }
+    if (deadlineKind === "exact") {
+      if (!validDay(deadline)) throw new Error("Une échéance ferme nécessite une date valide (AAAA-MM-JJ).");
+      deadlineLabel = ""; deadlineQuarter = ""; deadlineYear = undefined;
+    }
+    if (deadlineKind === "approximate") {
+      const explicit = !existing || ["deadlineQuarter", "deadlineYear", "deadlineLabel", "deadline"].some(key => Object.hasOwn(input, key));
+      if (explicit) {
+        if (!deadlineQuarter || !deadlineYear) throw new Error("Choisis un trimestre Q1 à Q4 et son année.");
+        if (input.deadline) throw new Error("Une période se définit par son trimestre et son année, sans date cible libre.");
+        deadlineLabel = "";
+      }
+      deadline = deadlineQuarter && deadlineYear ? quarterEnd(deadlineQuarter, deadlineYear) : existing?.tracking?.targetDate ?? "";
+    }
+    const workType = choice(input.workType, "workType", Object.keys(workTypeLabels), before?.workType ?? "unspecified") as NonNullable<TaskRecord["tracking"]>["workType"];
     const entity = checkedEntity(text(input.entity, "entity", 512, before?.entity), entities);
     const productId = text(input.productId, "productId", 256, entity.kind === "product" ? entity.id : existing?.productId);
     if (productId) checkedEntity(`product:${productId}`, entities);
@@ -353,7 +399,7 @@ export function savePriority(db: WorkMemoryDatabase, raw: unknown) {
       deadline: deadlineKind === "exact" ? deadline : null,
       tracking: { ...existing?.tracking, inPriorities: (input.inPriorities as boolean | undefined) ?? existing?.tracking?.inPriorities ?? true, priorityRemoved: input.inPriorities === true ? false : existing?.tracking?.priorityRemoved, itemType, relatedEntityRefs,
         sourceUrl: checkedUrl(text(input.sourceUrl, "sourceUrl", 2048, before?.sourceUrl)), url: checkedUrl(text(input.url, "url", 2048, before?.url)), requester: text(input.requester, "requester", 300, before?.requester), deadlineKind: deadlineKind as "exact" | "approximate" | "unknown",
-        deadlineLabel, targetDate: deadlineKind === "approximate" ? deadline : "", nextAction: text(input.nextAction, "nextAction", 2000, before?.nextAction) }
+        workType, deadlineQuarter: deadlineQuarter ? deadlineQuarter as typeof deadlineQuarters[number] : undefined, deadlineYear, deadlineLabel, targetDate: deadlineKind === "approximate" ? deadline : "", nextAction: text(input.nextAction, "nextAction", 2000, before?.nextAction) }
     };
     const saved = existing ? db.updateTask({ taskId: existing.id, ...inputTask })
       : db.createTask({ ...inputTask, assignee: "me", origin: "manual" });

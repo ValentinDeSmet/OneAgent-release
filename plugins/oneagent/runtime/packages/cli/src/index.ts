@@ -75,6 +75,7 @@ import {
 } from "../../storage/src/index.ts";
 import { archiveTask, createTask, listTaskReadModel, updateTask } from "../../tasks/src/index.ts";
 import { listPriorities, savePriority, reorderPriority, deletePriority, promotePriority } from "../../tasks/src/priorities.ts";
+import { listPriorityTasks, attachPriorityTask, detachPriorityTask, savePriorityTask } from "../../tasks/src/priority-tasks.ts";
 import type { TaskDraft, TaskReadModelItem } from "../../tasks/src/index.ts";
 import {
   appendWikiLog,
@@ -349,8 +350,12 @@ async function executeCommand(argv: string[]): Promise<void> {
         : operation === "save" ? savePriority(runtime.db, input)
         : operation === "reorder" ? reorderPriority(runtime.db, input)
         : operation === "delete" ? deletePriority(runtime.db, input)
+        : operation === "tasks" ? listPriorityTasks(runtime.db, input)
+        : operation === "task-attach" ? attachPriorityTask(runtime.db, input)
+        : operation === "task-detach" ? detachPriorityTask(runtime.db, input)
+        : operation === "task-save" ? savePriorityTask(runtime.db, input)
         : operation === "promote" ? promotePriority(runtime.db, input) : undefined;
-      if (!result) throw new Error("Use priorities list|save|reorder|delete|promote.");
+      if (!result) throw new Error("Use priorities list|save|reorder|delete|promote|tasks|task-attach|task-detach|task-save.");
       console.log(JSON.stringify(result));
     } finally { runtime.close(); }
     return;

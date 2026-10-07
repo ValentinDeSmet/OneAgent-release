@@ -187,8 +187,14 @@ separately. `itemType` on list accepts all, subject or task. Preserve source URL
 and partners when refreshing a priority from its original sheet unless the
 user or source explicitly changes them. Use the list tool's column
 sorts and combined filters before pagination, not just on the current page. Keep
-unknown people/dates unspecified; use `deadlineKind: approximate` and a period
-label for estimates, or `exact` with an unambiguous YYYY-MM-DD for firm dates.
+unknown people/dates unspecified. For an approximate period, use
+`deadlineKind: approximate`, `deadlineQuarter: Q1|Q2|Q3|Q4` and an integer
+`deadlineYear`. No new free-text period labels are accepted. Preserve ambiguous
+legacy periods on unrelated edits; ask for the quarter/year instead of guessing.
+Use `exact` with an unambiguous YYYY-MM-DD for firm dates. Set `workType` to
+`discovery`, `technical_study`, `implementation`, `validation`, `documentation`,
+`other` or `unspecified`; keep it independent of status and subject/task nature.
+Use workType, deadlineQuarter and deadlineYear list filters before pagination.
 Clarify an ambiguous relative date instead of inventing a commitment. Priority
 is the user's choice, independent of a missed date. On edits, read the current
 record and use its exact taskId and revision. Omitted fields stay unchanged;
@@ -249,3 +255,22 @@ To explicitly restore a removed row, read list_priorities with view=excluded and
 save its exact taskId/revision with inPriorities=true. This restores the same task,
 including unlinked legacy tasks; do not create a duplicate. Without other fields,
 the visibility-only save preserves all task fields and links.
+
+
+## Tasks linked to a priority
+
+At the user's direction, read `oneagent_list_priority_tasks` for the selected
+priority. It returns native tasks and paginated candidate tasks with revisions.
+For an existing task, use `oneagent_attach_priority_task`; never copy it or
+call promote_task_to_priority merely to attach it. For a new task requested
+for this priority, use `oneagent_save_priority_task` without taskId. It appears
+in Tasks and under the priority, inherits its product/entity, and stays outside
+the independent priority list. Edit an attached task with the same ID and its
+current taskRevision. Tasks can support several priorities without duplication.
+
+Pass priorityId/priorityRevision and taskId/taskRevision for attachments, edits
+and detachment. `oneagent_detach_priority_task` removes only that association
+and retains the native task and its other links. Read current revisions first;
+a stale record, archived task, cycle or self-link is refused. These tools require
+portfolio scope and never silently widen a strict agent context. After an
+uncertain write, reread before any manual retry; never replay a creation.

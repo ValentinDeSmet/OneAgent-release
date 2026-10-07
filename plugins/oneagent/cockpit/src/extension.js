@@ -2429,10 +2429,10 @@ async function handleCockpitMessage(cli, webview, message) {
   try {
     if (message.type === "priorityRequest") {
       try {
-        if (!["list", "save", "reorder", "delete", "promote"].includes(message.operation)) throw new Error("Unknown priorities action.");
+        if (!["list", "save", "reorder", "delete", "promote", "tasks", "task-attach", "task-detach", "task-save"].includes(message.operation)) throw new Error("Unknown priorities action.");
         const payload = JSON.parse(await cli.run(["priorities", message.operation, "--stdin", "--json"], { input: JSON.stringify({ ...message.input, scope: "portfolio" }), logOutput: false }));
         await webview.postMessage({ type: "priorityResult", requestId: message.requestId, payload });
-        if (message.operation !== "list") {
+        if (!["list", "tasks"].includes(message.operation)) {
           // The write is already confirmed. A refresh failure must not turn it
           // into a failed save and invite a duplicate creation.
           try { await postCockpitState(cli, webview); }
@@ -3098,6 +3098,41 @@ async function handleCockpitMessage(cli, webview, message) {
       if (evidenceIds.length) args.push("--evidence", evidenceIds.join(","));
       await cli.run(args, { logOutput: false });
       await postCockpitState(cli, webview);
+    }
+    if (message.type === "setTaskPriorityLink") {
+      let payload, feedback;
+      try {
+        if (typeof message.id !== "string" || typeof message.revision !== "string" || !/^[a-f0-9]{64}$/.test(message.revision)) throw new Error("Actualise la fiche avant de changer ses liens.");
+        const task = (await cli.json(["tasks", "--scope", "portfolio", "--json"])).find(task => task.id === message.id);
+        if (!task?.priorityRevision || task.status === "archived") throw new Error("Choisis une tâche native existante.");
+        if (task.priorityRevision !== message.revision) throw new Error("La tâche a changé. Actualise sa fiche avant de réessayer.");
+        const priorities = [];
+        for (const view of ["all", "excluded"]) {
+          let offset = 0;
+          do {
+            const page = JSON.parse(await cli.run(["priorities", "list", "--stdin", "--json"], { input: JSON.stringify({ scope: "portfolio", view, offset, limit: 100 }), logOutput: false }));
+            priorities.push(...page.items); offset = page.nextOffset;
+          } while (offset !== null);
+        }
+        const choices = priorities.filter(priority => priority.id !== task.id && (priority.inPriorities || task.priorityIds?.includes(priority.id))).map(priority => ({
+          label: (task.priorityIds?.includes(priority.id) ? "Détacher de : " : "Rattacher à : ") + priority.title,
+          description: priority.entityLabel || "Entité à rattacher", priority, detach: task.priorityIds?.includes(priority.id) === true
+        }));
+        if (!choices.length) throw new Error("Crée d’abord une priorité depuis la page Priorités.");
+        const chosen = await vscode.window.showQuickPick(choices, { title: "Priorités liées à la tâche", placeHolder: "Rattacher la même tâche ou retirer un lien ; la tâche sera conservée" });
+        if (!chosen) { await webview.postMessage({ type: "taskPriorityResult", id: task.id, cancelled: true }); return; }
+        payload = JSON.parse(await cli.run(["priorities", chosen.detach ? "task-detach" : "task-attach", "--stdin", "--json"], {
+          input: JSON.stringify({ scope: "portfolio", priorityId: chosen.priority.id, priorityRevision: chosen.priority.revision, taskId: task.id, taskRevision: message.revision }), logOutput: false
+        }));
+        feedback = chosen.detach ? "Lien retiré ; la tâche est conservée." : "Tâche rattachée à la priorité ; son propre suivi dans Priorités est inchangé.";
+      } catch (error) { await webview.postMessage({ type: "taskPriorityResult", id: message.id, error: error.message }); return; }
+      await webview.postMessage({ type: "taskPriorityResult", id: message.id, payload, message: feedback });
+      try { await postCockpitState(cli, webview); }
+      catch (error) {
+        cli.output?.appendLine?.(`Task priority link saved; cockpit refresh unavailable: ${error.message}`);
+        await webview.postMessage({ type: "taskPriorityResult", id: message.id, payload, message: feedback, refreshError: true });
+      }
+      return;
     }
     if (message.type === "setTaskPriorityMembership") {
       let payload;

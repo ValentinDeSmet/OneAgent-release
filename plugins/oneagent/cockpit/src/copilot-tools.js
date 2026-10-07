@@ -25,6 +25,10 @@ const TOOL_IDS = {
   promoteTaskToPriority: "workMemory_promoteTaskToPriority",
   reorderPriority: "workMemory_reorderPriority",
   deletePriority: "workMemory_deletePriority",
+  listPriorityTasks: "workMemory_listPriorityTasks",
+  attachPriorityTask: "workMemory_attachPriorityTask",
+  detachPriorityTask: "workMemory_detachPriorityTask",
+  savePriorityTask: "workMemory_savePriorityTask",
   proposeDocument: "workMemory_proposeDocument",
   listDocumentProposals: "workMemory_listDocumentProposals",
   readDocumentProposal: "workMemory_readDocumentProposal",
@@ -105,6 +109,15 @@ function registerLanguageModelTools(cli) {
       (input) => input.taskId ? `Update priority ${input.taskId}.` : `Create priority ${input.title || ""}.`,
       { compileContextPack: false }
     )),
+    ...[
+      [TOOL_IDS.listPriorityTasks, "Read OneAgent Priority Tasks", "tasks"],
+      [TOOL_IDS.attachPriorityTask, "Attach OneAgent Priority Task", "task-attach"],
+      [TOOL_IDS.detachPriorityTask, "Detach OneAgent Priority Task", "task-detach"],
+      [TOOL_IDS.savePriorityTask, "Save OneAgent Priority Task", "task-save"]
+    ].map(([id, title, operation]) => vscode.lm.registerTool(id, new WorkMemoryTool(
+      title, title, input => priorityCommand(cli, operation, input),
+      input => `${title}: ${input.priorityId || ""}`, { compileContextPack: false }
+    ))),
     vscode.lm.registerTool(TOOL_IDS.promoteTaskToPriority, new WorkMemoryTool(
       "Add Task to OneAgent Priorities", "Adding the existing task to priorities",
       (input) => priorityCommand(cli, "promote", input),
@@ -3021,6 +3034,7 @@ function compactTask(task) {
     origin: task.origin,
     inPriorities: task.inPriorities,
     priorityRevision: task.priorityRevision,
+    priorityIds: task.priorityIds,
     body: truncateText(task.body || "", 420),
     notes: truncateText(task.notes || "", 420),
     links: Array.isArray(task.links) ? task.links.slice(0, 20) : [],

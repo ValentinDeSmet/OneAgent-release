@@ -51,6 +51,7 @@ export interface TaskReadModelItem {
   tracking?: TaskTracking | null;
   inPriorities?: boolean;
   priorityRevision?: string;
+  priorityIds?: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -86,9 +87,21 @@ export function createTask(db: WorkMemoryDatabase, input: TaskDraft): TaskReadMo
 export function updateTask(db: WorkMemoryDatabase, input: TaskUpdateInput & { links?: TaskLinkDraft[] }): TaskReadModelItem {
   const native = db.getTask(input.taskId);
   if (native) {
-    const task = db.updateTask(input);
-    const links = input.links ? db.replaceTaskLinks(task.id, normalizeLinkDrafts(input.links)) : db.listTaskLinks([task.id]);
-    return taskFromRecord(task, links);
+    return db.runInImmediateTransaction(() => {
+      const previous = db.listTaskLinks([native.id]);
+      let next = input.links ? normalizeLinkDrafts(input.links).map(link => {
+        const same = previous.find(old => old.relationType === link.relationType && old.targetKind === link.targetKind && old.targetId === link.targetId);
+        return { ...link, metadata: { ...same?.metadata, ...link.metadata } };
+      }) : undefined;
+      // The generic entity editor cannot express priority-task associations.
+      // They are detached only through the explicit association action.
+      if (next) for (const link of previous.filter(link => link.metadata?.priorityWork === true)) {
+        if (!next.some(value => value.relationType === link.relationType && value.targetKind === link.targetKind && value.targetId === link.targetId)) next.push({ ...link, metadata: link.metadata ?? {} });
+      }
+      const task = db.updateTask(input);
+      const links = next ? db.replaceTaskLinks(task.id, next) : previous;
+      return taskFromRecord(task, links);
+    });
   }
 
   const metadata = db.upsertTaskMetadata(input);
@@ -250,6 +263,7 @@ function taskFromRecord(task: TaskRecord, links: TaskLinkRecord[] = []): TaskRea
     tracking: task.tracking,
     inPriorities: isPriorityTask(task, links),
     priorityRevision: priorityRevision(task, links),
+    priorityIds: links.filter(link => link.targetKind === "task" && link.metadata?.priorityWork === true).map(link => link.targetId),
     createdAt: task.createdAt,
     updatedAt: task.updatedAt
   };

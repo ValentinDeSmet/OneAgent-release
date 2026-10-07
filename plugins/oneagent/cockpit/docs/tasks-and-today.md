@@ -87,3 +87,19 @@ Today follows the active OneAgent context. In strict mode, it only shows permitt
 5. Prepare a fresh Context Pack before a substantial agent session.
 
 See [Notes and questions](notes-and-questions.md) and [Context Packs](context-packs.md).
+
+
+### Tasks supporting a priority
+
+**Gérer les priorités liées** on a native task opens a choice of priorities to
+attach to or detach from. Save the task form first. In Priorities, **Tâches**
+opens an accordion with progress counts; create a native task, attach an existing
+one, edit it or detach it. The same task can support several priorities and its
+progress is shared with Tasks. Attaching never promotes the task itself, and
+detaching or removing the parent priority never deletes it.
+
+Priority periods use fixed Q1–Q4 quarter and year dropdowns, while firm dates
+use the calendar. Work types are Discovery, technical study, implementation,
+validation, documentation, other or unspecified. Work type, quarter and year
+have multi-select filters based on the values present in the list. Ambiguous
+legacy periods remain available until explicitly converted.

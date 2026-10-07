@@ -3,7 +3,7 @@
   "displayName": "OneAgent",
   "description": "Local-first product knowledge, curation, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.136",
+  "version": "0.1.137",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",
@@ -431,7 +431,8 @@
                 "sourceUrl",
                 "status",
                 "nextAction",
-                "itemType"
+                "itemType",
+                "workType"
               ],
               "description": "Default manual order shared by both hosts. Other sorts do not alter it."
             },
@@ -481,6 +482,86 @@
                       "subject",
                       "task"
                     ]
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+            },
+            "workType": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "unspecified",
+                    "discovery",
+                    "technical_study",
+                    "implementation",
+                    "validation",
+                    "documentation",
+                    "other"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "unspecified",
+                      "discovery",
+                      "technical_study",
+                      "implementation",
+                      "validation",
+                      "documentation",
+                      "other"
+                    ]
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+            },
+            "deadlineQuarter": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "Q1",
+                    "Q2",
+                    "Q3",
+                    "Q4"
+                  ]
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "Q1",
+                      "Q2",
+                      "Q3",
+                      "Q4"
+                    ]
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+            },
+            "deadlineYear": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{3}$"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]{3}$"
                   },
                   "maxItems": 40,
                   "uniqueItems": true
@@ -695,7 +776,7 @@
           "priorities",
           "tasks"
         ],
-        "modelDescription": "Create or edit one private request at the user's direction. New requests require a title and an existing entity (kind:id from list_priorities). Legacy unlinked requests must be attached when edited; edits require the exact taskId and revision returned by list_priorities. New rows default to subject; existing ordinary tasks keep their classification unless itemType is explicit. Ordinary tasks are outside Priorities by default. To enroll an existing task, read tasks first and use workMemory_promoteTaskToPriority with its priorityRevision. Rows removed from Priorities stay excluded on ordinary edits. To restore the same task, first list view=excluded, then save its taskId/revision with inPriorities=true. A visibility-only save preserves all fields and links, even for unlinked legacy tasks. Omitted fields are preserved; empty strings clear optional text and an empty relatedEntityRefs array clears partners. Never invent a requester or firm deadline. Use unknown if unspecified, approximate for estimates. No messages are sent. A retry of a creation creates another request.",
+        "modelDescription": "Create or edit one private request at the user's direction. New requests require a title and an existing entity (kind:id from list_priorities). Legacy unlinked requests must be attached when edited; edits require the exact taskId and revision returned by list_priorities. New rows default to subject; existing ordinary tasks keep their classification unless itemType is explicit. Ordinary tasks are outside Priorities by default. To enroll an existing task, read tasks first and use workMemory_promoteTaskToPriority with its priorityRevision. Rows removed from Priorities stay excluded on ordinary edits. To restore the same task, first list view=excluded, then save its taskId/revision with inPriorities=true. A visibility-only save preserves all fields and links, even for unlinked legacy tasks. Omitted fields are preserved; empty strings clear optional text and an empty relatedEntityRefs array clears partners. Never invent a requester or firm deadline. Use unknown if unspecified; approximate periods require Q1-Q4 and an explicit year, never free text. Preserve ambiguous legacy periods on unrelated edits. No messages are sent. A retry of a creation creates another request.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -737,6 +818,19 @@
                 "task"
               ],
               "description": "Subject to develop versus an ordinary task; editable independently of advancement."
+            },
+            "workType": {
+              "type": "string",
+              "enum": [
+                "unspecified",
+                "discovery",
+                "technical_study",
+                "implementation",
+                "validation",
+                "documentation",
+                "other"
+              ],
+              "description": "Requested work type, independent of status and subject/task nature. Omit to preserve; unspecified when unknown."
             },
             "relatedEntityRefs": {
               "type": "array",
@@ -791,7 +885,8 @@
             },
             "deadline": {
               "type": "string",
-              "maxLength": 10
+              "maxLength": 10,
+              "description": "YYYY-MM-DD for exact dates only; omit for a quarter."
             },
             "deadlineKind": {
               "type": "string",
@@ -801,9 +896,32 @@
                 "approximate"
               ]
             },
+            "deadlineQuarter": {
+              "type": "string",
+              "enum": [
+                "Q1",
+                "Q2",
+                "Q3",
+                "Q4"
+              ],
+              "description": "Required with deadlineYear for an approximate period. Q1-Q4 only; never invent a quarter from ambiguous legacy text."
+            },
+            "deadlineYear": {
+              "type": "integer",
+              "minimum": 1900,
+              "maximum": 9999,
+              "description": "Year for the chosen quarter; required for approximate periods."
+            },
             "deadlineLabel": {
               "type": "string",
-              "maxLength": 150
+              "enum": [
+                "",
+                "Q1",
+                "Q2",
+                "Q3",
+                "Q4"
+              ],
+              "description": "Deprecated alias for deadlineQuarter. Free period text is no longer accepted. Use deadlineQuarter and deadlineYear."
             },
             "nextAction": {
               "type": "string",
@@ -1284,7 +1402,11 @@
       },
       {
         "name": "workMemory_createNote",
-        "tags": ["work-memory", "note", "write"],
+        "tags": [
+          "work-memory",
+          "note",
+          "write"
+        ],
         "toolReferenceName": "workMemoryCreateNote",
         "displayName": "Create OneAgent Note",
         "modelDescription": "Use when the user asks to save a quick note or open question in the OneAgent Notes page. Save the user's content immediately and verbatim. A primary entity is optional; omitted notes appear under General and can be classified later. This action does not start observation curation or create a graph entity.",
@@ -1294,13 +1416,35 @@
         "inputSchema": {
           "type": "object",
           "properties": {
-            "content": { "type": "string", "description": "Text to save verbatim in the note." },
-            "title": { "type": "string", "description": "Optional title; defaults to the first line of content." },
-            "contentType": { "type": "string", "enum": ["note", "question"], "default": "note", "description": "Use question for an open question in Notes." },
-            "primaryEntity": { "type": "string", "description": "Optional existing entity as kind:id. Omit to save under General; in a strict context with one selected entity it is selected automatically." },
-            "tags": { "type": "string", "description": "Optional comma-separated note tags." }
+            "content": {
+              "type": "string",
+              "description": "Text to save verbatim in the note."
+            },
+            "title": {
+              "type": "string",
+              "description": "Optional title; defaults to the first line of content."
+            },
+            "contentType": {
+              "type": "string",
+              "enum": [
+                "note",
+                "question"
+              ],
+              "default": "note",
+              "description": "Use question for an open question in Notes."
+            },
+            "primaryEntity": {
+              "type": "string",
+              "description": "Optional existing entity as kind:id. Omit to save under General; in a strict context with one selected entity it is selected automatically."
+            },
+            "tags": {
+              "type": "string",
+              "description": "Optional comma-separated note tags."
+            }
           },
-          "required": ["content"]
+          "required": [
+            "content"
+          ]
         }
       },
       {
@@ -1538,7 +1682,9 @@
             },
             "observationIds": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Observation ids for merge, wiki evidence or graph-change evidence. For wiki_decision or workMemory_wiki write, omit them unless the user explicitly requested a subset; OneAgent automatically selects accepted active evidence attached to the target."
             },
             "graphChanges": {
@@ -1551,17 +1697,31 @@
             },
             "acceptObservationIds": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Package observations to accept."
             },
             "rejectObservationIds": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Package observations to reject."
             },
             "kind": {
               "type": "string",
-              "enum": ["claim", "decision", "question", "task", "risk", "feature_request", "insight", "metric", "relationship"],
+              "enum": [
+                "claim",
+                "decision",
+                "question",
+                "task",
+                "risk",
+                "feature_request",
+                "insight",
+                "metric",
+                "relationship"
+              ],
               "description": "Atomic observation kind."
             },
             "excerpt": {
@@ -1584,12 +1744,22 @@
             },
             "relationType": {
               "type": "string",
-              "enum": ["supports", "contradicts", "supersedes", "duplicates"],
+              "enum": [
+                "supports",
+                "contradicts",
+                "supersedes",
+                "duplicates"
+              ],
               "description": "Evidence relation for review_evidence."
             },
             "decision": {
               "type": "string",
-              "enum": ["accepted", "rejected", "not_needed", "suggested"],
+              "enum": [
+                "accepted",
+                "rejected",
+                "not_needed",
+                "suggested"
+              ],
               "description": "accepted|rejected for evidence, or not_needed|suggested for wiki."
             },
             "reason": {
@@ -1598,7 +1768,12 @@
             },
             "documentationReason": {
               "type": "string",
-              "enum": ["multi_source_synthesis", "specification", "durable_reference", "publication_required"],
+              "enum": [
+                "multi_source_synthesis",
+                "specification",
+                "durable_reference",
+                "publication_required"
+              ],
               "description": "Controlled durable-documentation reason for wiki_decision."
             },
             "target": {
@@ -1898,12 +2073,19 @@
             },
             "observationIds": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Accepted observations used as wiki evidence. Omit unless the user explicitly requested a subset; OneAgent automatically uses accepted active observations from packageId that are attached to the target entity."
             },
             "documentationReason": {
               "type": "string",
-              "enum": ["multi_source_synthesis", "specification", "durable_reference", "publication_required"],
+              "enum": [
+                "multi_source_synthesis",
+                "specification",
+                "durable_reference",
+                "publication_required"
+              ],
               "description": "Why a durable page is useful. Required for write."
             },
             "message": {
@@ -2038,40 +2220,142 @@
               ],
               "default": "dashboard"
             },
-            "id": { "type": "string" },
-            "entity": { "type": "string", "description": "Optional focus kind:id." },
-            "okrId": { "type": "string" },
-            "kpiId": { "type": "string" },
-            "missionId": { "type": "string" },
-            "clearMission": { "type": "boolean", "description": "Explicitly detach an existing OKR from its mission." },
-            "label": { "type": "string" },
-            "objective": { "type": "string" },
-            "description": { "type": "string" },
-            "status": { "type": "string", "enum": ["draft", "active", "at_risk", "off_track", "achieved", "closed"] },
-            "periodStart": { "type": "string" },
-            "periodEnd": { "type": "string" },
-            "keyResults": { "type": "array", "items": { "type": "object" } },
-            "kpiIds": { "type": "array", "items": { "type": "string" } },
-            "okrIds": { "type": "array", "items": { "type": "string" } },
-            "unit": { "type": "string" },
-            "direction": { "type": "string", "enum": ["increase", "decrease", "target", "range"] },
-            "targetValue": { "type": "number" },
-            "targetMin": { "type": "number" },
-            "targetMax": { "type": "number" },
-            "staleAfterDays": { "type": "number" },
-            "value": { "type": "number" },
-            "measuredAt": { "type": "string" },
-            "deliveryDate": { "type": "string" },
-            "note": { "type": "string" },
-            "sourceId": { "type": "string" },
-            "observationId": { "type": "string" },
-            "work": { "type": "string", "description": "project:id, feature:id or task:id" },
-            "expectedImpact": { "type": "string" },
-            "causalHypothesis": { "type": "string" },
-            "keyResultIds": { "type": "array", "items": { "type": "string" } },
-            "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
-            "createOnly": { "type": "boolean", "description": "Keep true/default when creating so an existing id cannot be overwritten. Set false only for an explicit update of an existing OKR or KPI.", "default": true },
-            "allowBoundaryChange": { "type": "boolean", "default": false }
+            "id": {
+              "type": "string"
+            },
+            "entity": {
+              "type": "string",
+              "description": "Optional focus kind:id."
+            },
+            "okrId": {
+              "type": "string"
+            },
+            "kpiId": {
+              "type": "string"
+            },
+            "missionId": {
+              "type": "string"
+            },
+            "clearMission": {
+              "type": "boolean",
+              "description": "Explicitly detach an existing OKR from its mission."
+            },
+            "label": {
+              "type": "string"
+            },
+            "objective": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "draft",
+                "active",
+                "at_risk",
+                "off_track",
+                "achieved",
+                "closed"
+              ]
+            },
+            "periodStart": {
+              "type": "string"
+            },
+            "periodEnd": {
+              "type": "string"
+            },
+            "keyResults": {
+              "type": "array",
+              "items": {
+                "type": "object"
+              }
+            },
+            "kpiIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "okrIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "unit": {
+              "type": "string"
+            },
+            "direction": {
+              "type": "string",
+              "enum": [
+                "increase",
+                "decrease",
+                "target",
+                "range"
+              ]
+            },
+            "targetValue": {
+              "type": "number"
+            },
+            "targetMin": {
+              "type": "number"
+            },
+            "targetMax": {
+              "type": "number"
+            },
+            "staleAfterDays": {
+              "type": "number"
+            },
+            "value": {
+              "type": "number"
+            },
+            "measuredAt": {
+              "type": "string"
+            },
+            "deliveryDate": {
+              "type": "string"
+            },
+            "note": {
+              "type": "string"
+            },
+            "sourceId": {
+              "type": "string"
+            },
+            "observationId": {
+              "type": "string"
+            },
+            "work": {
+              "type": "string",
+              "description": "project:id, feature:id or task:id"
+            },
+            "expectedImpact": {
+              "type": "string"
+            },
+            "causalHypothesis": {
+              "type": "string"
+            },
+            "keyResultIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "createOnly": {
+              "type": "boolean",
+              "description": "Keep true/default when creating so an existing id cannot be overwritten. Set false only for an explicit update of an existing OKR or KPI.",
+              "default": true
+            },
+            "allowBoundaryChange": {
+              "type": "boolean",
+              "default": false
+            }
           }
         }
       },
@@ -2152,7 +2436,9 @@
             },
             "boundaryEntities": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Explicit discovery boundary as kind:id refs. Any non-empty value is automatically enforced in strict mode."
             },
             "boundaryDepth": {
@@ -2163,24 +2449,34 @@
             },
             "pinnedEntities": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Entity refs always included first."
             },
             "includedEntities": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             },
             "proposedEntities": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             },
             "exploratoryEntities": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             },
             "excludedEntities": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             },
             "depth": {
               "type": "number",
@@ -2189,54 +2485,85 @@
             },
             "mode": {
               "type": "string",
-              "enum": ["strict", "guided", "disabled"]
+              "enum": [
+                "strict",
+                "guided",
+                "disabled"
+              ]
             },
             "includedTypes": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             },
             "allowedRelationTypes": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             },
             "timeRange": {
               "type": "object",
               "properties": {
-                "from": { "type": "string" },
-                "to": { "type": "string" }
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                }
               }
             },
             "validationStatuses": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Compatibility alias for observation validation statuses."
             },
             "entityStatuses": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             },
             "sourceStatuses": {
               "type": "array",
-              "items": { "type": "string" }
+              "items": {
+                "type": "string"
+              }
             },
             "observationValidationStatuses": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Observation validation states such as accepted or proposed."
             },
             "observationEvidenceStatuses": {
               "type": "array",
-              "items": { "type": "string" },
+              "items": {
+                "type": "string"
+              },
               "description": "Observation evidence states: standalone, corroborated or contradicted. Measurement is independent from evidence state."
             },
             "observationMeasurement": {
               "type": "string",
-              "enum": ["any", "measured", "unmeasured"],
+              "enum": [
+                "any",
+                "measured",
+                "unmeasured"
+              ],
               "description": "Independent measurement filter for observations."
             },
             "sourceAccess": {
               "type": "string",
-              "enum": ["none", "metadata", "snippets", "full"]
+              "enum": [
+                "none",
+                "metadata",
+                "snippets",
+                "full"
+              ]
             },
             "tokenBudget": {
               "type": "number",
@@ -2245,7 +2572,11 @@
             },
             "refreshPolicy": {
               "type": "string",
-              "enum": ["frozen", "monitored", "dynamic"]
+              "enum": [
+                "frozen",
+                "monitored",
+                "dynamic"
+              ]
             },
             "limit": {
               "type": "number",
@@ -2301,6 +2632,239 @@
           ],
           "additionalProperties": false
         }
+      },
+      {
+        "name": "workMemory_listPriorityTasks",
+        "displayName": "Read OneAgent Priority Tasks",
+        "toolReferenceName": "workMemory_listPriorityTasks",
+        "canBeReferencedInPrompt": true,
+        "tags": [
+          "oneagent",
+          "priorities",
+          "tasks"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio"
+              ],
+              "description": "Whole bound private memory; includes all subjects, independent of the VS Code selection."
+            },
+            "priorityId": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "query": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000
+            }
+          },
+          "required": [
+            "scope",
+            "priorityId"
+          ],
+          "additionalProperties": false
+        },
+        "modelDescription": "Read the native tasks linked to one priority and paginated choices of existing tasks that can be attached. Returns priorityRevision and each task's priorityRevision; choices use revision. Does not promote tasks or create copies. Native tasks only; Inbox/concept proposals are not candidates. Query filters candidate titles only. Read before every task attachment, edit or detachment."
+      },
+      {
+        "name": "workMemory_attachPriorityTask",
+        "displayName": "Attach OneAgent Priority Task",
+        "toolReferenceName": "workMemory_attachPriorityTask",
+        "canBeReferencedInPrompt": true,
+        "tags": [
+          "oneagent",
+          "priorities",
+          "tasks"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio"
+              ],
+              "description": "Whole bound private memory; includes all subjects, independent of the VS Code selection."
+            },
+            "priorityId": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "priorityRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "taskId": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "taskRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "scope",
+            "priorityId",
+            "priorityRevision",
+            "taskId",
+            "taskRevision"
+          ],
+          "additionalProperties": false
+        },
+        "modelDescription": "At the user's direction, attach an existing native task to a followed priority. Preserve its ID, all fields, source and existing links, including its own priority membership. Pass current priorityRevision and taskRevision. A task may support several priorities; self-links and cycles are refused. No task copy and no automatic priority enrollment. Never replay an uncertain write."
+      },
+      {
+        "name": "workMemory_detachPriorityTask",
+        "displayName": "Detach OneAgent Priority Task",
+        "toolReferenceName": "workMemory_detachPriorityTask",
+        "canBeReferencedInPrompt": true,
+        "tags": [
+          "oneagent",
+          "priorities",
+          "tasks"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio"
+              ],
+              "description": "Whole bound private memory; includes all subjects, independent of the VS Code selection."
+            },
+            "priorityId": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "priorityRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "taskId": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "taskRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "scope",
+            "priorityId",
+            "priorityRevision",
+            "taskId",
+            "taskRevision"
+          ],
+          "additionalProperties": false
+        },
+        "modelDescription": "At the user's direction, detach a task from one priority without deleting, archiving, completing or changing the task or its other links. Only remove the association owned by this feature; preserve pre-existing relationship metadata. Pass current priorityRevision and taskRevision. Never replay an uncertain write."
+      },
+      {
+        "name": "workMemory_savePriorityTask",
+        "displayName": "Save OneAgent Priority Task",
+        "toolReferenceName": "workMemory_savePriorityTask",
+        "canBeReferencedInPrompt": true,
+        "tags": [
+          "oneagent",
+          "priorities",
+          "tasks"
+        ],
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio"
+              ],
+              "description": "Whole bound private memory; includes all subjects, independent of the VS Code selection."
+            },
+            "priorityId": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "priorityRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "taskId": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "taskRevision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "title": {
+              "type": "string",
+              "maxLength": 300
+            },
+            "body": {
+              "type": "string",
+              "maxLength": 10000
+            },
+            "notes": {
+              "type": "string",
+              "maxLength": 10000
+            },
+            "deadline": {
+              "type": "string",
+              "maxLength": 10
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "candidate",
+                "open",
+                "in_progress",
+                "blocked",
+                "ready",
+                "done"
+              ]
+            },
+            "priority": {
+              "type": "string",
+              "enum": [
+                "low",
+                "medium",
+                "high",
+                "critical"
+              ]
+            },
+            "assignee": {
+              "type": "string",
+              "enum": [
+                "me",
+                "agent"
+              ]
+            }
+          },
+          "required": [
+            "scope",
+            "priorityId",
+            "priorityRevision"
+          ],
+          "additionalProperties": false
+        },
+        "modelDescription": "At the user's direction, create a native task for a priority or edit an already attached task. A new task appears in Tasks and under the priority without becoming a separate priority; it inherits the parent's product/entity. Creation requires title and priorityRevision. Editing also requires taskId/taskRevision; omitted fields stay unchanged. Existing tasks must be attached with attach_priority_task instead of copied. Pass YYYY-MM-DD or empty string to clear a task deadline. Never retry uncertain creation or write automatically."
       }
     ],
     "chatParticipants": [

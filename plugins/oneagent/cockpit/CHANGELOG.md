@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.137
+
+- Priorités communes avec Copilot 0.6.13 : périodes Q1–Q4 et année en listes déroulantes, sans nouvelles périodes libres. Conservation des anciennes périodes ambiguës jusqu’à conversion explicite.
+- Colonne Type de travail triable et filtres multiples Type de travail, Trimestre et Année issus des sollicitations affichées.
+- Accordéon Tâches par priorité : création, rattachement d’une tâche existante, édition et détachement. La même tâche reste visible dans Tâches, sans duplication ni inscription automatique aux priorités.
+- Gestion des priorités liées depuis la fiche Tâches, outils agent identiques dans les deux hôtes, contrôle transactionnel des révisions et préservation des liens lors des éditions ordinaires.
+
 ## 0.1.136
 
 - Priorités explicites dans VS Code et Copilot 0.6.12 : une tâche ordinaire reste hors de la liste, des compteurs, des filtres et du classement, même avec une urgence élevée ou une échéance.

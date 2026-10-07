@@ -11,8 +11,12 @@ let rankHandles = new Map();
 let pendingDelete = null;
 const deletion = $("#delete-confirm");
 const rowMenu = $("#row-menu");
+const taskEditor = $("#task-editor"), taskForm = $("#task-form");
+const expandedTasks = new Set(), taskCache = new Map(), taskLoads = new Map();
+let taskPanels = new Map(), taskContext = null, taskChoices = [], taskNextOffset = null, taskSearchVersion = 0, taskSearchTimer;
 let menuItem = null, menuTrigger = null;
 const priorityLabels = { critical: "Critique", high: "Haute", medium: "Normale", low: "Basse" };
+const workTypeLabels = { unspecified: "À préciser", discovery: "Discovery", technical_study: "Étude technique", implementation: "Développement / implémentation", validation: "Validation / recette", documentation: "Documentation", other: "Autre" };
 const statusLabels = { open: "À faire", in_progress: "En cours", ready: "Prête", pending: "À clarifier", candidate: "À valider", blocked: "En attente", done: "Terminée" };
 const day = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; };
 const dateLabel = (value) => new Date(`${value}T12:00:00`).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
@@ -27,7 +31,7 @@ function node(tag, text = "", className = "") {
   const result = document.createElement(tag); result.textContent = text; result.className = className; return result;
 }
 const filterFields = { sourceUrlQuery: "source-url-query", titleQuery: "title-query", bodyQuery: "body-query", requesterQuery: "requester-query", deadlineFrom: "deadline-from", deadlineTo: "deadline-to", urlQuery: "url-query" };
-const facetFields = { itemType: ["item-type", "Sujets et tâches"], involvedEntity: ["involved-filter", "Tous les produits et équipes"], status: ["status-filter", "Tous les avancements"], filter: ["filter", "Toutes les priorités"],
+const facetFields = { workType: ["work-type-filter", "Tous les types de travail"], deadlineQuarter: ["quarter-filter", "Tous les trimestres"], deadlineYear: ["year-filter", "Toutes les années"], itemType: ["item-type", "Sujets et tâches"], involvedEntity: ["involved-filter", "Tous les produits et équipes"], status: ["status-filter", "Tous les avancements"], filter: ["filter", "Toutes les priorités"],
   entity: ["entity-filter", "Toutes les entités"], productId: ["product-filter", "Tous les produits"], relatedEntity: ["related-filter", "Tous les partenaires"], priority: ["priority-filter", "Toutes les priorités"], deadlineKind: ["deadline-kind-filter", "Toutes les échéances"] };
 const selectedFilters = Object.fromEntries(Object.keys(facetFields).map(key => [key, new Set()]));
 let facets = {}, knownChoices = {};
@@ -214,6 +218,7 @@ function actionButton(label, icon) {
   return button;
 }
 function render() {
+  taskPanels = new Map();
   closeRowMenu();
   rankHandles = new Map();
   const fragment = document.createDocumentFragment();
@@ -232,6 +237,11 @@ function render() {
     if (item.inPriorities === false) subject.append(node("span", "Retirée des priorités", "badge excluded"));
     subject.append(node("span", item.itemType === "task" ? "Tâche" : "Sujet", "badge nature"));
     subject.append(node("p", item.entityLabel ? `${item.entityLabel} · ${item.entity.split(":")[0]}` : "Entité à rattacher", item.needsAttachment ? "overdue" : "muted"));
+    const tasksToggle = node("button", `${expandedTasks.has(item.id) ? "▾" : "▸"} Tâches · ${item.taskDoneCount || 0}/${item.taskCount || 0}`, "tasks-toggle");
+    tasksToggle.type = "button"; tasksToggle.setAttribute("aria-expanded", String(expandedTasks.has(item.id)));
+    tasksToggle.setAttribute("aria-controls", "priority-tasks-" + encodeURIComponent(item.id));
+    tasksToggle.addEventListener("click", () => { expandedTasks.has(item.id) ? expandedTasks.delete(item.id) : expandedTasks.add(item.id); render(); });
+    subject.append(tasksToggle);
     const description = node("td"), content = node("span", item.body || "—", "description");
     content.title = item.body || ""; description.append(content);
     const product = node("td", item.productLabel || "Sans produit", item.productLabel ? "" : "muted");
@@ -248,12 +258,19 @@ function render() {
       else if (item.daysUntil === 0 && item.status !== "done") due.append(node("p", "Aujourd’hui"));
       else if (item.dueSoon) due.append(node("p", `Dans ${item.daysUntil} j`));
     } else if (item.deadlineKind === "approximate") {
-      due.append(node("span", item.deadlineLabel || (item.deadline ? dateLabel(item.deadline) : "À préciser")));
-      due.append(node("p", `Estimation${item.deadlineLabel && item.deadline ? " · cible " + dateLabel(item.deadline) : ""}`, "estimate"));
+      due.append(node("span", item.deadlineQuarter ? `${item.deadlineQuarter}${item.deadlineYear ? " " + item.deadlineYear : " · année à préciser"}` : "Trimestre à préciser"));
+      if (item.legacyDeadlineLabel) due.append(node("p", "Ancienne période : " + item.legacyDeadlineLabel, "estimate"));
     } else due.append(node("span", "À préciser", "muted"));
     const status = node("td"); status.append(node("span", statusLabels[item.status] || item.status, "badge"));
-    row.append(rankCell(item, row, index), subject, description, product, related, requester, priority, due, link, source, status);
+    const work = node("td", workTypeLabels[item.workType] || "À préciser", "work-type-cell");
+    row.append(rankCell(item, row, index), subject, description, work, product, related, requester, priority, due, link, source, status);
     fragment.append(row);
+    if (expandedTasks.has(item.id)) {
+      const detailRow = node("tr", "", "tasks-accordion"), cell = node("td"), panel = node("section", "", "priority-tasks");
+      cell.colSpan = 12; panel.id = "priority-tasks-" + encodeURIComponent(item.id); panel.setAttribute("aria-label", "Tâches pour " + item.title);
+      cell.append(panel); detailRow.append(cell); fragment.append(detailRow); taskPanels.set(item.id, panel);
+      renderPriorityTasks(item, panel);
+    }
   }
   $("#rows").replaceChildren(fragment);
   for (const button of document.querySelectorAll("[data-sort]")) {
@@ -281,6 +298,7 @@ async function refresh(append = false) {
     orderRevision = data.orderRevision || "";
     nextOffset = data.nextOffset;
     entities = data.entities || [];
+    taskCache.clear(); taskLoads.clear();
     facets = data.facets || {}; renderFacets();
     for (const key of ["active", "urgent", "overdue", "clarify"]) $("#count-" + key).textContent = data.counts[key];
     for (const button of document.querySelectorAll("[data-filter]")) button.setAttribute("aria-pressed", String((button.dataset.filter === "all" ? !selectedFilters.filter.size : selectedFilters.filter.has(button.dataset.filter)) && $("#view").value === "active"));
@@ -300,28 +318,148 @@ async function refresh(append = false) {
     if (version === requestVersion) { loading = false; $("#refresh").disabled = false; $("#more").disabled = false; }
   }
 }
+function renderPriorityTasks(item, panel) {
+  const data = taskCache.get(item.id);
+  panel.replaceChildren();
+  const head = node("div", "", "priority-tasks-head"), title = node("strong", "Tâches pour « " + (data?.priorityTitle || item.title) + " »"), add = node("button", "+ Ajouter une tâche");
+  add.type = "button"; add.disabled = !data || saving || item.inPriorities === false;
+  add.addEventListener("click", () => openTaskEditor(item, data)); head.append(title, add); panel.append(head);
+  if (!data) {
+    panel.append(node("p", "Chargement des tâches…", "muted"));
+    if (taskLoads.has(item.id)) return;
+    const request = {};
+    taskLoads.set(item.id, request);
+    api("tasks", { priorityId: item.id }).then(value => {
+      if (taskLoads.get(item.id) !== request) return;
+      taskLoads.delete(item.id); taskCache.set(item.id, value);
+      const current = taskPanels.get(item.id);
+      if (current && expandedTasks.has(item.id)) renderPriorityTasks(item, current);
+    }).catch(failure => {
+      if (taskLoads.get(item.id) !== request) return;
+      taskLoads.delete(item.id);
+      const current = taskPanels.get(item.id);
+      if (!current || !expandedTasks.has(item.id)) return;
+      current.replaceChildren(node("p", failure.message, "error"));
+      const retry = node("button", "Réessayer le chargement"); retry.type = "button"; retry.addEventListener("click", () => renderPriorityTasks(item, current)); current.append(retry);
+    });
+    return;
+  }
+  if (!data.items.length) panel.append(node("p", "Aucune tâche rattachée. Crée une tâche ou choisis-en une déjà disponible dans Tâches.", "muted"));
+  const list = node("div", "", "priority-task-list");
+  for (const task of data.items) {
+    const row = node("div", "", "priority-task-row"), content = node("div", "", "priority-task-content"), actions = node("div", "", "row-actions");
+    content.append(node("strong", task.title));
+    const meta = node("p", `${statusLabels[task.status] || task.status} · ${task.assignee === "agent" ? "Agent" : "Moi"}${task.deadline ? " · " + dateLabel(task.deadline) : ""}`, "muted");
+    content.append(meta); if (task.body) content.append(node("p", task.body, "description"));
+    const modify = actionButton("Modifier la tâche " + task.title, '<path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m14 5 5 5"/>');
+    modify.disabled = saving || item.inPriorities === false; modify.addEventListener("click", () => openTaskEditor(item, data, task));
+    const detach = node("button", "Détacher", "subtle"); detach.type = "button"; detach.disabled = saving;
+    detach.title = "Retirer le lien à cette priorité ; conserver la tâche et ses autres liens.";
+    detach.addEventListener("click", async () => {
+      if (saving || detach.disabled) return;
+      saving = true; detach.disabled = true;
+      try {
+        await api("task-detach", { priorityId: item.id, priorityRevision: data.priorityRevision, taskId: task.id, taskRevision: task.priorityRevision });
+        $("#action-feedback").textContent = "Tâche détachée ; elle reste disponible dans Tâches."; $("#action-feedback").hidden = false; await refresh();
+      } catch (failure) { error($("#error"), failure.message + "\nDétachement non confirmé. Actualise avant de réessayer."); }
+      finally { saving = false; render(); }
+    });
+    actions.append(modify, detach); row.append(content, actions); list.append(row);
+  }
+  panel.append(list);
+}
+function taskModeFields() {
+  const attach = taskForm.elements.mode.value === "attach";
+  $("#task-existing-fields").hidden = !attach; $("#task-new-fields").hidden = attach;
+  for (const key of ["title", "body", "status", "priority", "assignee", "deadline", "notes"]) taskForm.elements[key].disabled = attach;
+  taskForm.elements.title.required = !attach; taskForm.elements.existingTask.disabled = !attach; taskForm.elements.existingTask.required = attach;
+  $("#task-save").textContent = attach ? "Rattacher la tâche" : taskContext?.task ? "Enregistrer" : "Créer la tâche";
+}
+function openTaskEditor(item, data, task = null) {
+  if (saving || reordering || !data || item.inPriorities === false) return;
+  closeFilterMenus(); closeRowMenu(); taskForm.reset(); error($("#task-error"));
+  taskContext = { priorityId: item.id, priorityRevision: data.priorityRevision, task };
+  taskChoices = data.choices || []; taskNextOffset = data.nextOffset; taskSearchVersion++;
+  $("#task-search").value = "";
+  selectOptions(taskForm.elements.existingTask, taskChoices.map(task => ({ value: task.id, label: task.title })), "Choisir une tâche…", "");
+  $("#task-more").hidden = taskNextOffset === null;
+  $("#task-editor-title").textContent = task ? "Modifier la tâche" : "Ajouter une tâche";
+  $("#task-parent").textContent = "Pour la priorité « " + data.priorityTitle + " »";
+  $("#task-mode-field").hidden = Boolean(task); taskForm.elements.mode.value = "create";
+  if (task) for (const key of ["title", "body", "status", "priority", "assignee", "deadline", "notes"]) taskForm.elements[key].value = task[key] || "";
+  $("#task-save").disabled = false; taskModeFields(); taskEditor.showModal(); taskForm.elements.title.focus();
+}
+async function searchTasks(append = false) {
+  if (!taskContext || saving) return;
+  const version = ++taskSearchVersion;
+  try {
+    const data = await api("tasks", { priorityId: taskContext.priorityId, query: $("#task-search").value, offset: append ? taskNextOffset : 0 });
+    if (version !== taskSearchVersion || !taskEditor.open) return;
+    taskChoices = append ? [...taskChoices, ...data.choices.filter(task => !taskChoices.some(old => old.id === task.id))] : data.choices;
+    taskContext.priorityRevision = data.priorityRevision; taskNextOffset = data.nextOffset;
+    selectOptions(taskForm.elements.existingTask, taskChoices.map(task => ({ value: task.id, label: task.title })), "Choisir une tâche…", "");
+    $("#task-more").hidden = taskNextOffset === null; error($("#task-error"));
+  } catch (failure) { if (version === taskSearchVersion) error($("#task-error"), failure.message); }
+}
+taskForm.elements.mode.addEventListener("change", taskModeFields);
+$("#task-search").addEventListener("input", () => { clearTimeout(taskSearchTimer); taskSearchTimer = setTimeout(() => searchTasks(), 250); });
+$("#task-more").addEventListener("click", () => { if (taskNextOffset !== null) searchTasks(true); });
+for (const id of ["task-close", "task-cancel"]) $("#" + id).addEventListener("click", () => { if (!saving) { taskSearchVersion++; taskEditor.close(); } });
+taskEditor.addEventListener("cancel", event => { if (saving) event.preventDefault(); else taskSearchVersion++; });
+taskForm.addEventListener("submit", async event => {
+  event.preventDefault(); if (saving || !taskContext || $("#task-save").disabled) return;
+  clearTimeout(taskSearchTimer); taskSearchVersion++;
+  const fields = Object.fromEntries(new FormData(taskForm)), input = { priorityId: taskContext.priorityId, priorityRevision: taskContext.priorityRevision };
+  let operation = "task-save";
+  if (fields.mode === "attach") {
+    const task = taskChoices.find(task => task.id === fields.existingTask);
+    if (!task) { error($("#task-error"), "Choisis une tâche existante."); return; }
+    operation = "task-attach"; input.taskId = task.id; input.taskRevision = task.revision;
+  } else {
+    for (const key of ["title", "body", "status", "priority", "assignee", "deadline", "notes"]) input[key] = fields[key];
+    if (taskContext.task) { input.taskId = taskContext.task.id; input.taskRevision = taskContext.task.priorityRevision; }
+  }
+  saving = true; error($("#task-error"));
+  for (const button of taskForm.querySelectorAll("button")) button.disabled = true;
+  try { await api(operation, input); taskEditor.close(); await refresh(); }
+  catch (failure) { error($("#task-error"), failure.message + "\nÉcriture non confirmée. Ferme cette fiche et actualise avant de réessayer, pour éviter un doublon."); }
+  finally { saving = false; for (const button of taskForm.querySelectorAll("button")) if (button.id !== "task-save") button.disabled = false; render(); }
+});
 function deadlineFields() {
   const kind = form.elements.deadlineKind.value;
-  $("#deadline-fields").hidden = kind === "unknown";
+  $("#deadline-fields").hidden = kind !== "exact";
   $("#period-field").hidden = kind !== "approximate";
   form.elements.deadline.required = kind === "exact";
-  form.elements.deadline.disabled = kind === "unknown";
-  form.elements.deadlineLabel.disabled = kind !== "approximate";
-  $("#date-label").textContent = kind === "approximate" ? "Date cible (facultative)" : "Date attendue";
-  $("#date-help").textContent = kind === "approximate" ? "La période suffit. Une date cible peut aider au tri ; elle ne déclenche pas d’alerte de retard." : kind === "exact" ? "Une date ferme dépassée apparaîtra dans les retards." : "Une échéance inconnue reste visible comme « À préciser ».";
+  form.elements.deadline.disabled = kind !== "exact";
+  for (const key of ["deadlineQuarter", "deadlineYear"]) {
+    form.elements[key].disabled = kind !== "approximate";
+    form.elements[key].required = kind === "approximate";
+  }
+  $("#date-help").textContent = kind === "approximate" ? "Choisis Q1, Q2, Q3 ou Q4 et une année. Le trimestre reste une période ; il ne déclenche pas d’alerte de retard de date ferme." : kind === "exact" ? "Une date ferme dépassée apparaîtra dans les retards." : "Une échéance inconnue reste visible comme « À préciser ».";
 }
+function yearOptions(selectedYear) {
+  const year = new Date().getFullYear();
+  const years = new Set(Array.from({ length: 7 }, (_, i) => year - 1 + i));
+  if (selectedYear) years.add(Number(selectedYear));
+  selectOptions(form.elements.deadlineYear, [...years].sort((a,b) => a-b).map(value => ({ value: String(value), label: String(value) })), "Choisir l’année…", selectedYear ? String(selectedYear) : String(year));
+}
+
 function edit(item = null) {
   if (reordering || saving) return;
   closeRowMenu(); closeFilterMenus(); selected = item; form.reset(); error($("#form-error"));
   selectedRelatedRefs = new Set(item?.relatedEntityRefs || []);
   $("#partner-search").value = "";
+  yearOptions(item?.deadlineYear);
+  form.elements.workType.value = item?.workType || "unspecified";
+  $("#legacy-period").hidden = !item?.legacyDeadlineLabel;
+  $("#legacy-period").textContent = item?.legacyDeadlineLabel ? "Ancienne période conservée : " + item.legacyDeadlineLabel + ". Choisis son trimestre et son année avant d’enregistrer cette fiche." : "";
   form.elements.itemType.value = item?.itemType || "subject";
   $("#editor-title").textContent = item ? "Suivre la sollicitation" : "Nouvelle sollicitation";
   selectOptions(form.elements.entity, entityOptions(), "Choisir une entité…", item?.entity || "");
   selectOptions(form.elements.productId, productOptions(), "Sans produit", item?.productId || "");
   $("#entity-help").textContent = entities.length ? (item?.needsAttachment ? "Cette ancienne priorité doit être rattachée à une entité avant enregistrement." : "Rattachement conservé dans le graphe et les tâches.") : "Crée d’abord une entité dans OneAgent, puis actualise cette page.";
   syncProduct();
-  if (item) for (const key of ["url", "sourceUrl", "title", "body", "requester", "priority", "status", "deadline", "deadlineKind", "deadlineLabel", "nextAction"]) form.elements[key].value = item[key] || "";
+  if (item) for (const key of ["url", "sourceUrl", "title", "body", "requester", "priority", "status", "deadline", "deadlineKind", "deadlineQuarter", "nextAction"]) form.elements[key].value = item[key] || "";
   $("#updated").textContent = item ? `Créée le ${new Date(item.createdAt).toLocaleDateString("fr-FR")} · Modifiée le ${new Date(item.updatedAt).toLocaleString("fr-FR")}` : "Sujet et entité sont obligatoires. Le produit est facultatif pour les autres types d’entités.";
   $("#done").hidden = !item || item.status === "done";
   $("#remove").hidden = !item || item.inPriorities === false;
@@ -331,6 +469,7 @@ function edit(item = null) {
 async function save(event) {
   event.preventDefault(); if (saving) return;
   const input = Object.fromEntries(new FormData(form));
+  if (input.deadlineYear !== undefined) input.deadlineYear = Number(input.deadlineYear);
   input.relatedEntityRefs = [...selectedRelatedRefs];
   if (selected) { input.taskId = selected.id; input.revision = selected.revision; }
   saving = true;
@@ -422,7 +561,7 @@ for (const [key, [id]] of Object.entries(facetFields)) {
   $("#" + id + "-clear").addEventListener("click", () => { if (reordering || saving) return; selectedFilters[key].clear(); renderFacet(key); refresh(); });
   $("#" + id).addEventListener("keydown", event => { if (event.key === "Escape") { event.preventDefault(); $("#" + id).open = false; } });
 }
-const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !editor.open && !deletion.open && rowMenu.hidden && !Object.values(facetFields).some(([id]) => $("#" + id).open) && !document.hidden) refresh(); };
+const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !editor.open && !taskEditor.open && !deletion.open && rowMenu.hidden && !Object.values(facetFields).some(([id]) => $("#" + id).open) && !document.hidden) refresh(); };
 document.addEventListener("visibilitychange", autoRefresh);
 setInterval(autoRefresh, 60000);
 $("#add").disabled = true; $("#empty-add").disabled = true;

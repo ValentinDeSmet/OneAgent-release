@@ -82,6 +82,10 @@ export interface TaskTracking {
   url?: string;
   requester?: string;
   deadlineKind?: "exact" | "approximate" | "unknown";
+  deadlineQuarter?: "Q1" | "Q2" | "Q3" | "Q4";
+  deadlineYear?: number;
+  workType?: "unspecified" | "discovery" | "technical_study" | "implementation" | "validation" | "documentation" | "other";
+  /** Legacy free periods are retained until explicitly converted to a quarter. */
   deadlineLabel?: string;
   targetDate?: string;
   nextAction?: string;
