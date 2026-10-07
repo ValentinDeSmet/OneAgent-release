@@ -78,6 +78,15 @@ import { listPriorities, savePriority, reorderPriority, deletePriority } from ".
 import type { TaskDraft, TaskReadModelItem } from "../../tasks/src/index.ts";
 import {
   appendWikiLog,
+  DOCUMENT_REVIEW_KINDS,
+  assertDocumentAcceptance,
+  documentEntity,
+  documentRevision,
+  isDocumentReview,
+  proposeDocument,
+  readDocumentProposal,
+  reviseDocument,
+  withDocumentRevision,
   applyWikiLayoutMigration,
   applyGlobalWikiPatch,
   applyWikiPatch,
@@ -5169,7 +5178,7 @@ async function graphChangeCommand(argv: string[]): Promise<void> {
             types: ["graph_change_proposal"],
             ids: contextScope?.scope.mode === "strict" ? contextScope.inboxItemIds : undefined,
             limit
-          }).map((item) => sanitizeInboxItemForOutput(item, access));
+          }).map((item) => sanitizeInboxItemForOutput({ ...withDocumentRevision(item), ...(isDocumentReview(item) ? { documentEditable: access === "full" } : {}) }, access));
       printJsonOrSummary(argv, items, (value) => value.map((item) => `${item.id}\t${item.status}\t${item.title}`).join("\n") || "No graph change proposals.");
       return;
     }
@@ -5301,6 +5310,10 @@ function graphChangePreviewSummary(value: ReturnType<typeof previewGraphChangePr
 
 async function inboxCommand(argv: string[]): Promise<void> {
   const subcommand = firstPositional(argv);
+  if (subcommand === "documents") {
+    await inboxDocumentsCommand(argv);
+    return;
+  }
   if (subcommand === "recover-publications") {
     await inboxRecoverPublicationsCommand(argv);
     return;
@@ -5323,6 +5336,56 @@ async function inboxCommand(argv: string[]): Promise<void> {
   }
 
   inboxListCommand(argv);
+}
+
+/** JSON-only draft tools; human acceptance remains a separate Inbox action. */
+async function inboxDocumentsCommand(argv: string[]): Promise<void> {
+  const operation = positionalValues(argv)[1];
+  if (!["propose", "list", "read", "revise"].includes(operation ?? "")) throw new Error("Utilise inbox documents propose|list|read|revise --stdin.");
+  if (!hasFlag(argv, "--stdin")) throw new Error("Le contenu du document doit être envoyé en JSON via --stdin.");
+  const raw = await readStdin();
+  if (Buffer.byteLength(raw) > 512000) throw new Error("Proposition trop volumineuse.");
+  const input = JSON.parse(raw) as Record<string, unknown>;
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Objet JSON attendu.");
+  const allowed = operation === "propose" ? ["entity", "home", "page", "title", "content", "summary"]
+    : operation === "list" ? ["entity", "status", "limit", "offset"] : operation === "read" ? ["itemId"] : ["itemId", "revision", "content"];
+  for (const key of Object.keys(input)) if (!allowed.includes(key)) throw new Error(`Champ inconnu : ${key}`);
+  const runtime = createCliRuntime(argv);
+  try {
+    const contextScope = activeResolvedContextScope(runtime, argv), access = strictSourceAccessForOutput(contextScope);
+    if (access === "none") throw new Error("Les propositions de document sont masquées par sourceAccess=none.");
+    if (operation === "list") {
+      const entity = input.entity === undefined ? undefined : documentEntity(input.entity);
+      if (entity) assertEntityInStrictScope(contextScope, entity);
+      const status = input.status ?? "pending", limit = input.limit ?? 25, offset = input.offset ?? 0;
+      if (!["pending", "accepted", "rejected"].includes(String(status)) || !Number.isInteger(limit) || Number(limit) < 1 || Number(limit) > 100 || !Number.isInteger(offset) || Number(offset) < 0 || Number(offset) > 1000000) throw new Error("Filtre ou pagination invalide.");
+      const rows = runtime.db.listInboxFiltered({status: status as InboxStatus, types:["wiki_proposal"], proposalKinds:DOCUMENT_REVIEW_KINDS,
+        entityRefs: entity ? [entity] : undefined, ids: contextScope?.scope.mode === "strict" ? contextScope.inboxItemIds : undefined});
+      console.log(JSON.stringify({items: rows.slice(Number(offset), Number(offset)+Number(limit)).map(item => ({id:item.id,title:item.title,status:item.status,
+        entity:item.payload.wikiSubject,home:item.payload.wikiHome,page:item.payload.wikiPage,targetPath:item.payload.targetPath,revision:documentRevision(item)})),
+        total:rows.length,nextOffset:Number(offset)+Number(limit)<rows.length ? Number(offset)+Number(limit) : null}));
+      return;
+    }
+    let result;
+    if (operation === "propose") {
+      const subject = documentEntity(input.entity);
+      const home = input.home === undefined ? resolveWikiHome(runtime.config, runtime.db, subject).home : documentEntity(input.home);
+      assertWritableEntityInStrictScope(contextScope, subject);
+      if (home) assertWritableEntityInStrictScope(contextScope, home);
+      result = proposeDocument(runtime.config, runtime.db, input);
+    } else {
+      if (typeof input.itemId !== "string" || !input.itemId.trim()) throw new Error("Identifiant de proposition requis.");
+      const item = requireInboxItem(runtime.db.getInboxItem(input.itemId),input.itemId);
+      if (contextScope?.scope.mode === "strict" && !contextScope.inboxItemIds.includes(item.id)) throw new Error("Proposition hors du contexte strict actif.");
+      validateCanonicalWikiTarget(runtime,item.payload,contextScope);
+      if (operation === "revise") {
+        assertStrictSourceAccess(contextScope, "full", "Editing a complete Markdown proposal");
+        if (isWikiWriteReviewPayload(item.payload)) validateWikiWriteReviewProposal(runtime,item.payload,contextScope,true);
+        result = reviseDocument(runtime.config,runtime.db,input);
+      } else result = readDocumentProposal(runtime.config,runtime.db,item.id);
+    }
+    console.log(JSON.stringify(sanitizeInboxPreviewForOutput({...result,item:{...result.item,documentEditable:access === "full"}},access),null,2));
+  } finally { runtime.close(); }
 }
 
 interface ValidatedWikiWriteProposal {
@@ -5472,6 +5535,7 @@ function inboxAddCommand(argv: string[]): void {
     }
     let productId = optionValue(argv, "--product");
     let inboxId = optionValue(argv, "--id");
+    if (payload.proposalKind === "markdown_document_review") throw new Error("Utilise inbox documents propose --stdin pour créer un document à valider.");
     let wikiValidation: ValidatedWikiWriteProposal | undefined;
     if (type === "wiki_proposal" && isWikiWriteReviewPayload(payload)) {
       if (productId) {
@@ -5583,7 +5647,7 @@ function inboxListCommand(argv: string[]): void {
             entityRefs: entityRefs.length > 0 ? entityRefs : undefined,
             ids: contextScope?.scope.mode === "strict" ? contextScope.inboxItemIds : undefined,
             limit
-          }).map((item) => sanitizeInboxItemForOutput(item, access));
+          }).map((item) => sanitizeInboxItemForOutput({ ...withDocumentRevision(item), ...(isDocumentReview(item) ? { documentEditable: access === "full" } : {}) }, access));
       if (hasFlag(argv, "--json")) {
         console.log(JSON.stringify(items, null, 2));
         return;
@@ -5630,6 +5694,13 @@ function inboxPreviewCommand(argv: string[]): void {
       console.log(graphChangePreviewSummary(preview));
       return;
     }
+    if (item.payload.proposalKind === "markdown_document_review") {
+      validateCanonicalWikiTarget(runtime, item.payload, contextScope);
+      const data = readDocumentProposal(runtime.config, runtime.db, id);
+      const output = sanitizeInboxPreviewForOutput({...data,item:{...data.item,documentEditable:access === "full"}},access);
+      console.log(hasFlag(argv,"--json") ? JSON.stringify(output,null,2) : `${id}: ${data.preview.action} ${data.preview.targetPath}`);
+      return;
+    }
     const reviewedWiki = item.type === "wiki_proposal" && isWikiWriteReviewPayload(item.payload)
       ? validateWikiWriteReviewProposal(runtime, item.payload, contextScope, true)
       : undefined;
@@ -5649,7 +5720,7 @@ function inboxPreviewCommand(argv: string[]): void {
         targetPath: absolutePath,
         content: item.payload.content
       };
-      const output = sanitizeInboxPreviewForOutput({ item, preview }, access) as {
+      const output = sanitizeInboxPreviewForOutput({ item: { ...withDocumentRevision(item), ...(isDocumentReview(item) ? {documentEditable:access === "full"} : {}) }, preview }, access) as {
         item: InboxItem;
         preview?: { action?: string; targetPath?: string; content?: string };
       };
@@ -5733,6 +5804,11 @@ async function inboxAcceptCommand(argv: string[]): Promise<void> {
       if (hasFlag(argv, "--json")) console.log(JSON.stringify(output, null, 2));
       else console.log(`Accepted graph change proposal ${id}: ${preview.changes.length} change(s).`);
       return;
+    }
+    if (isDocumentReview(item)) {
+      const expected = optionValue(argv, "--revision");
+      if (item.payload.proposalKind === "markdown_document_review" || expected) assertStrictSourceAccess(contextScope,"full","Accepting a complete Markdown document");
+      assertDocumentAcceptance(runtime.config,runtime.db,item,expected);
     }
     const reviewedWiki = item.type === "wiki_proposal" && isWikiWriteReviewPayload(item.payload)
       ? validateWikiWriteReviewProposal(runtime, item.payload, contextScope, true)
@@ -5945,7 +6021,7 @@ async function inboxRecoverPublicationsCommand(argv: string[]): Promise<void> {
   const failed: Array<{ id: string; error: string }> = [];
   const configPath = optionValue(argv, "--config");
   for (const item of pending) {
-    const nested = ["accept", item.id, ...(configPath ? ["--config", configPath] : [])];
+    const nested = ["accept", item.id, ...(isDocumentReview(item) ? ["--revision",documentRevision(item)] : []), ...(configPath ? ["--config", configPath] : [])];
     const originalLog = console.log;
     try {
       console.log = () => undefined;
@@ -8114,7 +8190,8 @@ Commands:
   pnpm wm inbox [--status pending] [--entities <kind:id,...>] [--json]
   pnpm wm inbox add [--id <id>] --type wiki_proposal|decision_candidate|open_question|task|risk --title <title> [--body <text>] [--capture <capture-id>] [--source <source-id>] [--entity <kind:id>] [--payload '<json>'] [--json]
   pnpm wm inbox preview <id>
-  pnpm wm inbox accept <id>
+  pnpm wm inbox documents propose|list|read|revise --stdin --json
+  pnpm wm inbox accept <id> [--revision <reviewed-document-revision>]
   pnpm wm inbox reject <id> [--feedback <correction instructions>]
   pnpm wm inbox recover-publications [--json]
   pnpm wm diagnose [--json]

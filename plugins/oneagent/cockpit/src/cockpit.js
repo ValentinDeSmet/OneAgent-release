@@ -1,4 +1,5 @@
 const { prioritiesBootstrap } = require("./priorities-view.js");
+const { documentReviewBootstrap } = require("./inbox-documents.js");
 
 function renderCockpitHtml(payload, assets = {}) {
   const data = JSON.stringify(payload).replace(/</g, "\\u003c");
@@ -797,6 +798,8 @@ function renderCockpitHtml(payload, assets = {}) {
         padding: 8px 10px;
       }
       .field textarea { min-height: 96px; resize: vertical; line-height: 1.45; }
+      .inbox-document textarea[data-document-content] { min-height: 280px; font-family: var(--vscode-editor-font-family, monospace); }
+      .inbox-document .help-doc { padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
       /* Entity selection panel (graph): read-first layout, edit on demand. */
       #detailLegacy.hidden { display: none; }
       .ep { margin: -12px; font-size: 12.5px; }
@@ -1763,6 +1766,14 @@ function renderCockpitHtml(payload, assets = {}) {
           if (pendingInboxDetailId === event.data.id) pendingInboxDetailId = undefined;
           if (selectedInboxId === event.data.id) renderInboxDetail();
         }
+        if (documentReview.receive(event.data)) {
+          const item = event.data.payload?.item;
+          if (event.data.type === "inboxDocumentSaved" && item) {
+            state.inbox = (state.inbox || []).map((entry) => entry.id === item.id ? item : entry);
+            inboxDetailCache[item.id] = { item, preview: event.data.payload.preview };
+          }
+          renderInboxDetail();
+        }
         if (event.data?.type === "manualNoteDetail" && event.data.id) {
           const id = event.data.id;
           const detail = event.data.payload;
@@ -2127,6 +2138,7 @@ function renderCockpitHtml(payload, assets = {}) {
       initSideResize();
 
       ${prioritiesBootstrap()}
+      ${documentReviewBootstrap()}
 
       function setActiveView(view) {
         activeCockpitView = view;
@@ -7513,15 +7525,18 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function runInboxAction(type, id) {
+        const item = findInboxItem(id);
+        if (!documentReview.allowAction(type, item)) return;
         selectedCurationPackageId = undefined;
         selectedObservationReviewIds.clear();
         selectedInboxId = id;
         renderInbox();
         renderInboxDetail();
-        vscode?.postMessage({ type, id });
+        vscode?.postMessage({ type, id, revision: documentReview.revision(item) });
       }
 
       function rejectInboxItem(id) {
+        if (!documentReview.allowAction("rejectInbox", findInboxItem(id))) return;
         selectedCurationPackageId = undefined;
         selectedObservationReviewIds.clear();
         selectedInboxId = id;
@@ -7592,6 +7607,7 @@ function renderCockpitHtml(payload, assets = {}) {
         document.querySelectorAll("[data-side-preview]").forEach((button) => button.addEventListener("click", () => runInboxAction("previewInbox", button.dataset.sidePreview)));
         document.querySelectorAll("[data-side-accept]").forEach((button) => button.addEventListener("click", () => runInboxAction("acceptInbox", button.dataset.sideAccept)));
         document.querySelectorAll("[data-side-reject]").forEach((button) => button.addEventListener("click", () => rejectInboxItem(button.dataset.sideReject)));
+        documentReview.bind(document.querySelector("#inboxDetail"), item);
       }
 
       function renderCurationPackageDetail(detail) {
@@ -8065,8 +8081,8 @@ function renderCockpitHtml(payload, assets = {}) {
           }
           return "Recap of a finished curation run: the agent already wrote the entities, relations and wiki updates summarized below. Accept archives this recap; Reject with instructions asks the agent to redo the curation.";
         }
-        if (kind === "wiki_write_review") {
-          return "The agent wants to write this wiki content. Accept applies it; Reject with instructions sends it back.";
+        if (kind === "wiki_write_review" || kind === "markdown_document_review") {
+          return "L’agent propose un document Markdown. Relisez-le, modifiez-le si nécessaire, puis acceptez-le pour le publier dans votre mémoire privée. Aucun embedding local n’est nécessaire.";
         }
         if (kind === "graph_change") {
           return "Reviewable graph transaction backed by accepted observations. Nothing changes before Accept; Accept applies every valid change atomically, while Reject requires an auditable reason.";
@@ -8095,6 +8111,8 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function renderInboxProposedContent(item) {
+        const documentContent = documentReview.render(item);
+        if (documentContent !== null) return documentContent;
         const payload = item?.payload || {};
         if (payload.proposalKind === "graph_change") {
           const evidenceIds = Array.isArray(payload.evidenceObservationIds) ? payload.evidenceObservationIds : [];
@@ -8104,9 +8122,6 @@ function renderCockpitHtml(payload, assets = {}) {
             evidenceIds.length ? "Accepted evidence: " + evidenceIds.join(", ") : "",
             ...changes.map((change, index) => (index + 1) + ". " + graphChangeLabel(change))
           ].filter(Boolean).join("\\n\\n")) + '</textarea></div>';
-        }
-        if (payload.proposalKind === "wiki_write_review" && typeof payload.content === "string") {
-          return '<div class="field"><label>Proposed wiki content</label><textarea readonly>' + escapeHtml(payload.content) + '</textarea></div>';
         }
         if (payload.proposalKind === "entity_created" && payload.entity && typeof payload.entity === "object") {
           const entity = payload.entity;
@@ -8251,6 +8266,7 @@ function renderCockpitHtml(payload, assets = {}) {
         }
         if (proposalKind === "wiki_lint") return { label: "Wiki maintenance", className: "update" };
         if (proposalKind === "wiki_write_review") return { label: "Wiki write proposal", className: "update" };
+        if (proposalKind === "markdown_document_review") return { label: "Document à valider", className: "update" };
         if (proposalKind === "external_wiki_change") return { label: "External wiki change", className: "update" };
         if (previewAction === "create") return { label: "Page creation", className: "create" };
         if (previewAction === "replace") return { label: "Existing page replacement", className: "update" };

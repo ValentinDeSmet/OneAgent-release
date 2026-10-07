@@ -2959,10 +2959,26 @@ async function handleCockpitMessage(cli, webview, message) {
     if (message.type === "previewInbox") {
       await previewProposalById(cli, message.id);
     }
+    if (message.type === "reviseInboxDocument") {
+      let payload;
+      try {
+        payload = JSON.parse(await cli.run(["inbox", "documents", "revise", "--stdin", "--context-scope", "active", "--json"], {
+          input: JSON.stringify({ itemId: message.id, revision: message.revision, content: message.content }), logOutput: false
+        }));
+      } catch (error) {
+        await webview.postMessage({ type: "inboxDocumentSaveFailed", id: message.id, requestId: message.requestId, error: error.message });
+        return;
+      }
+      await webview.postMessage({ type: "inboxDocumentSaved", id: message.id, requestId: message.requestId, payload });
+      try { await postCockpitState(cli, webview); }
+      catch (error) { cli.output?.appendLine?.(`Document draft saved; cockpit refresh unavailable: ${error.message}`); }
+      return;
+    }
     if (message.type === "acceptInbox") {
-      const review = await confirmInboxAcceptance(cli, message.id);
+      const review = await confirmInboxAcceptance(cli, message.id, "Proposal", message.revision);
       if (!review.confirmed) return;
       const args = ["inbox", "accept", message.id, "--context-scope", "active"];
+      if (review.item.revision) args.push("--revision", review.item.revision);
       if (review.allowBoundaryChange === true) args.push("--allow-boundary-change");
       await cli.run(args);
       await postCockpitState(cli, webview);
@@ -5252,6 +5268,7 @@ async function runInboxAction(cli, item, action) {
     acceptanceReview = review;
   }
   const args = ["inbox", action, inboxItem.id, "--context-scope", "active"];
+  if (action === "accept" && acceptanceReview?.item?.revision) args.push("--revision", acceptanceReview.item.revision);
   if (action === "accept" && acceptanceReview?.allowBoundaryChange === true) {
     args.push("--allow-boundary-change");
   }
@@ -5277,11 +5294,22 @@ async function runInboxAction(cli, item, action) {
   await vscode.window.showInformationMessage(`Proposal ${action}ed: ${inboxItem.title}`);
 }
 
-async function confirmInboxAcceptance(cli, id, fallbackTitle = "Proposal") {
+async function confirmInboxAcceptance(cli, id, fallbackTitle = "Proposal", expectedRevision) {
   if (!id) throw new Error("Select an inbox proposal first.");
   const data = await cli.json(["inbox", "preview", id, "--context-scope", "active", "--json"]);
   const item = data?.item;
   if (!item) throw new Error(`Inbox item not found: ${id}`);
+  if (["markdown_document_review", "wiki_write_review"].includes(item.payload?.proposalKind)) {
+    if (item.documentEditable !== true) throw new Error("Full document access is required before accepting this draft.");
+    if (expectedRevision && expectedRevision !== item.revision) throw new Error("The document changed. Review its current version before accepting it.");
+    if (data.preview?.canAccept === false) throw new Error((data.preview.conflicts || []).join("; ") || "This document cannot be accepted.");
+    const choice = await vscode.window.showWarningMessage(
+      `Publier le document « ${item.title || fallbackTitle} » ?`,
+      { modal: true, detail: `Le Markdown sera écrit dans votre mémoire privée : ${item.payload.targetPath}.` },
+      "Publier"
+    );
+    return { confirmed: choice === "Publier", item, preview: data.preview };
+  }
   if (item.payload?.proposalKind === "graph_change") {
     const preview = data.preview || {};
     if (preview.canAccept !== true) {
@@ -5392,6 +5420,7 @@ return {
     WorkMemoryCli,
     createDocumentationOnlyCockpitState,
     handleCockpitMessage,
+    confirmInboxAcceptance,
     refreshActiveMonitoredContext,
     loadCurationPackageState,
     loadGraphChangeHistory,

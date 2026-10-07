@@ -24,6 +24,10 @@ const TOOL_IDS = {
   savePriority: "workMemory_savePriority",
   reorderPriority: "workMemory_reorderPriority",
   deletePriority: "workMemory_deletePriority",
+  proposeDocument: "workMemory_proposeDocument",
+  listDocumentProposals: "workMemory_listDocumentProposals",
+  readDocumentProposal: "workMemory_readDocumentProposal",
+  reviseDocumentProposal: "workMemory_reviseDocumentProposal",
   createTask: "workMemory_createTask",
   updateTask: "workMemory_updateTask",
   createNote: "workMemory_createNote",
@@ -111,6 +115,13 @@ function registerLanguageModelTools(cli) {
       (input) => priorityCommand(cli, "delete", input),
       (input) => `Remove ${input.taskId || ""} from Priorities only. Keep its native task and links.`,
       { compileContextPack: false }
+    )),
+    ...["propose", "list", "read", "revise"].map((operation, index) => vscode.lm.registerTool(
+      [TOOL_IDS.proposeDocument, TOOL_IDS.listDocumentProposals, TOOL_IDS.readDocumentProposal, TOOL_IDS.reviseDocumentProposal][index],
+      new WorkMemoryTool("OneAgent Document Proposal", "Reviewing a private Markdown draft", async input => JSON.parse(await cli.run(
+        ["inbox", "documents", operation, "--stdin", "--context-scope", "active", "--json"],
+        { input: JSON.stringify(input), logOutput: false }
+      )), () => operation === "propose" || operation === "revise" ? "Prepare a Markdown draft in the Inbox; human acceptance is separate." : "Read document proposals without publishing them.", { compileContextPack: false })
     )),
     vscode.lm.registerTool(TOOL_IDS.createTask, new WorkMemoryTool(
       "Create OneAgent Task",
@@ -2048,6 +2059,7 @@ async function readInbox(cli, input) {
       if (preview?.item?.payload?.proposalKind === "graph_change") {
         throw new Error("Use preview_graph_change, then accept_graph_change for an atomic graph proposal.");
       }
+      if (preview?.item?.payload?.proposalKind === "markdown_document_review") throw new Error("Review and accept this Markdown document in the OneAgent Inbox; this tool cannot approve the draft automatically.");
       if (preview?.item?.type === "wiki_proposal" && preview?.item?.payload?.proposalKind !== "wiki_write_review") {
         throw new Error("This legacy wiki proposal cannot create a page because it has no reviewed wiki-write payload. Reject it, then use workMemoryWiki write with an accepted curation package.");
       }
@@ -3440,6 +3452,11 @@ function serializeToolResult(data, charBudget) {
   for (const key of Object.keys(compact)) {
     if (protectedKeys.has(key)) continue;
     compact[key] = compactJsonValue(compact[key], { depth: 0, maxDepth: 6, maxArray: 20, maxString: 1600 });
+  }
+  if (["markdown_document_review", "wiki_write_review"].includes(source.item?.payload?.proposalKind)) {
+    // A model must not revise a complete document from a clipped transport read.
+    compact.item.documentEditable = false;
+    if (compact.preview) compact.preview.canAccept = false;
   }
   compact.transport = {
     truncated: true,

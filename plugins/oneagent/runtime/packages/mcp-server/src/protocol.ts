@@ -4,6 +4,7 @@ import { MemoryConnection, setupTools, callSetupTool } from "./onboarding.ts";
 import { PluginUpdates, updateTools, callUpdateTool } from "./plugin-updates.ts";
 
 import { priorityTools, callPriorityTool } from "./priorities.ts";
+import { documentTools, callDocumentTool } from "./documents.ts";
 
 const VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
 const MAX_MESSAGE = 1024 * 1024;
@@ -14,7 +15,7 @@ const result = (id: unknown, value: unknown) => ({ jsonrpc: "2.0", id, result: v
 /** Tools-only MCP subset. No remote transport, roots discovery, sampling or global context. */
 export function createProtocolHandler(binding: string | MemoryConnection, updates = new PluginUpdates()) {
   const connection = typeof binding === "string" ? new MemoryConnection({ configPath: binding }) : binding;
-  const tools = [...setupTools, ...mcpTools, ...priorityTools, ...updateTools];
+  const tools = [...setupTools, ...mcpTools, ...priorityTools, ...documentTools, ...updateTools];
   let state: "new" | "initializing" | "ready" = "new";
   return async (line: string): Promise<unknown | undefined> => {
     let message: unknown;
@@ -63,6 +64,8 @@ export function createProtocolHandler(binding: string | MemoryConnection, update
           ? await callSetupTool(connection, params.name, params.arguments ?? {})
           : priorityTools.some((tool) => tool.name === params.name)
             ? await callPriorityTool(connection.requireConfig(), params.name, params.arguments ?? {})
+            : documentTools.some((tool) => tool.name === params.name)
+              ? await callDocumentTool(connection.requireConfig(), params.name, params.arguments ?? {})
             : await callMemoryTool(connection.requireConfig(), params.name, params.arguments ?? {});
         return result(id, { content: [{ type: "text", text: JSON.stringify(data) }], isError: false });
       } catch (failure) {

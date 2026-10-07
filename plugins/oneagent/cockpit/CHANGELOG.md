@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.135
+
+- Inbox Markdown (Copilot 0.6.10) : proposition d’un document par l’agent, aperçu formaté, édition et acceptation explicite dans le cockpit partagé.
+- Publication privée et recherche SQLite FTS, sans embeddings. La proposition ne modifie aucun fichier avant validation.
+- Contrôle des révisions du brouillon et du document cible ; conservation des corrections lors d’un échec d’enregistrement.
+- Nouveaux outils pour proposer, lister, lire et corriger les documents en attente. La curation automatique reste soumise à la validation des observations.
+
 ## 0.1.134
 
 - Correction du retrait des priorités (Copilot 0.6.9) : la tâche native reste dans

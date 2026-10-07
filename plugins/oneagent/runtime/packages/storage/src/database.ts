@@ -4005,6 +4005,7 @@ export class WorkMemoryDatabase {
     productIds?: string[];
     entityRefs?: EntityRef[];
     types?: string[];
+    proposalKinds?: string[];
     ids?: string[];
     limit?: number;
   } = {}): InboxItem[] {
@@ -4084,6 +4085,11 @@ export class WorkMemoryDatabase {
       if (filter.types.length === 0) return [];
       clauses.push(`type IN (${filter.types.map(() => "?").join(", ")})`);
       params.push(...filter.types);
+    }
+    if (filter.proposalKinds) {
+      if (!filter.proposalKinds.length) return [];
+      clauses.push("json_extract(payload_json, '$.proposalKind') IN (SELECT value FROM json_each(?))");
+      params.push(JSON.stringify(filter.proposalKinds));
     }
     if (filter.ids) {
       if (filter.ids.length === 0) return [];
