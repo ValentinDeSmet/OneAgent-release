@@ -2,12 +2,12 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.13](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [GitHub Copilot 0.6.14](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 
-**Priorités et tâches (Copilot 0.6.13 et VS Code 0.1.137).** Périodes Q1–Q4 avec année, types de travail triables et filtrables, filtres multiples trimestre/année et accordéon des tâches par priorité. Créer, rattacher, modifier ou détacher une même tâche native depuis Priorités ou Tâches, sans copie ni ajout automatique aux priorités indépendantes. Les anciennes périodes ambiguës restent conservées jusqu’à conversion explicite. [Guide des priorités](docs/priorities.md).
+**Vues enregistrées (Copilot 0.6.14 et VS Code 0.1.138).** Onglets au-dessus des filtres, création par +, filtres multiples et tri enregistrés, ajustements temporaires marqués Modifiée et mise à jour explicite. Renommer, dupliquer, supprimer seulement la vue ou la choisir par défaut. Les listes restent dynamiques ; Mon classement conserve le rang global. Vues et défaut communs aux deux plugins, conservés dans les exports privés. [Guide des priorités](docs/priorities.md).
 
 **Rechargement dans le chat courant.** Après mise à jour, OneAgent attend la fin du travail du chat, des opérations mémoire et la fermeture de ses Canvas, puis demande au SDK Copilot de rafraîchir les plugins, outils et extensions sans effacer la conversation. Enregistrer les brouillons, fermer seulement les onglets OneAgent et demander à rouvrir le Canvas après rechargement. Les autres extensions et connexions MCP du chat peuvent être relancées ; leurs réglages et hooks restent inchangés. L’API hôte est expérimentale et le parcours macOS reste à valider sur le poste cible.
 

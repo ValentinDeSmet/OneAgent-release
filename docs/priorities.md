@@ -1,6 +1,6 @@
 # Priorités — sollicitations personnelles
 
-Mise à jour du 7 octobre 2026, Copilot 0.6.13 et VS Code 0.1.137. Le catalogue public
+Mise à jour du 7 octobre 2026, Copilot 0.6.14 et VS Code 0.1.138. Le catalogue public
 `ValentinDeSmet/OneAgent-release` distribue le front et le moteur dans un même
 plugin ; aucune installation séparée de l’interface n’est nécessaire.
 
@@ -279,3 +279,47 @@ VS Code `workMemory_listPriorityTasks`, `workMemory_attachPriorityTask`,
 la révision de la priorité et celle de chaque tâche ; les écritures vérifient les
 deux sous transaction. Les cycles et rattachements à soi-même sont refusés. Un échec
 incertain ne rejoue aucune écriture et conserve le brouillon du formulaire.
+
+
+## Vues enregistrées
+
+Une barre d’onglets au-dessus des filtres reprend le principe des vues de base
+de données de Notion : une même liste de priorités, plusieurs critères de lecture.
+[Référence UX](https://www.notion.com/help/views-filters-and-sorts). **+** enregistre
+les filtres multiples, la recherche, la vue active/terminée/retirée et le tri
+actuels sous un nom. Les critères restent dynamiques : une nouvelle priorité
+correspondante apparaît dans la vue sans réenregistrement.
+
+Exemples à créer avec tes critères, sans ajouter de données de démonstration :
+
+- **Q4 2026** : trimestre Q4, année 2026, avancement souhaité.
+- **Préparation Q1 2027** : Q1, année 2027, tri par échéance.
+- **DKT FF** : Produit / équipe concerné DKT FF, tri par priorité ou classement.
+
+Cliquer sur un onglet réapplique ses critères. Les changements temporaires portent
+l’indicateur **Modifiée** : **Mettre à jour** les enregistre explicitement,
+**Réappliquer** retrouve les critères sauvegardés, et **+** enregistre une autre vue.
+Le menu **⋯** de la vue permet de renommer, dupliquer, choisir la vue d’ouverture
+par défaut ou supprimer la vue. Une suppression ne retire aucune priorité et
+conserve les filtres courants en vue libre. L’étoile identifie la vue par défaut.
+
+Une vue enregistre le tri et son sens. **Mon classement** reste le classement
+global partagé ; chaque vue peut utiliser un tri par colonne différent. Il ne
+s’agit pas d’un classement manuel indépendant par vue ni d’une photographie des
+éléments présents. La date locale des alertes est recalculée à chaque lecture ;
+les pages et accordéons ouverts ne font pas partie des critères sauvegardés.
+
+Les vues et leur défaut sont conservés sous `prioritySavedViews` dans la mémoire
+SQLite commune. Elles survivent au rechargement des plugins et à l’export/restauration
+privé structuré, sans nouvelle migration SQL. Elles ne modifient ni la sélection
+du graphe ni les autorisations de contexte de l’agent. Une vue supprimée sur un
+autre hôte conserve les filtres de l’écran courant ; elle ne les élargit pas
+silencieusement. Les noms sont uniques et la liste est limitée à 50 vues.
+
+L’agent utilise `oneagent_list_priority_views`, `oneagent_save_priority_view` et
+`oneagent_delete_priority_view`, ou `workMemory_listPriorityViews`,
+`workMemory_savePriorityView` et `workMemory_deletePriorityView` dans VS Code.
+Les écritures portent la révision de collection issue de la dernière lecture :
+un enregistrement concurrent est refusé sous transaction. Pas de sauvegarde
+automatique des ajustements temporaires ni de répétition après une erreur
+incertaine. Les appels agent restent soumis au contexte strict actif.
