@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.136
+
+- Priorités explicites dans VS Code et Copilot 0.6.12 : une tâche ordinaire reste hors de la liste, des compteurs, des filtres et du classement, même avec une urgence élevée ou une échéance.
+- Action **Ajouter aux priorités** dans la fiche d’une tâche personnelle : rattachement à une entité existante, conservation de la même tâche, de ses informations et de tous ses liens.
+- Action inverse **Retirer des priorités** sans suppression ni archivage de la tâche. Les priorités déjà créées et les éléments précédemment retirés restent disponibles.
+- Outils agent pour lire les tâches et ajouter explicitement une tâche existante aux priorités, avec contrôle de révision et respect du contexte strict.
+
 ## 0.1.135
 
 - Inbox Markdown (Copilot 0.6.10) : proposition d’un document par l’agent, aperçu formaté, édition et acceptation explicite dans le cockpit partagé.

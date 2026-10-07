@@ -25,6 +25,13 @@ Use the linked-entity filter to focus on one or more subjects. You can also grou
 
 ## Follow personal requests in Priorities
 
+Ordinary tasks stay outside **Priorités**, even with a high urgency or a deadline.
+The list contains only requests created there and tasks explicitly added to it.
+To follow an existing personal task, save any edits in its Tasks detail panel,
+then choose **Ajouter aux priorités**. Its existing entity is reused when unambiguous;
+otherwise choose an existing entity. This keeps the same task, all its fields and
+links. **Retirer des priorités** leaves the underlying task available in Tasks.
+
 Open **Priorités** in the cockpit navigation for a table of subject, description,
 primary product, partner products/teams, requester, priority, deadline,
 documentation URL, source URL and status. The linked entity appears
@@ -42,8 +49,8 @@ order has been established. Rank changes leave all task fields and links intact.
 Click any column heading to apply an explicit sort. Open **Filtres par champ**
 to combine text, entity, product, requester, priority, date range and URL filters.
 The visible product/team filter matches primary or partner involvement. Nature
-can show subjects and tasks, subjects only or tasks only; the default retains
-both and each row can be reclassified. The editor offers a searchable multi-select
+can show enrolled subjects and tasks, subjects only or tasks only; it never includes
+ordinary tasks automatically. Each priority can be reclassified. The editor offers a searchable multi-select
 for partners, a separate original Google Sheet URL, and **En cours** for work
 that has started. Click the title or **Modifier** to edit any row. An entity that
 is itself a product fixes the primary product; change that attachment to replace

@@ -71,8 +71,10 @@ export interface TaskMetadataInput {
 }
 
 export interface TaskTracking {
-  /** False hides the task only from Priorities; native tasks and links remain. */
+  /** Explicit inclusion in Priorities; ordinary native tasks are not included. */
   inPriorities?: boolean;
+  /** Distinguishes removed priorities from tasks that were never priorities. */
+  priorityRemoved?: boolean;
   manualRank?: number;
   itemType?: "subject" | "task";
   sourceUrl?: string;

@@ -74,7 +74,7 @@ import {
   type WorkMemoryDatabase
 } from "../../storage/src/index.ts";
 import { archiveTask, createTask, listTaskReadModel, updateTask } from "../../tasks/src/index.ts";
-import { listPriorities, savePriority, reorderPriority, deletePriority } from "../../tasks/src/priorities.ts";
+import { listPriorities, savePriority, reorderPriority, deletePriority, promotePriority } from "../../tasks/src/priorities.ts";
 import type { TaskDraft, TaskReadModelItem } from "../../tasks/src/index.ts";
 import {
   appendWikiLog,
@@ -348,8 +348,9 @@ async function executeCommand(argv: string[]): Promise<void> {
       const result = operation === "list" ? listPriorities(runtime.db, input)
         : operation === "save" ? savePriority(runtime.db, input)
         : operation === "reorder" ? reorderPriority(runtime.db, input)
-        : operation === "delete" ? deletePriority(runtime.db, input) : undefined;
-      if (!result) throw new Error("Use priorities list|save|reorder|delete.");
+        : operation === "delete" ? deletePriority(runtime.db, input)
+        : operation === "promote" ? promotePriority(runtime.db, input) : undefined;
+      if (!result) throw new Error("Use priorities list|save|reorder|delete|promote.");
       console.log(JSON.stringify(result));
     } finally { runtime.close(); }
     return;

@@ -1761,6 +1761,13 @@ function renderCockpitHtml(payload, assets = {}) {
           }
           renderOperation();
         }
+        if (event.data?.type === "taskPriorityResult" && event.data.id === selectedTaskId) {
+          const button = document.querySelector("#taskPriorityMembership"), notice = document.querySelector("#taskPriorityNotice");
+          // A confirmed write changes the revision and may add an entity link.
+          // Wait for the fresh task state before enabling another edit.
+          if (button) button.disabled = !event.data.error && !event.data.cancelled;
+          if (notice) notice.textContent = event.data.error || (event.data.cancelled ? "Suivi inchangé." : (event.data.inPriorities ? "Ajoutée aux priorités." : "Retirée des priorités ; la tâche est conservée.") + (event.data.refreshError ? " Actualise la fiche pour charger son nouvel état." : ""));
+        }
         if (event.data?.type === "inboxDetail" && event.data.id) {
           inboxDetailCache[event.data.id] = event.data.payload;
           if (pendingInboxDetailId === event.data.id) pendingInboxDetailId = undefined;
@@ -6815,7 +6822,7 @@ function renderCockpitHtml(payload, assets = {}) {
         const assignee = task.assignee || "me";
         const deadline = task.deadline ? "Due " + task.deadline : "No deadline";
         const linkCount = Array.isArray(task.links) ? task.links.length : 0;
-        return '<article class="task' + selected + '" data-task="' + escapeAttr(task.id) + '" role="button" tabindex="0"><strong>' + escapeHtml(task.title) + '</strong><span>' + escapeHtml(task.body || task.source || task.status || "") + '</span><div class="task-meta"><span class="badge priority-' + escapeAttr(priority) + '">' + escapeHtml(priority) + '</span><span class="badge assignee-' + escapeAttr(assignee) + '">' + escapeHtml(assignee === "agent" ? "agent" : "me") + '</span><span class="badge">' + escapeHtml(deadline) + '</span>' + (linkCount ? '<span class="badge">' + linkCount + ' links</span>' : '') + '</div></article>';
+        return '<article class="task' + selected + '" data-task="' + escapeAttr(task.id) + '" role="button" tabindex="0"><strong>' + escapeHtml(task.title) + '</strong><span>' + escapeHtml(task.body || task.source || task.status || "") + '</span><div class="task-meta"><span class="badge priority-' + escapeAttr(priority) + '">' + escapeHtml(priority) + '</span><span class="badge assignee-' + escapeAttr(assignee) + '">' + escapeHtml(assignee === "agent" ? "agent" : "me") + '</span><span class="badge">' + escapeHtml(deadline) + '</span>' + (linkCount ? '<span class="badge">' + linkCount + ' links</span>' : '') + (task.inPriorities ? '<span class="badge">Dans les priorités</span>' : '') + '</div></article>';
       }
 
       function renderTaskDetail() {
@@ -6845,10 +6852,21 @@ function renderCockpitHtml(payload, assets = {}) {
           '<div class="field"><label>Deadline</label><input id="taskDeadline" type="date" value="' + escapeAttr(task.deadline || "") + '"></div>' +
           '<div class="field"><label>Notes</label><textarea id="taskNotes" placeholder="Operational notes">' + escapeHtml(task.notes || "") + '</textarea></div>' +
           taskLinkSelectorHtml("edit", taskEditableLinks(task)) +
-          '<div class="detail-actions"><button class="action" id="archiveTask">Archive</button><button class="action" id="saveTask">Save</button></div>' +
+          '<div class="detail-actions">' + (task.priorityRevision && task.assignee === "me" && task.status !== "archived" ? '<button class="action" id="taskPriorityMembership" type="button">' + (task.inPriorities ? 'Retirer des priorités' : 'Ajouter aux priorités') + '</button>' : '') + '<button class="action" id="archiveTask">Archive</button><button class="action" id="saveTask">Save</button></div><p class="summary" id="taskPriorityNotice" role="status">' + (task.priorityRevision && task.assignee === "me" ? 'Le suivi dans Priorités est un choix explicite, indépendant du niveau d’urgence de la tâche.' : '') + '</p>' +
           '</div>';
         bindMenus(document.querySelector("#taskDetail"));
         bindTaskLinkSelector("edit");
+        const draftSnapshot = () => JSON.stringify(["taskTitle", "taskBody", "taskStatus", "taskPriority", "taskAssignee", "taskDeadline", "taskNotes", "editTaskLinks"].map(id => document.querySelector("#" + id)?.value || ""));
+        const originalDraft = draftSnapshot();
+        document.querySelector("#taskPriorityMembership")?.addEventListener("click", (event) => {
+          if (draftSnapshot() !== originalDraft) {
+            document.querySelector("#taskPriorityNotice").textContent = "Enregistre les modifications de la fiche avant de changer son suivi dans Priorités.";
+            return;
+          }
+          event.currentTarget.disabled = true;
+          document.querySelector("#taskPriorityNotice").textContent = "Mise à jour du suivi…";
+          vscode?.postMessage({ type: "setTaskPriorityMembership", id: task.id, revision: task.priorityRevision, inPriorities: !task.inPriorities });
+        });
         document.querySelector("#saveTask").addEventListener("click", () => {
           vscode?.postMessage({
             type: "updateTask",

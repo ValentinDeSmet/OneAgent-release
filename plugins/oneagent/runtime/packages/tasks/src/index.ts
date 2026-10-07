@@ -1,3 +1,4 @@
+import { isPriorityTask, priorityRevision } from "./priorities.ts";
 import type { InboxItem } from "../../shared/src/index.ts";
 import type {
   TaskInput,
@@ -48,6 +49,8 @@ export interface TaskReadModelItem {
   origin: TaskOrigin;
   links: TaskLinkDraft[];
   tracking?: TaskTracking | null;
+  inPriorities?: boolean;
+  priorityRevision?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -73,7 +76,8 @@ export function createTask(db: WorkMemoryDatabase, input: TaskDraft): TaskReadMo
     assignee: input.assignee ?? "me",
     deadline: input.deadline,
     notes: input.notes,
-    origin: input.origin ?? "manual"
+    origin: input.origin ?? "manual",
+    tracking: { inPriorities: false, priorityRemoved: false }
   });
   const links = db.replaceTaskLinks(task.id, normalizeLinkDrafts(input.links ?? []));
   return taskFromRecord(task, links);
@@ -244,6 +248,8 @@ function taskFromRecord(task: TaskRecord, links: TaskLinkRecord[] = []): TaskRea
     origin: isTaskOrigin(task.origin) ? task.origin : "task",
     links: links.map(linkToDraft),
     tracking: task.tracking,
+    inPriorities: isPriorityTask(task, links),
+    priorityRevision: priorityRevision(task, links),
     createdAt: task.createdAt,
     updatedAt: task.updatedAt
   };

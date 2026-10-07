@@ -3,7 +3,7 @@
   "displayName": "OneAgent",
   "description": "Local-first product knowledge, curation, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.135",
+  "version": "0.1.136",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",
@@ -352,7 +352,7 @@
           "priorities",
           "tasks"
         ],
-        "modelDescription": "Read my explicit requests/tasks included in Priorities across the bound memory, in the shared manual order by default (or an explicit column sort), with description, linked entity, primary product, partner products/teams, requester, separate documentation and source URLs, subject/task classification, next action and revision. Returns existing entity choices for creation. Returns a global orderRevision for explicit reordering. Categorical filters accept one value or an array (OR within a field, AND across fields). Returns facets from matching rows before pagination, ignoring each facet’s own selection; entities remain the full choices for editing. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.",
+        "modelDescription": "Read only my explicitly created priorities and explicitly promoted tasks in Priorities. Ordinary tasks never enter this list automatically, even when their urgency is high. Read the included requests/tasks across the bound memory, in the shared manual order by default (or an explicit column sort), with description, linked entity, primary product, partner products/teams, requester, separate documentation and source URLs, subject/task classification, next action and revision. Returns existing entity choices for creation. Returns a global orderRevision for explicit reordering. Categorical filters accept one value or an array (OR within a field, AND across fields). Returns facets from matching rows before pagination, ignoring each facet’s own selection; entities remain the full choices for editing. Sort and filter before pagination. Estimated deadlines never count as overdue. Inbox proposals are excluded. Paginated. Use today's LOCAL date for date badges.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -695,7 +695,7 @@
           "priorities",
           "tasks"
         ],
-        "modelDescription": "Create or edit one private request at the user's direction. New requests require a title and an existing entity (kind:id from list_priorities). Legacy unlinked requests must be attached when edited; edits require the exact taskId and revision returned by list_priorities. New rows default to subject; existing ordinary tasks keep their classification unless itemType is explicit. Rows removed from Priorities stay excluded on ordinary edits. To restore the same task, first list view=excluded, then save its taskId/revision with inPriorities=true. A visibility-only save preserves all fields and links, even for unlinked legacy tasks. Omitted fields are preserved; empty strings clear optional text and an empty relatedEntityRefs array clears partners. Never invent a requester or firm deadline. Use unknown if unspecified, approximate for estimates. No messages are sent. A retry of a creation creates another request.",
+        "modelDescription": "Create or edit one private request at the user's direction. New requests require a title and an existing entity (kind:id from list_priorities). Legacy unlinked requests must be attached when edited; edits require the exact taskId and revision returned by list_priorities. New rows default to subject; existing ordinary tasks keep their classification unless itemType is explicit. Ordinary tasks are outside Priorities by default. To enroll an existing task, read tasks first and use workMemory_promoteTaskToPriority with its priorityRevision. Rows removed from Priorities stay excluded on ordinary edits. To restore the same task, first list view=excluded, then save its taskId/revision with inPriorities=true. A visibility-only save preserves all fields and links, even for unlinked legacy tasks. Omitted fields are preserved; empty strings clear optional text and an empty relatedEntityRefs array clears partners. Never invent a requester or firm deadline. Use unknown if unspecified, approximate for estimates. No messages are sent. A retry of a creation creates another request.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -2257,6 +2257,49 @@
               "description": "Optional cockpit visual-state payload."
             }
           }
+        }
+      },
+      {
+        "name": "workMemory_promoteTaskToPriority",
+        "displayName": "Add Task to OneAgent Priorities",
+        "toolReferenceName": "oneagentPromoteTaskToPriority",
+        "canBeReferencedInPrompt": true,
+        "tags": [
+          "oneagent",
+          "tasks",
+          "priorities"
+        ],
+        "modelDescription": "At the user's explicit direction, add ONE existing personal native task to Priorities, preserving its ID, fields, status, urgency, deadline, source, notes and links. Tasks are not priorities by default; do not create a copy or promote all tasks. Read tasks first and pass its exact priorityRevision as revision. An active entity is required: omit entity only if the task has an unambiguous existing attachment/product; otherwise ask the user to choose an entity from list_priorities.entities. Inbox/concept proposals, archived tasks and agent-assigned tasks cannot be promoted. A stale revision is refused; do not replay an uncertain write.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio"
+              ],
+              "description": "Whole bound private memory; includes all subjects, independent of the VS Code selection."
+            },
+            "taskId": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "revision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "entity": {
+              "type": "string",
+              "maxLength": 512,
+              "description": "Existing active kind:id. Required if the task has no unambiguous entity attachment; never invent one."
+            }
+          },
+          "required": [
+            "scope",
+            "taskId",
+            "revision"
+          ],
+          "additionalProperties": false
         }
       }
     ],

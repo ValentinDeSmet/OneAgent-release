@@ -45,12 +45,46 @@ function localDay(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
-function revision(task: TaskRecord, links: TaskLinkRecord[]): string {
+export function priorityRevision(task: TaskRecord, links: TaskLinkRecord[]): string {
   return createHash("sha256").update(JSON.stringify([task, [...links].sort((a, b) => a.id.localeCompare(b.id))])).digest("hex");
 }
+/** Missing membership never enrolls an ordinary task. Keep explicit legacy requests. */
+export function isPriorityTask(task: Pick<TaskRecord, "tracking">, links: TaskLinkRecord[] = []): boolean {
+  if (typeof task.tracking?.inPriorities === "boolean") return task.tracking.inPriorities;
+  return task.tracking?.itemType === "subject" || task.tracking?.itemType === "task"
+    || links.some(link => link.metadata?.priorityPrimary === true)
+    || ["requester", "deadlineKind", "deadlineLabel", "targetDate", "nextAction", "url", "sourceUrl"].some(key => Object.hasOwn(task.tracking ?? {}, key));
+}
 function personalTasks(db: WorkMemoryDatabase, excluded = false): TaskRecord[] {
-  return db.listTasks().filter(task => task.assignee === "me" && task.status !== "archived" && !task.archivedAt
-    && (task.tracking?.inPriorities === false) === excluded);
+  const tasks = db.listTasks().filter(task => task.assignee === "me" && task.status !== "archived" && !task.archivedAt);
+  const links = new Map<string, TaskLinkRecord[]>();
+  for (const link of db.listTaskLinks(tasks.filter(task => task.tracking?.inPriorities === undefined).map(task => task.id))) {
+    links.set(link.taskId, [...(links.get(link.taskId) ?? []), link]);
+  }
+  return tasks.filter(task => excluded ? task.tracking?.inPriorities === false && task.tracking?.priorityRemoved !== false
+    : isPriorityTask(task, links.get(task.id)));
+}
+
+/** Enroll the same native task, preserving its fields and every existing link. */
+export function promotePriority(db: WorkMemoryDatabase, raw: unknown) {
+  const input = fields(raw, ["scope", "taskId", "revision", "entity"]);
+  const id = text(input.taskId, "taskId", 256), expected = text(input.revision, "revision", 64);
+  if (!id || !/^[a-f0-9]{64}$/.test(expected)) throw new Error("Identifiant et révision de tâche requis.");
+  return db.runInImmediateTransaction(() => {
+    const task = db.getTask(id);
+    if (!task || task.assignee !== "me" || task.archivedAt || task.status === "archived") throw new Error("Tâche personnelle introuvable ou archivée.");
+    const links = db.listTaskLinks([id]);
+    if (priorityRevision(task, links) !== expected) throw new Error("Cette tâche a changé. Actualise la fiche avant de l’ajouter aux priorités.");
+    const entities = new Map(entityChoices(db).map(entity => [entity.ref, entity]));
+    const before = priorityItem(task, localDay(), links, entities);
+    const entity = checkedEntity(text(input.entity, "entity", 512, before.entity), entities);
+    if (before.inPriorities && before.entity && entity.ref !== before.entity) throw new Error("Utilise Modifier dans Priorités pour changer le rattachement existant.");
+    const same = links.find(link => link.relationType === "about" && link.targetKind === entity.kind && link.targetId === entity.id);
+    const saved = db.updateTask({ taskId: id, tracking: { ...task.tracking, inPriorities: true, priorityRemoved: false, itemType: before.itemType } });
+    db.upsertTaskLink({ taskId: id, relationType: "about", targetKind: entity.kind, targetId: entity.id, label: same?.label,
+      metadata: { ...same?.metadata, priorityPrimary: true, priorityOwnsLink: same ? same.metadata?.priorityOwnsLink === true : true } });
+    return priorityItem(saved, localDay(), db.listTaskLinks([id]), entities);
+  });
 }
 function manualRank(task: TaskRecord): number | undefined {
   const value = task.tracking?.manualRank;
@@ -138,7 +172,7 @@ export function priorityItem(task: TaskRecord, today: string, links: TaskLinkRec
   const active = task.status !== "done";
   const daysUntil = deadline ? Math.round((Date.parse(deadline) - Date.parse(today)) / 86400000) : null;
   return {
-    ...task, ...placement, tracking: undefined, inPriorities: tracking.inPriorities !== false, revision: revision(task, links), url: tracking.url ?? "", sourceUrl: tracking.sourceUrl ?? "",
+    ...task, ...placement, tracking: undefined, inPriorities: isPriorityTask(task, links), revision: priorityRevision(task, links), url: tracking.url ?? "", sourceUrl: tracking.sourceUrl ?? "",
     itemType: priorityType(task, links), relatedEntityRefs: tracking.relatedEntityRefs ?? [],
     relatedEntities: (tracking.relatedEntityRefs ?? []).map(ref => ({ ref, kind: ref.split(":")[0], label: entities.get(ref)?.label ?? ref })),
     requester: tracking.requester ?? "", nextAction: tracking.nextAction ?? "",
@@ -278,12 +312,14 @@ export function savePriority(db: WorkMemoryDatabase, raw: unknown) {
     if (id && (!existing || existing.archivedAt || existing.status === "archived" || existing.assignee !== "me")) throw new Error("Sollicitation introuvable ou archivée.");
     const links = existing ? db.listTaskLinks([existing.id]) : [];
     const entities = new Map(entityChoices(db).map((entity) => [entity.ref, entity]));
-    if (existing && text(input.revision, "revision", 64) !== revision(existing, links)) throw new Error("Cette sollicitation a changé. Actualise la liste et rouvre la fiche avant de réappliquer tes modifications.");
+    if (existing && text(input.revision, "revision", 64) !== priorityRevision(existing, links)) throw new Error("Cette sollicitation a changé. Actualise la liste et rouvre la fiche avant de réappliquer tes modifications.");
     if (!existing && input.revision !== undefined) throw new Error("Une création ne prend pas de révision.");
     // Visibility-only changes must preserve every native task field and link,
     // including legacy tasks that have not been attached to an entity yet.
     if (existing && input.inPriorities !== undefined && Object.keys(input).every(key => ["scope", "taskId", "revision", "inPriorities"].includes(key))) {
-      const saved = db.updateTask({ taskId: existing.id, tracking: { ...existing.tracking, inPriorities: input.inPriorities as boolean } });
+      const removed = existing.tracking?.inPriorities === false && existing.tracking?.priorityRemoved !== false;
+      if (!isPriorityTask(existing, links) && !removed) throw new Error("Cette tâche n’est pas suivie dans Priorités. Utilise Ajouter aux priorités avec une entité existante.");
+      const saved = db.updateTask({ taskId: existing.id, tracking: { ...existing.tracking, inPriorities: input.inPriorities as boolean, priorityRemoved: input.inPriorities === false } });
       return priorityItem(saved, localDay(), links, entities);
     }
     const before = existing ? priorityItem(existing, localDay(), links, entities) : undefined;
@@ -315,7 +351,7 @@ export function savePriority(db: WorkMemoryDatabase, raw: unknown) {
       status: choice(input.status, "status", statuses, existing?.status ?? "open"),
       // Only firm commitments enter the legacy deadline column used by Today.
       deadline: deadlineKind === "exact" ? deadline : null,
-      tracking: { ...existing?.tracking, inPriorities: (input.inPriorities as boolean | undefined) ?? existing?.tracking?.inPriorities ?? true, itemType, relatedEntityRefs,
+      tracking: { ...existing?.tracking, inPriorities: (input.inPriorities as boolean | undefined) ?? existing?.tracking?.inPriorities ?? true, priorityRemoved: input.inPriorities === true ? false : existing?.tracking?.priorityRemoved, itemType, relatedEntityRefs,
         sourceUrl: checkedUrl(text(input.sourceUrl, "sourceUrl", 2048, before?.sourceUrl)), url: checkedUrl(text(input.url, "url", 2048, before?.url)), requester: text(input.requester, "requester", 300, before?.requester), deadlineKind: deadlineKind as "exact" | "approximate" | "unknown",
         deadlineLabel, targetDate: deadlineKind === "approximate" ? deadline : "", nextAction: text(input.nextAction, "nextAction", 2000, before?.nextAction) }
     };
@@ -343,9 +379,9 @@ export function deletePriority(db: WorkMemoryDatabase, raw: unknown) {
   if (!id || !/^[a-f0-9]{64}$/.test(expected)) throw new Error("Identifiant et révision de sollicitation requis.");
   return db.runInImmediateTransaction(() => {
     const task = db.getTask(id);
-    if (!task || task.assignee !== "me" || task.archivedAt || task.status === "archived" || task.tracking?.inPriorities === false) throw new Error("Sollicitation introuvable ou hors de tes priorités personnelles.");
-    if (revision(task, db.listTaskLinks([id])) !== expected) throw new Error("Cette sollicitation a changé. Actualise la liste avant de la retirer des priorités.");
-    const saved = db.updateTask({ taskId: id, tracking: { ...task.tracking, inPriorities: false } });
-    return { removed: true, taskId: id, revision: revision(saved, db.listTaskLinks([id])) };
+    if (!task || task.assignee !== "me" || task.archivedAt || task.status === "archived" || !isPriorityTask(task, db.listTaskLinks([id]))) throw new Error("Sollicitation introuvable ou hors de tes priorités personnelles.");
+    if (priorityRevision(task, db.listTaskLinks([id])) !== expected) throw new Error("Cette sollicitation a changé. Actualise la liste avant de la retirer des priorités.");
+    const saved = db.updateTask({ taskId: id, tracking: { ...task.tracking, inPriorities: false, priorityRemoved: true } });
+    return { removed: true, taskId: id, revision: priorityRevision(saved, db.listTaskLinks([id])) };
   });
 }

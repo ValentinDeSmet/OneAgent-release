@@ -2429,7 +2429,7 @@ async function handleCockpitMessage(cli, webview, message) {
   try {
     if (message.type === "priorityRequest") {
       try {
-        if (!["list", "save", "reorder", "delete"].includes(message.operation)) throw new Error("Unknown priorities action.");
+        if (!["list", "save", "reorder", "delete", "promote"].includes(message.operation)) throw new Error("Unknown priorities action.");
         const payload = JSON.parse(await cli.run(["priorities", message.operation, "--stdin", "--json"], { input: JSON.stringify({ ...message.input, scope: "portfolio" }), logOutput: false }));
         await webview.postMessage({ type: "priorityResult", requestId: message.requestId, payload });
         if (message.operation !== "list") {
@@ -3098,6 +3098,46 @@ async function handleCockpitMessage(cli, webview, message) {
       if (evidenceIds.length) args.push("--evidence", evidenceIds.join(","));
       await cli.run(args, { logOutput: false });
       await postCockpitState(cli, webview);
+    }
+    if (message.type === "setTaskPriorityMembership") {
+      let payload;
+      try {
+        if (typeof message.inPriorities !== "boolean" || typeof message.id !== "string" || !message.id.trim()
+          || typeof message.revision !== "string" || !/^[a-f0-9]{64}$/.test(message.revision)) throw new Error("Actualise la fiche pour obtenir la révision de la tâche.");
+        const input = { scope: "portfolio", taskId: message.id, revision: message.revision };
+        if (message.inPriorities) {
+          const tasks = await cli.json(["tasks", "--scope", "portfolio", "--json"]);
+          const task = tasks.find(task => task.id === message.id);
+          if (!task?.priorityRevision || task.assignee !== "me" || task.status === "archived") throw new Error("Choisis une tâche personnelle existante.");
+          if (task.priorityRevision !== message.revision) throw new Error("Cette tâche a changé. Actualise la fiche avant de l’ajouter aux priorités.");
+          const { entities } = JSON.parse(await cli.run(["priorities", "list", "--stdin", "--json"], { input: JSON.stringify({ scope: "portfolio", limit: 1 }), logOutput: false }));
+          const choices = new Map(entities.map(entity => [entity.ref, entity]));
+          const about = task.links.filter(link => link.relationType === "about" && choices.has(`${link.targetKind}:${link.targetId}`));
+          const primary = about.find(link => link.metadata?.priorityPrimary === true);
+          const link = primary || (about.length === 1 ? about[0] : undefined);
+          input.entity = link ? `${link.targetKind}:${link.targetId}` : !about.length && choices.has(`product:${task.productId}`) ? `product:${task.productId}` : undefined;
+          if (!input.entity) {
+            const selected = await vscode.window.showQuickPick(entities.map(entity => ({ label: entity.label, description: entity.ref, ref: entity.ref })), {
+              title: "Rattacher cette priorité", placeHolder: "Choisir le produit, l’équipe ou l’entité concernée"
+            });
+            if (!selected) { await webview.postMessage({ type: "taskPriorityResult", id: message.id, cancelled: true }); return; }
+            input.entity = selected.ref;
+          }
+        }
+        payload = JSON.parse(await cli.run(["priorities", message.inPriorities ? "promote" : "delete", "--stdin", "--json"], {
+          input: JSON.stringify(input), logOutput: false
+        }));
+      } catch (error) {
+        await webview.postMessage({ type: "taskPriorityResult", id: message.id, error: error.message });
+        return;
+      }
+      await webview.postMessage({ type: "taskPriorityResult", id: message.id, payload, inPriorities: message.inPriorities });
+      try { await postCockpitState(cli, webview); }
+      catch (error) {
+        cli.output?.appendLine?.(`Task priority membership saved; cockpit refresh unavailable: ${error.message}`);
+        await webview.postMessage({ type: "taskPriorityResult", id: message.id, payload, inPriorities: message.inPriorities, refreshError: true });
+      }
+      return;
     }
     if (message.type === "updateTask") {
       await updateTaskFromCockpit(cli, message);

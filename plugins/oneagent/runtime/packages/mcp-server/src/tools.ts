@@ -17,6 +17,7 @@ const tool = (name: string, description: string, properties: Record<string, Prop
 });
 
 export const mcpTools: Tool[] = [
+  tool("list_tasks", "Read existing OneAgent tasks in the explicit portfolio scope, respecting the active strict context boundary. Native tasks return inPriorities and priorityRevision: use that revision with oneagent_promote_task_to_priority only when the user explicitly asks. Ordinary tasks do not appear in Priorities automatically. Inbox/concept proposals have no priorityRevision and cannot be promoted. Paginated; does not create, promote, finish or remove a task.", { scope: { type: "string", enum: ["portfolio"] }, limit, offset }, ["scope"]),
   tool("list_entities", "List private-memory entity metadata. Does not use or change the active VS Code context. Paginated; optionally filter by kind.", { kind: { ...text(80), pattern: "^[a-z][a-z0-9_-]*$" }, limit, offset }, []),
   tool("search_memory", "Search indexed memory with provenance. Explicit scope is mandatory; product scope also requires productId. Portfolio searches the whole bound memory. Fresh notes await ingestion/curation: use list_notes for them. This is a query filter, not a session security boundary.", {
     query: text(2000), scope: { type: "string", enum: ["product", "portfolio"] }, productId: id,
@@ -60,6 +61,7 @@ export async function callMemoryTool(configPath: string, name: string, raw: unkn
     return { items: value.slice(start, start + size), total: value.length, nextOffset: start + size < value.length ? start + size : null };
   };
   switch (name) {
+    case "oneagent_list_tasks": return page(await run(["tasks", "--scope", "portfolio", "--context-scope", "active"]));
     case "oneagent_list_entities": return page(await run(["entity", "list", ...(args.kind ? ["--kind", String(args.kind)] : [])]));
     case "oneagent_search_memory": {
       if ((args.scope === "product") !== Boolean(args.productId)) throw new Error("Use product scope with productId, or portfolio scope without productId.");
