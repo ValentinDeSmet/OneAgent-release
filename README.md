@@ -2,14 +2,18 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.10](docs/copilot.md) : installer ou mettre à jour OneAgent depuis ce catalogue.
+- [GitHub Copilot 0.6.11](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 
-**Nouveau : Inbox Markdown.** Demandez à l’agent de proposer un document pour une entité existante. Relisez l’aperçu formaté, choisissez Modifier, enregistrez vos corrections puis acceptez la proposition. La publication reste privée et utilise Markdown + SQLite FTS, sans embeddings. Les révisions du brouillon et du document cible sont contrôlées ; un échec conserve vos corrections. Les synthèses de curation continuent de nécessiter des observations acceptées.
+**Nouveau : rechargement dans le chat courant.** Après mise à jour, OneAgent attend la fin du travail du chat, des opérations mémoire et la fermeture de ses Canvas, puis demande au SDK Copilot de rafraîchir les plugins, outils et extensions sans effacer la conversation. Enregistrer les brouillons, fermer seulement les onglets OneAgent et demander à rouvrir le Canvas après rechargement. Les autres extensions et connexions MCP du chat peuvent être relancées ; leurs réglages et hooks restent inchangés. L’API hôte est expérimentale et le parcours macOS reste à valider sur le poste cible.
 
-Après mise à jour, ouvrir une nouvelle session Copilot et demander **« Ouvre le cockpit OneAgent »**. [Guide du cockpit](docs/copilot.md) · [Code partagé](plugins/oneagent/cockpit/src/cockpit.js) · [Guide de l’Inbox](plugins/oneagent/cockpit/docs/analyze-and-inbox.md).
+Pour un ancien chat démarré avant 0.6.11, demander une fois à Copilot un rechargement natif des plugins, extensions et serveurs MCP dans ce chat : simplement rouvrir le Canvas ne recharge pas les modules déjà en mémoire. Vérifier ensuite que oneagent_update_status indique currentVersion = installedVersion et reloadRequired = false. Aucun transfert ou reparamétrage de mémoire nécessaire.
+
+[Guide du rechargement](docs/copilot.md#recharger-sans-recommencer-le-chat) · [Code du coordinateur](plugins/oneagent/com.github.copilot/extensions/oneagent-cockpit/reload.mjs)
+
+L’Inbox Markdown reste disponible : proposer un document, modifier l’aperçu puis accepter sa publication privée, sans embeddings.
 
 ---
 
