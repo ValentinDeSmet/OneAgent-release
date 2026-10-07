@@ -2,12 +2,14 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.9](docs/copilot.md) : ajouter ce dépôt comme catalogue, puis installer ou mettre à jour OneAgent. Le paquet inclut le **cockpit complet partagé avec VS Code** : graphe 2D/3D, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
+- [GitHub Copilot 0.6.10](docs/copilot.md) : installer ou mettre à jour OneAgent depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
-Version 0.6.9 : filtres de priorités à cases à cocher avec sélection multiple, recherche et compteurs basés sur les sollicitations avant pagination. Actions compactes avec crayon et menu ⋯. Retirer une priorité conserve la tâche native, son ID, son avancement, ses informations et tous ses liens dans Tâches. La vue « Retirées des priorités » permet de remettre la même tâche dans la liste sans la recréer. Le retrait est exclu des compteurs, facettes et du classement ; les éditions ordinaires ne réactivent pas la priorité. Les fichiers Markdown ouverts depuis le cockpit apparaissent dans un onglet document OneAgent au sein de Copilot, avec lecture formatée et édition du fichier original. Un autre clic sur le même fichier ramène au même onglet. Le lecteur fonctionne sans CDN et refuse les enregistrements si le fichier a changé depuis sa lecture, en conservant le brouillon. Cet onglet utilise le Canvas du plugin ; il ne remplace pas l’éditeur de fichiers natif interne de Copilot. Priorités : classement manuel par glisser-déposer et clavier, affiché par défaut et partagé entre les hôtes. Bouton Mon classement pour revenir après un tri. Produit principal et partenaires, filtres par produit ou équipe, liens de documentation et de source distincts, avancement « En cours », choix entre sujets et tâches.
+Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 
-Après mise à jour, ouvrir une nouvelle session Copilot et demander **« Ouvre le cockpit OneAgent »**. [Guide du cockpit](docs/copilot.md) · [Code partagé de l’interface](plugins/oneagent/cockpit/src/cockpit.js) · [Adaptateur Copilot](plugins/oneagent/com.github.copilot/extensions/oneagent-cockpit).
+**Nouveau : Inbox Markdown.** Demandez à l’agent de proposer un document pour une entité existante. Relisez l’aperçu formaté, choisissez Modifier, enregistrez vos corrections puis acceptez la proposition. La publication reste privée et utilise Markdown + SQLite FTS, sans embeddings. Les révisions du brouillon et du document cible sont contrôlées ; un échec conserve vos corrections. Les synthèses de curation continuent de nécessiter des observations acceptées.
+
+Après mise à jour, ouvrir une nouvelle session Copilot et demander **« Ouvre le cockpit OneAgent »**. [Guide du cockpit](docs/copilot.md) · [Code partagé](plugins/oneagent/cockpit/src/cockpit.js) · [Guide de l’Inbox](plugins/oneagent/cockpit/docs/analyze-and-inbox.md).
 
 ---
 
