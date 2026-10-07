@@ -2,12 +2,14 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.11](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [GitHub Copilot 0.6.12](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 
-**Nouveau : rechargement dans le chat courant.** Après mise à jour, OneAgent attend la fin du travail du chat, des opérations mémoire et la fermeture de ses Canvas, puis demande au SDK Copilot de rafraîchir les plugins, outils et extensions sans effacer la conversation. Enregistrer les brouillons, fermer seulement les onglets OneAgent et demander à rouvrir le Canvas après rechargement. Les autres extensions et connexions MCP du chat peuvent être relancées ; leurs réglages et hooks restent inchangés. L’API hôte est expérimentale et le parcours macOS reste à valider sur le poste cible.
+**Priorités explicites (Copilot 0.6.12 et VS Code 0.1.136).** Les tâches ordinaires restent hors de la liste, même urgentes. Dans une fiche Tâches, **Ajouter aux priorités** inscrit la même tâche et son entité ; **Retirer des priorités** conserve son état, ses informations et ses liens. Les priorités déjà créées sont conservées. [Guide des priorités](docs/priorities.md).
+
+**Rechargement dans le chat courant.** Après mise à jour, OneAgent attend la fin du travail du chat, des opérations mémoire et la fermeture de ses Canvas, puis demande au SDK Copilot de rafraîchir les plugins, outils et extensions sans effacer la conversation. Enregistrer les brouillons, fermer seulement les onglets OneAgent et demander à rouvrir le Canvas après rechargement. Les autres extensions et connexions MCP du chat peuvent être relancées ; leurs réglages et hooks restent inchangés. L’API hôte est expérimentale et le parcours macOS reste à valider sur le poste cible.
 
 Pour un ancien chat démarré avant 0.6.11, demander une fois à Copilot un rechargement natif des plugins, extensions et serveurs MCP dans ce chat : simplement rouvrir le Canvas ne recharge pas les modules déjà en mémoire. Vérifier ensuite que oneagent_update_status indique currentVersion = installedVersion et reloadRequired = false. Aucun transfert ou reparamétrage de mémoire nécessaire.
 

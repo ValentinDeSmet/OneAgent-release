@@ -1,6 +1,6 @@
 # Priorités — sollicitations personnelles
 
-Mise à jour du 6 octobre 2026, Copilot 0.6.9 et VS Code 0.1.134. Le catalogue public
+Mise à jour du 7 octobre 2026, Copilot 0.6.12 et VS Code 0.1.136. Le catalogue public
 `ValentinDeSmet/OneAgent-release` distribue le front et le moteur dans un même
 plugin ; aucune installation séparée de l’interface n’est nécessaire.
 
@@ -11,6 +11,15 @@ par résultat attendu : sujet, description, produit principal, autres produits o
 équipes concernés, attendu par, priorité, deadline, documentation, source et
 avancement. L’entité rattachée figure sous le sujet. Une fiche d’édition conserve le contexte sans alourdir la lecture.
 
+La liste contient seulement les sollicitations créées dans Priorités et les tâches
+ajoutées explicitement. Créer une tâche dans Tâches ne l’inscrit jamais automatiquement,
+même avec une urgence critique ou une deadline. Pour y inclure une tâche personnelle,
+ouvrir sa fiche et choisir **Ajouter aux priorités**. Son entité est reprise lorsqu’elle
+est sans ambiguïté ; sinon un choix parmi les entités existantes est demandé. Enregistrer
+les modifications de la fiche avant de changer ce suivi. La tâche conserve son ID,
+son état, sa description, ses notes, sa source et ses liens : aucune copie n’est créée.
+**Retirer des priorités** dans cette même fiche conserve la tâche dans Tâches.
+
 - Ajouter une sollicitation avec une entité existante obligatoire (projet, produit,
   personne ou autre type du graphe). Le produit est facultatif pour les autres
   entités ; une entité produit renseigne ce même produit.
@@ -20,9 +29,9 @@ avancement. L’entité rattachée figure sous le sujet. Une fiche d’édition 
 - Distinguer le lien de documentation (`url`) de l’URL du Google Sheet d’origine
   (`sourceUrl`). Le lien source reste disponible pour une demande d’actualisation
   à l’agent ; son enregistrement ne déclenche pas une synchronisation distante.
-- Classer chaque ligne comme sujet à développer ou tâche/action. L’affichage
-  initial garde **Sujets et tâches**, avec un filtre pour ne voir que l’un ou
-  l’autre ; la classification reste modifiable dans la fiche.
+- Classer chaque priorité comme sujet à développer ou tâche/action. Le filtre
+  **Sujets et tâches** porte uniquement sur les éléments déjà suivis comme priorités ;
+  il ne fait pas apparaître les tâches ordinaires. La classification reste modifiable.
 - Choisir une priorité basse, normale, haute ou critique.
 - Indiquer une date ferme, une estimation libre (date cible facultative) ou laisser
   l’échéance à préciser. Seules les dates fermes peuvent être signalées en retard.
@@ -68,7 +77,7 @@ Le canvas `oneagent-priorities` est livré dans
 `com.github.copilot/extensions/oneagent-priorities/`, conformément au format
 Agent Plugins 1.0. Il réutilise la liaison mémoire de l’onboarding, les outils
 `oneagent_list_priorities` / `oneagent_save_priority` et les commandes CLI
-`priorities list|save|reorder|delete --stdin --json`. Ces commandes exigent un périmètre portfolio
+`priorities list|save|promote|reorder|delete --stdin --json`. Ces commandes exigent un périmètre portfolio
 explicite. Les appels agent utilisent le contexte actif et refusent d’élargir
 implicitement un contexte strict. Le canvas et le cockpit manuels restent des
 vues portfolio explicites, sans modifier le contexte actif de l’agent.
@@ -88,7 +97,7 @@ liens, notes et références des tâches existantes sont conservés à l’édit
 
 La migration 016 ajoute un objet `tracking_json` aux tâches : `requester`,
 `deadlineKind`, `deadlineLabel`, `targetDate`, `nextAction`, `url`, `sourceUrl`,
-`itemType`, `relatedEntityRefs` et `manualRank`.
+`itemType`, `relatedEntityRefs`, `manualRank`, `inPriorities` et `priorityRemoved`.
 Aucune nouvelle migration SQL n’est nécessaire. Les anciennes lignes créées dans
 Priorités (lien principal `priorityPrimary`) sont lues comme sujets ; les autres
 tâches restent des tâches. Une classification explicite prévaut toujours. La date ferme reste
@@ -112,7 +121,7 @@ réessayées automatiquement après une erreur réseau.
 
 Le déplacement utilise `taskId`, `targetTaskId`, `position: before|after` et le
 `orderRevision` global renvoyé par la liste. La révision porte sur toutes les
-lignes personnelles non archivées, même hors filtres ou pagination. Le serveur
+priorités personnelles non archivées, même hors filtres ou pagination. Le serveur
 recalcule l’ordre sous transaction, refuse une révision périmée et enregistre
 des rangs entiers. Toute autre ligne conserve son ordre relatif. Les champs et
 liens restent intacts, y compris lors d’une actualisation concurrente d’une
@@ -126,7 +135,10 @@ Le serveur local écoute uniquement sur `127.0.0.1`, avec un secret par instance
 contrôle de Host/Origin, CSP et limite de requête. Aucun serveur réseau distant,
 aucune installation de dépendance à l’ouverture, aucune donnée privée dans le
 répertoire du plugin. Les appels libèrent le verrou mémoire après l’opération.
-Les sessions chargées avant une mise à jour sont bloquées jusqu’à leur réouverture.
+Depuis Copilot 0.6.11, OneAgent demande le rechargement du plugin dans la conversation
+courante après fermeture de ses Canvas et fin des opérations en cours. Le moteur
+chargé doit confirmer la nouvelle version ; la simple réouverture du Canvas ne
+recharge pas les modules en mémoire. Voir le [guide Copilot](../apps/copilot-plugin/README.md#recharger-sans-recommencer-le-chat).
 
 Références officielles consultées le 2 octobre 2026 :
 
@@ -189,14 +201,28 @@ et sortants. Elle reste disponible dans Tâches et Today selon leurs filtres.
 
 Le champ durable `tracking.inPriorities=false` exclut l’élément des vues actives,
 terminées et toutes, des compteurs, des facettes et du classement des priorités.
-Les tâches existantes sans indicateur restent incluses pour compatibilité. Une
+Les anciennes priorités créées explicitement (nature dans `tracking`, champs de
+sollicitation ou lien `priorityPrimary`) restent incluses pour compatibilité. Une
+tâche ancienne sans ces informations reste une tâche ordinaire ; son urgence,
+sa deadline, son produit ou un rang manuel ne suffisent pas à l’inscrire. Une
 modification ordinaire depuis Tâches ou par l’agent ne réactive pas cet indicateur.
 L’export privé et la restauration conservent ce champ dans le suivi de la tâche.
 
 La vue **Retirées des priorités** (`view=excluded`) permet de retrouver les éléments
 retirés, puis de choisir **Remettre dans mes priorités** dans le menu ou la fiche.
 Cela conserve la même identité et ne crée aucune tâche supplémentaire. Le
-classement manuel est désactivé dans cette vue.
+classement manuel est désactivé dans cette vue. Les nouvelles tâches ordinaires
+portent `inPriorities=false` et `priorityRemoved=false` : elles ne sont pas des
+priorités retirées. Un retrait explicite inscrit `priorityRemoved=true`.
+
+Pour ajouter une tâche existante à la demande de l’utilisateur, l’agent lit
+`oneagent_list_tasks` / `workMemory_readTasks`, puis appelle
+`oneagent_promote_task_to_priority` / `workMemory_promoteTaskToPriority` avec
+`scope=portfolio`, son ID et sa `priorityRevision`. Une entité existante est obligatoire
+si le rattachement ne peut pas être repris sans ambiguïté. Cette opération garde
+tous les champs de la tâche ; elle ajoute seulement le suivi et le lien principal
+nécessaire. Les propositions Inbox/concept n’ont pas cette révision et ne sont pas
+promouvables. Les règles de contexte strict de l’agent restent appliquées.
 
 `oneagent_delete_priority` et `workMemory_deletePriority` conservent leur nom pour
 compatibilité mais retirent uniquement la ligne des priorités. Ils utilisent
