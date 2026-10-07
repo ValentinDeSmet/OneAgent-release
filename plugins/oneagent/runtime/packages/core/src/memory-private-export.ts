@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { isPathInside, resolvePhysicalPath } from "../../shared/src/index.ts";
+import { PRIORITY_VIEWS_UI_KEY } from "../../tasks/src/priority-views.ts";
 import { loadConfig } from "../../registry/src/index.ts";
 import { INITIAL_SCHEMA_SQL } from "../../storage/src/schema.ts";
 import {
@@ -43,7 +44,7 @@ export interface PrivateExportManifest {
 }
 
 const quote = (value: string): string => `"${value.replaceAll('"', '""')}"`;
-const KNOWN_UI_STATE = new Set(["agentContextScope", "activeContextView", "graphViewPresets", "graphFilters", "cockpitTheme", "privateExportCoverage"]);
+const KNOWN_UI_STATE = new Set(["agentContextScope", "activeContextView", "graphViewPresets", "graphFilters", "cockpitTheme", "privateExportCoverage", PRIORITY_VIEWS_UI_KEY]);
 const DERIVED = new Set(["source_chunks_fts", "entities_fts", "observations_fts", "source_chunk_embeddings"]);
 
 /** Prepare a reviewable, structured archive from the coherent local recovery snapshot. */

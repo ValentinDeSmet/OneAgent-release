@@ -23,7 +23,7 @@ export async function startPriorityServer(call) {
         return send(200, assets.get(asset).replaceAll("__ONEAGENT_TOKEN__", token), asset.endsWith(".js") ? "text/javascript; charset=utf-8" : asset.endsWith(".css") ? "text/css; charset=utf-8" : "text/html; charset=utf-8");
       }
       if (req.headers["x-oneagent-token"] !== token || (req.headers.origin && req.headers.origin !== `http://${authority}`)) return send(403, { error: "Accès refusé." });
-      const operation = { "/api/list": "oneagent_list_priorities", "/api/save": "oneagent_save_priority", "/api/reorder": "oneagent_reorder_priority", "/api/delete": "oneagent_delete_priority", "/api/tasks": "oneagent_list_priority_tasks", "/api/task-attach": "oneagent_attach_priority_task", "/api/task-detach": "oneagent_detach_priority_task", "/api/task-save": "oneagent_save_priority_task" }[url.pathname];
+      const operation = { "/api/list": "oneagent_list_priorities", "/api/save": "oneagent_save_priority", "/api/reorder": "oneagent_reorder_priority", "/api/delete": "oneagent_delete_priority", "/api/tasks": "oneagent_list_priority_tasks", "/api/task-attach": "oneagent_attach_priority_task", "/api/task-detach": "oneagent_detach_priority_task", "/api/task-save": "oneagent_save_priority_task", "/api/views": "oneagent_list_priority_views", "/api/view-save": "oneagent_save_priority_view", "/api/view-delete": "oneagent_delete_priority_view" }[url.pathname];
       if (req.method !== "POST" || !operation) return send(404, { error: "Action inconnue." });
       if (req.headers["content-type"] !== "application/json") return send(415, { error: "JSON requis." });
       const chunks = []; let size = 0;

@@ -15,6 +15,8 @@ const taskEditor = $("#task-editor"), taskForm = $("#task-form");
 const expandedTasks = new Set(), taskCache = new Map(), taskLoads = new Map();
 let taskPanels = new Map(), taskContext = null, taskChoices = [], taskNextOffset = null, taskSearchVersion = 0, taskSearchTimer;
 let menuItem = null, menuTrigger = null;
+const viewEditor = $("#view-editor"), viewForm = $("#view-form"), viewDeletion = $("#view-delete-confirm");
+let savedViews = [], viewsRevision = "", defaultViewId = null, activeViewId = "", viewsReady = false, viewDraft = null, viewBusy = false;
 const priorityLabels = { critical: "Critique", high: "Haute", medium: "Normale", low: "Basse" };
 const workTypeLabels = { unspecified: "À préciser", discovery: "Discovery", technical_study: "Étude technique", implementation: "Développement / implémentation", validation: "Validation / recette", documentation: "Documentation", other: "Autre" };
 const statusLabels = { open: "À faire", in_progress: "En cours", ready: "Prête", pending: "À clarifier", candidate: "À valider", blocked: "En attente", done: "Terminée" };
@@ -36,6 +38,129 @@ const facetFields = { workType: ["work-type-filter", "Tous les types de travail"
 const selectedFilters = Object.fromEntries(Object.keys(facetFields).map(key => [key, new Set()]));
 let facets = {}, knownChoices = {};
 function filters() { return { ...Object.fromEntries(Object.entries(filterFields).map(([key, id]) => [key, $("#" + id).value])), ...Object.fromEntries(Object.entries(selectedFilters).map(([key, values]) => [key, [...values]])) }; }
+function viewCriteria() {
+  const value = { query: $("#search").value.trim(), view: $("#view").value, ...filters(), sortBy, sortDirection };
+  for (const key of Object.keys(value)) value[key] = Array.isArray(value[key]) ? [...value[key]].filter(item => item && item !== "all").sort() : value[key].trim();
+  return value;
+}
+const sameCriteria = (a,b) => JSON.stringify(Object.keys(a).sort().map(key => [key,a[key]])) === JSON.stringify(Object.keys(b).sort().map(key => [key,b[key]]));
+const activeView = () => savedViews.find(view => view.id === activeViewId);
+function renderViewControls() {
+  const focused = document.activeElement?.shadowRoot?.activeElement || document.activeElement;
+  const focusedId = $("#view-tabs").contains(focused) ? focused?.dataset?.viewId : undefined;
+  const current = activeView(), dirty = Boolean(current && !sameCriteria(viewCriteria(), current.criteria));
+  const choices = [{ id: "", name: activeViewId ? "Toutes mes priorités" : activeFilterCount() || $("#search").value || sortBy !== "manual" || $("#view").value !== "active" ? "Vue libre" : "Toutes mes priorités" }, ...savedViews];
+  const buttons = choices.map((view,index) => {
+    const button = node("button", view.name + (view.id && view.id === defaultViewId ? " ★" : ""), "view-tab");
+    button.type = "button"; button.dataset.viewId = view.id; button.disabled = saving || reordering || viewBusy;
+    button.setAttribute("role", "tab"); button.setAttribute("aria-selected", String(view.id === activeViewId)); button.setAttribute("aria-controls", "priority-table");
+    button.tabIndex = view.id === activeViewId ? 0 : -1;
+    button.addEventListener("click", () => chooseView(view.id));
+    button.addEventListener("keydown", event => {
+      const next = event.key === "ArrowRight" ? (index + 1) % choices.length : event.key === "ArrowLeft" ? (index + choices.length - 1) % choices.length : event.key === "Home" ? 0 : event.key === "End" ? choices.length - 1 : null;
+      if (next === null) return; event.preventDefault(); chooseView(choices[next].id); $("#view-tabs").children[next]?.focus();
+    }); return button;
+  });
+  $("#view-tabs").replaceChildren(...buttons);
+  if (focusedId !== undefined) buttons.find(button => button.dataset.viewId === focusedId && !button.disabled)?.focus();
+  $("#view-dirty").hidden = !dirty; $("#view-update").hidden = !dirty; $("#view-revert").hidden = !dirty;
+  $("#view-actions").hidden = !current;
+  $("#view-default").textContent = current?.id === defaultViewId ? "Ne plus ouvrir par défaut" : "Ouvrir par défaut";
+  for (const id of ["view-save-as", "view-update", "view-revert", "view-rename", "view-duplicate", "view-default", "view-delete"]) $("#" + id).disabled = !viewsRevision || saving || reordering || viewBusy;
+}
+function applyViewCriteria(value = {}) {
+  clearTimeout(searchTimer); closeFilterMenus(); closeRowMenu(); $("#view-actions").open = false;
+  $("#search").value = value.query || ""; $("#view").value = value.view || "active";
+  sortBy = value.sortBy || "manual"; sortDirection = value.sortDirection || "asc";
+  for (const [key,id] of Object.entries(filterFields)) $("#" + id).value = value[key] || "";
+  for (const key of Object.keys(facetFields)) {
+    selectedFilters[key] = new Set(Array.isArray(value[key]) ? value[key] : value[key] ? [value[key]] : []);
+    $("#" + facetFields[key][0] + "-search").value = "";
+  }
+  expandedTasks.clear(); renderFacets(); renderViewControls();
+}
+function chooseView(id) {
+  if (saving || reordering || viewBusy || editor.open || taskEditor.open || viewEditor.open) return;
+  const view = savedViews.find(view => view.id === id); if (id && !view) return;
+  activeViewId = id; applyViewCriteria(view?.criteria); refresh();
+}
+async function readViews(version) {
+  try {
+    const data = await api("views", {}); if (version !== requestVersion) return;
+    const initial = !viewsReady;
+    savedViews = data.items || []; viewsRevision = data.revision || ""; defaultViewId = data.defaultViewId || null; viewsReady = true;
+    if (activeViewId && !activeView()) { activeViewId = ""; $("#view-feedback").textContent = "Cette vue a été supprimée ailleurs ; tes filtres actuels sont conservés."; }
+    if (initial && defaultViewId && !activeFilterCount() && !$("#search").value && sortBy === "manual" && $("#view").value === "active") {
+      const view = savedViews.find(view => view.id === defaultViewId); if (view) { activeViewId = view.id; applyViewCriteria(view.criteria); }
+    }
+    error($("#view-error")); renderViewControls();
+  } catch (failure) { if (version === requestVersion) { viewsRevision = ""; renderViewControls(); error($("#view-error"), "Vues indisponibles : " + failure.message + "\nActualise pour recharger les vues. Les filtres actuels sont conservés."); } }
+}
+function openViewEditor(mode) {
+  if (!viewsRevision || saving || reordering || viewBusy) return;
+  const current = activeView(); if (mode !== "create" && !current) return;
+  $("#view-actions").open = false; closeFilterMenus(); viewForm.reset(); error($("#view-form-error"));
+  viewDraft = { mode, id: current?.id, criteria: mode === "duplicate" ? current.criteria : viewCriteria() };
+  viewForm.elements.name.value = mode === "rename" ? current.name : mode === "duplicate" ? current.name + " · copie" : "";
+  viewForm.elements.makeDefault.checked = mode === "rename" && current.id === defaultViewId;
+  $("#view-editor-title").textContent = mode === "rename" ? "Renommer la vue" : mode === "duplicate" ? "Dupliquer la vue" : "Nouvelle vue";
+  $("#view-editor-help").textContent = mode === "rename" ? "Le nom change ; les filtres et le tri enregistrés sont conservés." : mode === "duplicate" ? "Copie les critères enregistrés dans une nouvelle vue." : "Enregistre les filtres, la recherche et le tri actuels. Les priorités restent à jour automatiquement.";
+  $("#view-submit").disabled = false; viewEditor.showModal(); viewForm.elements.name.focus();
+}
+async function writeView(operation, input, target, confirmed) {
+  if (!viewsRevision || saving || reordering || viewBusy) return;
+  viewBusy = true; saving = true; error(target); renderViewControls();
+  try {
+    const data = await api(operation, { ...input, revision: viewsRevision });
+    savedViews = data.items; defaultViewId = data.defaultViewId; viewsRevision = data.revision;
+    confirmed(data); error($("#view-error")); await refresh();
+  } catch (failure) {
+    viewsRevision = "";
+    error(target, failure.message + "\nModification non confirmée. Ferme cette fenêtre et actualise les vues avant de réessayer.");
+  } finally { viewBusy = false; saving = false; renderViewControls(); render(); }
+}
+$("#view-save-as").addEventListener("click", () => openViewEditor("create"));
+$("#view-rename").addEventListener("click", () => openViewEditor("rename"));
+$("#view-duplicate").addEventListener("click", () => openViewEditor("duplicate"));
+for (const id of ["view-close", "view-cancel"]) $("#" + id).addEventListener("click", () => { if (!viewBusy) viewEditor.close(); });
+viewEditor.addEventListener("cancel", event => { if (viewBusy) event.preventDefault(); });
+viewForm.addEventListener("submit", async event => {
+  event.preventDefault(); if (!viewDraft || $("#view-submit").disabled || viewBusy) return;
+  const input = { name: viewForm.elements.name.value, makeDefault: viewForm.elements.makeDefault.checked };
+  if (viewDraft.mode === "rename") input.id = viewDraft.id;
+  else input.criteria = viewDraft.criteria;
+  $("#view-submit").disabled = true;
+  await writeView("view-save", input, $("#view-form-error"), data => {
+    activeViewId = data.saved.id; viewEditor.close();
+    if (viewDraft.mode === "duplicate") applyViewCriteria(data.saved.criteria);
+    $("#view-feedback").textContent = "Vue enregistrée.";
+  });
+});
+$("#view-update").addEventListener("click", () => {
+  const current = activeView(); if (!current) return;
+  return writeView("view-save", { id: current.id, criteria: viewCriteria() }, $("#view-error"), () => { $("#view-feedback").textContent = "Filtres et tri de la vue mis à jour."; });
+});
+$("#view-revert").addEventListener("click", () => chooseView(activeViewId));
+$("#view-default").addEventListener("click", () => {
+  const current = activeView(); if (!current) return; $("#view-actions").open = false;
+  return writeView("view-save", { id: current.id, makeDefault: current.id !== defaultViewId }, $("#view-error"), () => { $("#view-feedback").textContent = defaultViewId ? "Vue d’ouverture enregistrée." : "Ouverture sur toutes les priorités."; });
+});
+let pendingViewDelete;
+$("#view-delete").addEventListener("click", () => {
+  if (saving || reordering || viewBusy || !activeView()) return;
+  pendingViewDelete = activeView(); $("#view-actions").open = false; $("#view-delete-name").textContent = pendingViewDelete.name;
+  error($("#view-delete-error")); $("#view-delete-submit").disabled = false; viewDeletion.showModal();
+});
+$("#view-delete-cancel").addEventListener("click", () => { if (!viewBusy) viewDeletion.close(); });
+viewDeletion.addEventListener("cancel", event => { if (viewBusy) event.preventDefault(); });
+$("#view-delete-submit").addEventListener("click", async () => {
+  if (!pendingViewDelete || $("#view-delete-submit").disabled || viewBusy) return;
+  $("#view-delete-submit").disabled = true;
+  return writeView("view-delete", { id: pendingViewDelete.id }, $("#view-delete-error"), () => {
+    if (activeViewId === pendingViewDelete.id) activeViewId = "";
+    viewDeletion.close(); $("#view-feedback").textContent = "Vue supprimée ; les priorités et les filtres actuels sont conservés.";
+  });
+});
 function activeFilterCount() { return Object.values(filters()).filter(value => Array.isArray(value) ? value.length : value).length; }
 const normalize = value => String(value).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("fr");
 function renderFacet(key) {
@@ -218,6 +343,7 @@ function actionButton(label, icon) {
   return button;
 }
 function render() {
+  renderViewControls();
   taskPanels = new Map();
   closeRowMenu();
   rankHandles = new Map();
@@ -292,6 +418,7 @@ async function refresh(append = false) {
   const version = ++requestVersion;
   loading = true; $("#refresh").disabled = true; $("#more").disabled = true;
   try {
+    await readViews(version); if (version !== requestVersion) return;
     const data = await api("list", { today: day(), query: $("#search").value, view: $("#view").value, ...filters(), sortBy, sortDirection, limit: 100, offset: append ? nextOffset : 0 });
     if (version !== requestVersion) return;
     items = append ? [...items, ...data.items.filter((item) => !items.some((old) => old.id === item.id))] : data.items;
@@ -315,7 +442,7 @@ async function refresh(append = false) {
   } catch (failure) {
     if (version === requestVersion) { orderRevision = ""; render(); error($("#error"), failure.message); $("#summary").textContent = "Actualisation impossible · les données affichées peuvent être anciennes"; }
   } finally {
-    if (version === requestVersion) { loading = false; $("#refresh").disabled = false; $("#more").disabled = false; }
+    if (version === requestVersion) { loading = false; $("#refresh").disabled = false; $("#more").disabled = false; renderViewControls(); }
   }
 }
 function renderPriorityTasks(item, panel) {
@@ -561,7 +688,7 @@ for (const [key, [id]] of Object.entries(facetFields)) {
   $("#" + id + "-clear").addEventListener("click", () => { if (reordering || saving) return; selectedFilters[key].clear(); renderFacet(key); refresh(); });
   $("#" + id).addEventListener("keydown", event => { if (event.key === "Escape") { event.preventDefault(); $("#" + id).open = false; } });
 }
-const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !editor.open && !taskEditor.open && !deletion.open && rowMenu.hidden && !Object.values(facetFields).some(([id]) => $("#" + id).open) && !document.hidden) refresh(); };
+const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !editor.open && !taskEditor.open && !deletion.open && !viewEditor.open && !viewDeletion.open && !$("#view-actions").open && rowMenu.hidden && !Object.values(facetFields).some(([id]) => $("#" + id).open) && !document.hidden) refresh(); };
 document.addEventListener("visibilitychange", autoRefresh);
 setInterval(autoRefresh, 60000);
 $("#add").disabled = true; $("#empty-add").disabled = true;

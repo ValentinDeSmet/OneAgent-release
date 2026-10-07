@@ -274,3 +274,22 @@ and retains the native task and its other links. Read current revisions first;
 a stale record, archived task, cycle or self-link is refused. These tools require
 portfolio scope and never silently widen a strict agent context. After an
 uncertain write, reread before any manual retry; never replay a creation.
+
+
+## Saved priority views
+
+When asked to save a reading view, use oneagent_list_priority_views, then
+oneagent_save_priority_view with its exact collection revision, a unique name
+and criteria. Criteria use list_priorities fields without scope/today/limit/offset.
+They save multi-select filters, search, active/done/excluded rows, sortBy and
+sortDirection. Views are dynamic queries of the same tasks, never copies or
+frozen snapshots. Manual uses the shared global rank; do not claim a separate
+manual rank per view. Saving a view never changes the graph/agent Context.
+
+Existing id edits preserve omitted name/criteria. Duplicate by supplying the
+original criteria and a new name without id. makeDefault=true chooses the shared
+opening view; false clears that default only when it matches this id. Delete only
+view metadata using oneagent_delete_priority_view with the current revision.
+Never add example views or save temporary criteria automatically. Read fresh
+revisions after conflicts or uncertain writes; do not replay creates/removals.
+The active strict portfolio boundary still applies to all these tools.

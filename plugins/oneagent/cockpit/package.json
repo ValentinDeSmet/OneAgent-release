@@ -3,7 +3,7 @@
   "displayName": "OneAgent",
   "description": "Local-first product knowledge, curation, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.137",
+  "version": "0.1.138",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",
@@ -2865,6 +2865,506 @@
           "additionalProperties": false
         },
         "modelDescription": "At the user's direction, create a native task for a priority or edit an already attached task. A new task appears in Tasks and under the priority without becoming a separate priority; it inherits the parent's product/entity. Creation requires title and priorityRevision. Editing also requires taskId/taskRevision; omitted fields stay unchanged. Existing tasks must be attached with attach_priority_task instead of copied. Pass YYYY-MM-DD or empty string to clear a task deadline. Never retry uncertain creation or write automatically."
+      },
+      {
+        "name": "workMemory_listPriorityViews",
+        "displayName": "Read OneAgent Priority Views",
+        "modelDescription": "Read named saved filters, search and sorting for the private Priorities screen, including the default view and collection revision. Views are live queries, never task copies or a frozen list. Does not activate or widen an agent Context. Read before a view write.",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio"
+              ],
+              "description": "Whole bound private memory; includes all subjects, independent of the VS Code selection."
+            }
+          },
+          "required": [
+            "scope"
+          ],
+          "additionalProperties": false
+        },
+        "toolReferenceName": "workMemory_listPriorityViews",
+        "tags": [
+          "oneagent",
+          "priorities",
+          "views"
+        ]
+      },
+      {
+        "name": "workMemory_savePriorityView",
+        "displayName": "Save OneAgent Priority View",
+        "modelDescription": "At the user's direction, create, update, rename or duplicate a saved Priorities view. Pass the exact collection revision from list_priority_views. Creation needs name and criteria; existing id edits preserve omitted name/criteria. To duplicate, omit id and supply a new name and the original criteria. makeDefault=true chooses the shared opening view; false clears that default only for this id. Saving criteria never changes tasks, priorities, ranks or the agent Context. Criteria are live filters plus sortBy/sortDirection; manual uses the shared global ranking, not an independent per-view order. Never create examples or save temporary filter changes automatically. After an uncertain creation/write, reread views instead of replaying it.",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio"
+              ],
+              "description": "Whole bound private memory; includes all subjects, independent of the VS Code selection."
+            },
+            "revision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "id": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "name": {
+              "type": "string",
+              "maxLength": 80,
+              "description": "Unique nonempty view name, required for creation."
+            },
+            "criteria": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "view": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "done",
+                    "all",
+                    "excluded"
+                  ],
+                  "description": "Default active. all/done still exclude removed priorities. excluded reads only removed rows for explicit restoration of the same task."
+                },
+                "filter": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "all",
+                        "urgent",
+                        "overdue",
+                        "soon",
+                        "clarify",
+                        "waiting",
+                        "unlinked"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "all",
+                          "urgent",
+                          "overdue",
+                          "soon",
+                          "clarify",
+                          "waiting",
+                          "unlinked"
+                        ]
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "sortBy": {
+                  "type": "string",
+                  "enum": [
+                    "manual",
+                    "title",
+                    "body",
+                    "entity",
+                    "product",
+                    "relatedEntities",
+                    "requester",
+                    "priority",
+                    "deadline",
+                    "url",
+                    "sourceUrl",
+                    "status",
+                    "nextAction",
+                    "itemType",
+                    "workType"
+                  ],
+                  "description": "Default manual order shared by both hosts. Other sorts do not alter it."
+                },
+                "sortDirection": {
+                  "type": "string",
+                  "enum": [
+                    "asc",
+                    "desc"
+                  ]
+                },
+                "titleQuery": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "bodyQuery": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "requesterQuery": {
+                  "type": "string",
+                  "maxLength": 300
+                },
+                "urlQuery": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "sourceUrlQuery": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "itemType": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "all",
+                        "subject",
+                        "task"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "all",
+                          "subject",
+                          "task"
+                        ]
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "workType": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "unspecified",
+                        "discovery",
+                        "technical_study",
+                        "implementation",
+                        "validation",
+                        "documentation",
+                        "other"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "unspecified",
+                          "discovery",
+                          "technical_study",
+                          "implementation",
+                          "validation",
+                          "documentation",
+                          "other"
+                        ]
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "deadlineQuarter": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "Q1",
+                        "Q2",
+                        "Q3",
+                        "Q4"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "Q1",
+                          "Q2",
+                          "Q3",
+                          "Q4"
+                        ]
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "deadlineYear": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]{3}$"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]{3}$"
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "involvedEntity": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 512,
+                      "description": "Exact product:id or team:id involved as primary product, attached product/team or partner."
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 512,
+                        "description": "Exact product:id or team:id involved as primary product, attached product/team or partner."
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "relatedEntity": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 512,
+                      "description": "Exact product:id or team:id among partners only."
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 512,
+                        "description": "Exact product:id or team:id among partners only."
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "entity": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 512,
+                      "description": "Exact kind:id from entities returned by list_priorities."
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 512,
+                        "description": "Exact kind:id from entities returned by list_priorities."
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "productId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 256
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 256
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "priority": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "",
+                        "critical",
+                        "high",
+                        "medium",
+                        "low"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "",
+                          "critical",
+                          "high",
+                          "medium",
+                          "low"
+                        ]
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "",
+                        "pending",
+                        "candidate",
+                        "ready",
+                        "open",
+                        "in_progress",
+                        "blocked",
+                        "done"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "",
+                          "pending",
+                          "candidate",
+                          "ready",
+                          "open",
+                          "in_progress",
+                          "blocked",
+                          "done"
+                        ]
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "deadlineKind": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "",
+                        "unknown",
+                        "exact",
+                        "approximate"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "",
+                          "unknown",
+                          "exact",
+                          "approximate"
+                        ]
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
+                },
+                "deadlineFrom": {
+                  "type": "string",
+                  "maxLength": 10
+                },
+                "deadlineTo": {
+                  "type": "string",
+                  "maxLength": 10
+                }
+              },
+              "additionalProperties": false,
+              "description": "Same live query criteria as list_priorities, excluding scope/today/pagination. Required for creation; omitted on edits preserves the saved filters and sort."
+            },
+            "makeDefault": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "scope",
+            "revision"
+          ],
+          "additionalProperties": false
+        },
+        "toolReferenceName": "workMemory_savePriorityView",
+        "tags": [
+          "oneagent",
+          "priorities",
+          "views"
+        ]
+      },
+      {
+        "name": "workMemory_deletePriorityView",
+        "displayName": "Delete OneAgent Priority View",
+        "modelDescription": "At the user's direction, delete only one saved Priorities view using its id and the current collection revision. Keeps every native task, priority and global rank. Clears the default if it was this view. Never replay an uncertain removal automatically.",
+        "canBeReferencedInPrompt": true,
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio"
+              ],
+              "description": "Whole bound private memory; includes all subjects, independent of the VS Code selection."
+            },
+            "id": {
+              "type": "string",
+              "maxLength": 256
+            },
+            "revision": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          },
+          "required": [
+            "scope",
+            "id",
+            "revision"
+          ],
+          "additionalProperties": false
+        },
+        "toolReferenceName": "workMemory_deletePriorityView",
+        "tags": [
+          "oneagent",
+          "priorities",
+          "views"
+        ]
       }
     ],
     "chatParticipants": [

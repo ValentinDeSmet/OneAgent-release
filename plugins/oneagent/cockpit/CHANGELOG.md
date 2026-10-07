@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.138
+
+- Vues enregistrées des priorités, communes à Copilot 0.6.14 : onglets, filtres multiples, recherche, tri et sens du tri.
+- Création, mise à jour explicite, renommage, duplication, suppression de la vue seule et choix d’une vue d’ouverture par défaut.
+- Indicateur Modifiée pour les filtres temporaires ; réapplication des critères sauvegardés. Les listes restent dynamiques et Mon classement conserve le rang global.
+- Révisions partagées contre les modifications concurrentes, maintien des brouillons après une erreur et conservation des vues dans les sauvegardes/exports privés. Outils agent identiques dans les deux plugins.
+
 ## 0.1.137
 
 - Priorités communes avec Copilot 0.6.13 : périodes Q1–Q4 et année en listes déroulantes, sans nouvelles périodes libres. Conservation des anciennes périodes ambiguës jusqu’à conversion explicite.

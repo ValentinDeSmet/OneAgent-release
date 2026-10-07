@@ -103,3 +103,14 @@ use the calendar. Work types are Discovery, technical study, implementation,
 validation, documentation, other or unspecified. Work type, quarter and year
 have multi-select filters based on the values present in the list. Ambiguous
 legacy periods remain available until explicitly converted.
+
+
+### Saved priority views
+
+Tabs above the filters store live query criteria: multi-select filters, search,
+active/done/excluded rows and sort direction. **+** creates a named view; temporary
+changes show **Modifiée** until **Mettre à jour**, while **Réappliquer** restores
+the saved criteria. The view menu offers rename, duplicate, default opening and
+delete. Deleting a view retains priorities, tasks and the current filters.
+**Mon classement** is the shared global rank, not a separate rank per view.
+Saved views belong to the common memory and survive private archive restoration.

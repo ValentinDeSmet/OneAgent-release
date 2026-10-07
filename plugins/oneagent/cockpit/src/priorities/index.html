@@ -18,6 +18,21 @@
     <button data-filter="overdue"><strong id="count-overdue">—</strong><span>Dates fermes dépassées</span></button>
     <button data-filter="clarify"><strong id="count-clarify">—</strong><span>À préciser</span></button>
   </section>
+  <section class="saved-views" aria-label="Vues enregistrées">
+    <div id="view-tabs" class="view-tabs" role="tablist" aria-label="Vues des priorités"></div>
+    <span id="view-dirty" class="badge" hidden>Modifiée</span>
+    <button type="button" id="view-save-as" class="view-add" title="Enregistrer les filtres et le tri dans une nouvelle vue" aria-label="Ajouter une vue">+</button>
+    <button type="button" id="view-update" hidden>Mettre à jour</button>
+    <button type="button" id="view-revert" hidden>Réappliquer</button>
+    <details id="view-actions" class="view-actions" hidden><summary aria-label="Actions de la vue">⋯</summary><div class="view-actions-menu">
+      <button type="button" id="view-rename">Renommer</button>
+      <button type="button" id="view-duplicate">Dupliquer</button>
+      <button type="button" id="view-default">Ouvrir par défaut</button>
+      <button type="button" id="view-delete" class="danger">Supprimer la vue</button>
+    </div></details>
+    <p id="view-feedback" class="hint" role="status"></p>
+  </section>
+  <p id="view-error" class="error" role="alert" hidden></p>
   <section class="toolbar" aria-label="Filtres">
     <label class="search">Rechercher<input id="search" type="search" placeholder="Sujet, produit, équipe, personne ou lien source…" maxlength="500"></label>
     <div class="filter-field"><span>Nature</span><details id="item-type" class="multi-filter"><summary><span id="item-type-summary">Sujets et tâches</span></summary><div class="filter-popover"><label class="sr-only" for="item-type-search">Rechercher dans nature</label><input id="item-type-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="item-type-clear" type="button" class="filter-clear">Tout afficher</button><div id="item-type-choices" class="filter-options" role="group" aria-label="Nature"></div></div></details></div>
@@ -48,7 +63,7 @@
   </details>
   <p id="rank-help" class="hint rank-help">Glisse la poignée pour classer les priorités.</p>
   <p id="rank-feedback" class="sr-only" role="status" aria-live="polite"></p>
-  <div class="table-wrap" tabindex="0" role="region" aria-label="Tableau des priorités, défilement horizontal disponible"><table><caption class="sr-only">Cliquer sur un en-tête pour trier : croissant, décroissant, puis retour au classement manuel. La poignée se déplace aussi avec les flèches haut et bas.</caption><thead><tr><th scope="col" class="rank-heading">Rang</th><th scope="col" aria-sort="none"><button type="button" data-sort="title">Sujet<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="body">Description<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="workType">Type de travail<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="product">Produit principal<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="relatedEntities">Autres produits / équipes<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="requester">Attendu par<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="priority">Prio<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="deadline">Deadline<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="url">Documentation<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="sourceUrl">Source<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="status">Avancement<span aria-hidden="true"></span></button></th></tr></thead><tbody id="rows"></tbody></table></div>
+  <div id="priority-table" class="table-wrap" tabindex="0" role="region" aria-label="Tableau des priorités, défilement horizontal disponible"><table><caption class="sr-only">Cliquer sur un en-tête pour trier : croissant, décroissant, puis retour au classement manuel. La poignée se déplace aussi avec les flèches haut et bas.</caption><thead><tr><th scope="col" class="rank-heading">Rang</th><th scope="col" aria-sort="none"><button type="button" data-sort="title">Sujet<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="body">Description<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="workType">Type de travail<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="product">Produit principal<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="relatedEntities">Autres produits / équipes<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="requester">Attendu par<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="priority">Prio<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="deadline">Deadline<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="url">Documentation<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="sourceUrl">Source<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="status">Avancement<span aria-hidden="true"></span></button></th></tr></thead><tbody id="rows"></tbody></table></div>
   <section id="empty" class="empty" hidden><h2 id="empty-title">Aucune sollicitation pour le moment</h2><p id="empty-text">Ajoute ce que l’on attend de toi, même si la personne ou la date reste à préciser.</p><button id="empty-add" class="primary">Ajouter une sollicitation</button></section>
   <footer><span id="summary" aria-live="polite">Chargement…</span><span id="sort-summary">Ordre : mon classement</span><button id="more" hidden>Afficher la suite</button></footer>
 </main>
@@ -84,6 +99,22 @@
     <p class="hint" id="updated"></p>
     <div class="dialog-actions"><button id="remove" type="button" class="subtle" hidden>Retirer des priorités</button><button id="restore" type="button" hidden>Remettre dans mes priorités</button><button id="done" type="button" hidden>Marquer terminée</button><button id="cancel" type="button">Annuler</button><button id="save" type="submit" class="primary">Enregistrer</button></div>
   </form>
+</dialog>
+<dialog id="view-editor" aria-labelledby="view-editor-title">
+  <form id="view-form">
+    <div class="dialog-head"><h2 id="view-editor-title">Enregistrer une vue</h2><button id="view-close" type="button" aria-label="Fermer">✕</button></div>
+    <p id="view-form-error" class="error" role="alert" hidden></p>
+    <label>Nom de la vue<input name="name" required maxlength="80" placeholder="Q1 2027 · DKT FF · Discovery…"></label>
+    <label class="view-default-choice"><input name="makeDefault" type="checkbox">Ouvrir cette vue par défaut</label>
+    <p id="view-editor-help" class="hint">Enregistre les filtres, la recherche et le tri actuels. Les priorités restent à jour automatiquement.</p>
+    <div class="dialog-actions"><button id="view-cancel" type="button">Annuler</button><button id="view-submit" type="submit" class="primary">Enregistrer</button></div>
+  </form>
+</dialog>
+<dialog id="view-delete-confirm" aria-labelledby="view-delete-title">
+  <div class="dialog-head"><h2 id="view-delete-title">Supprimer cette vue ?</h2></div>
+  <p id="view-delete-name"></p><p class="hint">Les priorités, les tâches et leur classement seront conservés.</p>
+  <p id="view-delete-error" class="error" role="alert" hidden></p>
+  <div class="dialog-actions"><button id="view-delete-cancel" type="button">Annuler</button><button id="view-delete-submit" type="button" class="danger">Supprimer la vue</button></div>
 </dialog>
 <dialog id="task-editor" aria-labelledby="task-editor-title">
   <form id="task-form">

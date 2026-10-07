@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.6.13 : rechargement du plugin dans la conversation courante après mise à jour ; Inbox avec documents Markdown proposés par l’agent, aperçu formaté, édition et acceptation humaine sans embeddings ; cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.6.14 : rechargement du plugin dans la conversation courante après mise à jour ; Inbox avec documents Markdown proposés par l’agent, aperçu formaté, édition et acceptation humaine sans embeddings ; cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -24,6 +24,13 @@ sont également multiples. L’accordéon **Tâches** sous une priorité permet 
 créer, rattacher, modifier ou détacher des tâches natives, visibles aussi dans
 Tâches. **Gérer les priorités liées** offre le même rattachement depuis leur fiche.
 Une tâche rattachée ne devient pas automatiquement une priorité indépendante.
+
+Les vues enregistrées apparaissent en onglets au-dessus des filtres. **+**
+conserve les filtres et le tri sous un nom, par exemple Q4 2026, Q1 2027 ou DKT FF.
+Les changements temporaires restent **Modifiée** jusqu’au clic sur **Mettre à jour**.
+Le menu de la vue permet de renommer, dupliquer, choisir son ouverture par défaut
+ou supprimer uniquement la vue. Les deux plugins partagent ces critères vivants ;
+**Mon classement** conserve le rang global des priorités.
 
 BMAD Readiness a été supprimé du cockpit et du moteur. Today, les priorités,
 les tâches et les autres intégrations BMAD restent disponibles.
@@ -58,12 +65,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.13.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.14.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.13/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.14/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -329,7 +336,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.13.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.14.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.

@@ -29,6 +29,9 @@ const TOOL_IDS = {
   attachPriorityTask: "workMemory_attachPriorityTask",
   detachPriorityTask: "workMemory_detachPriorityTask",
   savePriorityTask: "workMemory_savePriorityTask",
+  listPriorityViews: "workMemory_listPriorityViews",
+  savePriorityView: "workMemory_savePriorityView",
+  deletePriorityView: "workMemory_deletePriorityView",
   proposeDocument: "workMemory_proposeDocument",
   listDocumentProposals: "workMemory_listDocumentProposals",
   readDocumentProposal: "workMemory_readDocumentProposal",
@@ -113,7 +116,10 @@ function registerLanguageModelTools(cli) {
       [TOOL_IDS.listPriorityTasks, "Read OneAgent Priority Tasks", "tasks"],
       [TOOL_IDS.attachPriorityTask, "Attach OneAgent Priority Task", "task-attach"],
       [TOOL_IDS.detachPriorityTask, "Detach OneAgent Priority Task", "task-detach"],
-      [TOOL_IDS.savePriorityTask, "Save OneAgent Priority Task", "task-save"]
+      [TOOL_IDS.savePriorityTask, "Save OneAgent Priority Task", "task-save"],
+      [TOOL_IDS.listPriorityViews, "Read OneAgent Priority Views", "views"],
+      [TOOL_IDS.savePriorityView, "Save OneAgent Priority View", "view-save"],
+      [TOOL_IDS.deletePriorityView, "Delete OneAgent Priority View", "view-delete"]
     ].map(([id, title, operation]) => vscode.lm.registerTool(id, new WorkMemoryTool(
       title, title, input => priorityCommand(cli, operation, input),
       input => `${title}: ${input.priorityId || ""}`, { compileContextPack: false }
