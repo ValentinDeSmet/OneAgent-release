@@ -56,33 +56,30 @@ that lookup and Copilot CLI is available on the same post, use the documented
 scoped Terminal commands to update the official installation. Never disable TLS
 verification or change company network/BMAD settings.
 
-After a confirmed version change, keep this conversation. The OneAgent cockpit
-extension observes the shared installation receipt, waits for in-flight OneAgent
-operations and closed OneAgent Canvas tabs, then calls the host's experimental
-session.plugins.reload API. Ask the user to save drafts and close those Canvas
-tabs; never clear their conversation. Other extensions and MCP connections in
-this chat may restart too, but settings and hooks are not changed. This is a
-runtime reload, not another installation.
+The app's Settings → Mettre à jour OneAgent button (0.6.15+) runs a complete native
+update in the CURRENT conversation. It uses session plugin management APIs, not
+Copilot CLI. No agent restart request is part of that path. It waits for the chat
+turn, memory operations and unsaved editors, then installs, reloads MCP/extensions
+and automatically reopens only its own canvases. Do not tell the user to close
+canvases, create a new chat, or request a global restart as a normal update step.
+If there is a draft, save or dismiss it; the app flow resumes automatically.
 
-If automatic reload is unavailable, or the update happened in another session,
-call the extension's oneagent_reload_plugin tool when available. Otherwise use
-Copilot's native plugin/extension/MCP reload capabilities in the CURRENT chat;
-refresh the plugin set before restarting MCP/extensions so the new install paths
-are used. Only reopening Canvas does NOT reload cached extension modules.
-The old versions before 0.6.11 have no observer or reload tool: native host reload
-is needed once to bootstrap this feature. Do not invent shell commands if the
-Copilot CLI is unavailable, or promise a native reload option the host lacks.
+If a reload fails, the UI has Réessayer le rechargement. It retries loading, never
+installation. The extension tool oneagent_reload_plugin remains available for an
+explicit request. Other extensions/MCP in this chat may restart because the host
+API is session-wide; settings, hooks and custom-agent discovery are not changed.
+After reload, oneagent_update_status must show currentVersion = installedVersion
+and reloadRequired = false before claiming the new engine is available. Scheduled
+work or a resolved reload RPC is not proof. Host management APIs are experimental;
+if missing or rejected, report the actual host limitation instead of promising success.
 
-After reload, call oneagent_update_status again: currentVersion must match
-installedVersion and reloadRequired must be false before claiming the new engine
-is usable. A scheduled reload or resolved reload RPC is not proof. If the host
-cannot refresh the current chat, state this host limitation honestly; preserve the
-conversation and offer a fresh chat only as a last resort, without making the user
-repeat their work. Never automatically replay an uncertain memory write or retry
-installation. If installation was uncertain, inspect the plugin manager first.
-No memory transfer or reconfiguration is required. For a legacy local ZIP install,
-follow the guide's explicit migration to the official catalogue; never silently
-uninstall it or claim it receives remote updates already.
+Bootstrap: a chat still running 0.6.14 or older still uses its old updater until
+0.6.15 has actually been loaded. That one transition may require the old same-chat
+host reload procedure. Installing files from another chat alone does not replace
+cached extension code. Never automatically replay an uncertain memory write or
+retry installation. No memory transfer or reconfiguration is required. For a legacy
+local ZIP install, follow the guide's migration to the official catalogue; never
+silently uninstall it or claim remote updates are already configured.
 
 ## Memory worker startup failures
 

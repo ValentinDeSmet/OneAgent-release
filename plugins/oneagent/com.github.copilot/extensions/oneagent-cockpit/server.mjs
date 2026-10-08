@@ -1,3 +1,4 @@
+import { createCanvasGuard } from "./reload-canvases.mjs";
 import fs from "node:fs";
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
@@ -12,17 +13,18 @@ const { renderCockpitHtml } = require(path.join(cockpitRoot, "src/cockpit.js"));
 const controllerSource = fs.readFileSync(path.join(cockpitRoot, "src/extension.js"), "utf8");
 export const cockpitActions = new Set([...controllerSource.matchAll(/message\.type === "([^"]+)"/g)].map((match) => match[1]));
 
-export async function startCockpitServer({ connection, updates, callOnboarding, openFile, agentLoop = runAgentLoop }) {
+export async function startCockpitServer({ connection, updates, callOnboarding, openFile, manageUpdate, retryUpdate, agentLoop = runAgentLoop }) {
   const token = randomBytes(32).toString("hex"), nonce = randomBytes(24).toString("hex");
-  const clients = new Set();
+  const clients = new Set(), guard = createCanvasGuard();
   let authority, closed = false;
   const emit = (value) => { for (const client of clients) client.write(`data: ${JSON.stringify(value)}\n\n`); };
-  const host = createCockpitHost({ connection, updates, emit, openFile, runAgentLoop: agentLoop });
+  const host = createCockpitHost({ connection, updates, emit, openFile, manageUpdate, runAgentLoop: agentLoop });
   const assets = new Map([
     ["/bridge.js", [fs.readFileSync(new URL("bridge.js", import.meta.url), "utf8"), "text/javascript"]],
     ["/host.css", [fs.readFileSync(new URL("host.css", import.meta.url), "utf8"), "text/css"]],
     ["/graph.js", [fs.readFileSync(path.join(cockpitRoot, "media/graph-viewer.bundle.js"), "utf8"), "text/javascript"]]
   ]);
+  for (const name of ["reload-ui.js", "reload-ui.css"]) assets.set("/" + name, [fs.readFileSync(new URL(name, import.meta.url), "utf8"), name.endsWith(".js") ? "text/javascript" : "text/css"]);
   const server = createServer(async (req, res) => {
     const headers = {
       "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff",
@@ -48,7 +50,7 @@ export async function startCockpitServer({ connection, updates, callOnboarding, 
         } else {
           html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OneAgent · Bienvenue</title><script src="/bridge.js?token=${token}" defer></script></head><body><main id="onboarding"></main></body></html>`;
         }
-        html = html.replace("</head>", `<meta name="oneagent-token" content="${token}"><link rel="stylesheet" href="/host.css?token=${token}"></head>`);
+        html = html.replace("</head>", `<meta name="oneagent-token" content="${token}"><script src="/reload-ui.js?token=${token}" defer></script><link rel="stylesheet" href="/reload-ui.css?token=${token}"><link rel="stylesheet" href="/host.css?token=${token}"></head>`);
         return send(200, html, "text/html");
       }
       if (req.method === "GET" && url.pathname === "/events") {
@@ -64,6 +66,8 @@ export async function startCockpitServer({ connection, updates, callOnboarding, 
       for await (const chunk of req) { size += chunk.length; if (size > 2 * 1024 * 1024) return send(413, { error: "Demande trop volumineuse." }); chunks.push(chunk); }
       const data = JSON.parse(Buffer.concat(chunks).toString("utf8"));
       if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Objet JSON requis.");
+      if (url.pathname === "/api/reload-ui") return send(200, guard.handle(data));
+      if (url.pathname === "/api/update-retry" && retryUpdate) return send(200, retryUpdate());
       if (url.pathname === "/api/message") {
         if (!cockpitActions.has(data.type)) return send(400, { error: "Action inconnue." });
         // Return before a possible human dialog. Never retry an uncertain write.
@@ -86,7 +90,7 @@ export async function startCockpitServer({ connection, updates, callOnboarding, 
   authority = `127.0.0.1:${server.address().port}`;
   const keepalive = setInterval(() => { for (const client of clients) client.write(": keepalive\n\n"); }, 15000);
   keepalive.unref();
-  return { notifyReload(status) { emit({ type: "host", kind: "notice", level: "info", message: status.message }); }, url: `http://${authority}/?token=${token}`, async close() {
+  return { notifyReload(status) { guard.notify(status); emit({ type: "host", kind: "notice", level: "info", message: status.message }); }, url: `http://${authority}/?token=${token}`, async close() {
     if (closed) return; closed = true; clearInterval(keepalive);
     for (const client of clients) client.end(); clients.clear();
     await host.close();

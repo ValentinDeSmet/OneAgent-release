@@ -8,6 +8,7 @@ const api = async (route, value) => {
   const result = await response.json(); if (!response.ok) throw new Error(result.error || "La demande a échoué."); return result;
 };
 const dirty = () => snapshot && byId("source").value !== snapshot.content;
+window.oneagentCanReload = () => !dirty() && !saving;
 const show = (edit) => {
   editing = edit;
   byId("read").setAttribute("aria-pressed", String(!edit)); byId("edit").setAttribute("aria-pressed", String(edit));

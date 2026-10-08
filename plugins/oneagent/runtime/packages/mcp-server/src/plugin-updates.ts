@@ -115,7 +115,8 @@ export class PluginUpdates {
   }
 
   assertSessionCurrent(): void {
-    if (this.reloadRequired()) throw new Error("OneAgent attend son rechargement dans cette conversation. Enregistrer les brouillons puis fermer les Canvas OneAgent ; le plugin demandera à Copilot de recharger ses outils ici. Sinon demander à Copilot de recharger les plugins, extensions et serveurs MCP dans ce chat. Ne pas relancer l’installation ni fermer le chat.");
+    if (this.reload.installing()) throw new Error("Mise à jour OneAgent en cours. La mémoire sera de nouveau disponible dans cette conversation après le rechargement automatique.");
+    if (this.reloadRequired()) throw new Error("OneAgent attend son rechargement dans cette conversation. Le plugin prépare et réouvre ses onglets automatiquement. Si nécessaire, utiliser « Réessayer le rechargement » dans OneAgent. Ne pas réinstaller ni fermer le chat.");
   }
 
   async run<T>(operation: () => Promise<T>): Promise<T> {
@@ -199,7 +200,16 @@ export class PluginUpdates {
   async update(): Promise<Record<string, unknown>> {
     this.assertSessionCurrent();
     const end = this.reload.begin();
+    let finishInstallation: (() => void) | undefined;
     try {
+      finishInstallation = this.reload.beginInstallation();
+      // The installation barrier rejects NEW work in every process. Drain any
+      // operation that crossed the last idle check before touching plugin files.
+      const drainDeadline = Date.now() + 30000;
+      while (this.reload.busy(1)) {
+        if (Date.now() > drainDeadline) throw new Error("Une opération mémoire est encore en cours. Aucune installation lancée ; réessayer la mise à jour après sa fin.");
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
       // The installer owns catalogue refresh and package retrieval. A separate
       // Node fetch to the GitHub API must not block Copilot's network configuration.
       if (!this.status().officialSourceConfigured) throw new Error("Configurer d’abord les mises à jour OneAgent (automatiques ou manuelles) pour relier le catalogue officiel. Aucun plugin modifié.");
@@ -226,12 +236,12 @@ export class PluginUpdates {
       if (updated) this.reload.requestReload(item.version);
       return { updated, installedVersion: item.version, runningVersion: this.currentVersion, restartRequired: false, reloadRequired: updated, reloadMode: "current_conversation",
         message: updated
-          ? "Mise à jour installée par Copilot. OneAgent va demander le rechargement des plugins et outils dans cette conversation dès que ses opérations sont terminées et ses Canvas fermés. Enregistrer les brouillons avant de fermer les Canvas, puis les rouvrir si nécessaire. Le chat et la liaison de mémoire sont conservés. Si le rechargement automatique est indisponible, demander à Copilot de recharger les plugins, extensions et serveurs MCP ici, sans réinstaller."
+          ? "Mise à jour installée par Copilot. OneAgent va demander le rechargement des plugins et outils dans cette conversation dès que ses opérations sont terminées et ses éditeurs prêts. Ses onglets seront réouverts automatiquement. Le chat et la liaison de mémoire sont conservés. En cas d’échec, utiliser le bouton « Réessayer le rechargement » dans OneAgent, sans réinstaller."
           : `Copilot confirme OneAgent ${item.version} déjà installé après actualisation du catalogue. Aucune nouvelle session nécessaire.` };
     } catch (error) {
       if (this.restart) this.reload.requestReload(null);
       throw error;
-    } finally { end(); }
+    } finally { finishInstallation?.(); end(); }
   }
 }
 
@@ -243,7 +253,7 @@ export const updateTools = [
   tool("oneagent_update_status", "Read the installed plugin version and user update preference without network access or memory access. Use during onboarding to offer updates once; null means not chosen yet."),
   tool("oneagent_check_updates", "Check the official OneAgent GitHub catalogue for a stable plugin update. Does not install or change settings."),
   tool("oneagent_configure_updates", "Save the user's automatic/manual update choice for only the official OneAgent marketplace in Copilot user settings. Preserve other settings and company policies. CLI automation is documented; macOS app automation remains to be validated.", { automatic: { type: "boolean" } }, ["automatic"], false),
-  tool("oneagent_update_plugin", "After the user requests a plugin update, let Copilot CLI refresh and update only OneAgent from its official marketplace. Uses Copilot directly without requiring a separate GitHub API check. A failed catalogue lookup is not a reason to restart. A changed version schedules a host reload in this conversation after OneAgent operations finish and its canvases close. update_status reports running/currentVersion, installedVersion and reloadRequired. The extension exposes oneagent_reload_plugin for an explicit same-chat reload request; host support is experimental. Never require a new chat merely for an update, retry installation automatically, or uninstall other plugins.", {}, [], false)
+  tool("oneagent_update_plugin", "After the user requests a plugin update, let Copilot CLI refresh and update only OneAgent from its official marketplace. Uses Copilot directly without requiring a separate GitHub API check. A failed catalogue lookup is not a reason to restart. A changed version schedules a host reload in this conversation after OneAgent operations finish and its editors are ready. OneAgent reopens its own canvases automatically. The app button uses the joined host APIs without a terminal CLI or an agent restart request. update_status reports running/currentVersion, installedVersion and reloadRequired. The extension exposes oneagent_reload_plugin for an explicit same-chat reload request; host support is experimental. Never require a new chat merely for an update, retry installation automatically, or uninstall other plugins.", {}, [], false)
 ];
 export async function callUpdateTool(updates: PluginUpdates, name: string, raw: unknown): Promise<unknown> {
   const definition = updateTools.find((tool) => tool.name === name);

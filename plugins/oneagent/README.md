@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.6.14 : rechargement du plugin dans la conversation courante après mise à jour ; Inbox avec documents Markdown proposés par l’agent, aperçu formaté, édition et acceptation humaine sans embeddings ; cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.6.15 : bouton de mise à jour avec installation native, rechargement dans la conversation courante et réouverture automatique des onglets ; Inbox avec documents Markdown proposés par l’agent, aperçu formaté, édition et acceptation humaine sans embeddings ; cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -37,8 +37,9 @@ les tâches et les autres intégrations BMAD restent disponibles.
 
 ## Installer sur le Mac cible
 
-Prérequis : Node.js >=22.18 visible depuis Copilot, Copilot CLI et l’application
-GitHub Copilot. Le paquet inclut le moteur ; aucun clone du dépôt OneAgent, pnpm
+Prérequis : Node.js >=22.18 visible depuis Copilot et l’application GitHub Copilot.
+Le CLI est utile pour les commandes Terminal et les outils MCP de gestion ; le bouton
+de mise à jour utilise directement les API de l’application et ne dépend pas du CLI. Le paquet inclut le moteur ; aucun clone du dépôt OneAgent, pnpm
 ou VS Code n’est nécessaire sur le poste cible.
 
 ### Installation par URL (recommandée)
@@ -65,12 +66,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.14.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.15.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.14/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.15/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -139,66 +140,54 @@ l’application. Il faut une session locale prenant en charge les Canvas.
 
 ## Mettre à jour sans télécharger de fichier
 
-Dans la conversation :
-
-> Vérifie les mises à jour OneAgent.
-
-> Mets à jour OneAgent.
-
-Le premier appel compare la version du plugin au catalogue GitHub stable, sans
-ouvrir la mémoire. Le second utilise directement Copilot CLI, sans exiger un
-accès préalable de Node.js à l’API GitHub, pour actualiser le catalogue
-`oneagent`, puis mettre à jour uniquement ce plugin. Le plugin demande ensuite à Copilot de rafraîchir les chemins installés,
-les skills, les serveurs MCP et les extensions dans **la même conversation**. La mémoire et sa liaison
-locale ne sont ni transférées ni reconfigurées.
-
-La première mise à jour demande d’avoir choisi le mode automatique ou manuel,
-afin de fixer la source officielle. Une erreur réseau de vérification laisse le
-plugin utilisable et ne demande pas de nouvelle session. Le message distingue
-DNS, certificat TLS, délai ou réponse HTTP lorsque le système fournit ce détail.
-Le cockpit propose alors une mise à jour via Copilot, sur choix explicite. Après une tentative d’installation dont le résultat est incertain,
-consulter le gestionnaire de plugins, puis demander un rechargement dans le
-chat courant. Ne pas relancer automatiquement l’installation.
+Dans **Réglages → Version**, cliquer sur **Mettre à jour OneAgent**.
+Le bouton actualise le catalogue officiel, installe OneAgent, recharge les outils
+et extensions dans **la même conversation**, puis réouvre ses onglets automatiquement.
+Il utilise les API de l’application Copilot avec son compte, son réseau et ses
+règles d’entreprise. Aucun CLI dans le Terminal, ZIP ou message à l’agent requis.
+Une progression reste visible pendant l’opération.
 
 ### Recharger sans recommencer le chat
 
-À partir de 0.6.11, l’extension OneAgent observe les mises à jour faites depuis
-un autre chat aussi. Elle attend la fin des opérations OneAgent et la fermeture
-de ses onglets Canvas (cockpit, document ou priorités), puis demande le
-rechargement au SDK Copilot. Enregistrer les brouillons avant de fermer ces
-onglets. Le chat reste ouvert ; demander à rouvrir le Canvas après rechargement.
-OneAgent ne force pas la fermeture d’un éditeur et ne rejoue aucune écriture.
+Le bouton attend la fin du tour du chat et des opérations mémoire. Les éditeurs
+ouverts sont vérifiés avant l’installation : s’il reste un brouillon, l’enregistrer
+ou l’abandonner. L’installation reprend alors automatiquement. Le texte n’est ni
+soumis à l’agent ni enregistré à la place de l’utilisateur. Une fois les éditeurs
+prêts, leur saisie est suspendue pendant la mise à jour.
 
-Si nécessaire, demander :
+Après l’installation, le plugin demande au SDK de rafraîchir les chemins installés,
+les skills, les serveurs MCP et les extensions. Le nouveau processus reprend ses
+onglets dans ce chat, avec les mêmes identifiants et les mêmes documents. Le reçu
+de reprise est privé et propre à la session ; il ne contient aucun texte de note,
+brouillon ou conversation. La navigation et les filtres temporaires peuvent revenir
+à leur état d’ouverture ; les vues enregistrées restent conservées.
 
-> Recharge OneAgent dans cette conversation, puis ouvre son Canvas.
+Si le rechargement échoue, **Réessayer le rechargement** dans OneAgent recommence
+uniquement cette étape, sans réinstaller. Une installation incertaine n’est jamais
+rejouée automatiquement. `oneagent_update_status` permet de vérifier que
+`currentVersion` correspond à `installedVersion` et que `reloadRequired` est faux.
+Une demande programmée ou une réponse du SDK ne suffit pas à certifier la nouvelle version.
 
-L’outil d’extension `oneagent_reload_plugin` programme ce rechargement sans
-réinstaller. `oneagent_update_status` distingue `currentVersion` (moteur en
-cours), `installedVersion` et `reloadRequired`. Une demande programmée n’est pas
-une confirmation : vérifier que les deux versions correspondent après le
-rechargement et que `reloadRequired` est faux.
+Les API `session.rpc.plugins.update`, `plugins.reload` et `canvas` sont
+expérimentales. Une application Copilot compatible est nécessaire. L’API de
+rechargement peut aussi relancer les autres extensions et connexions MCP du chat ;
+les réglages, hooks, agents personnalisés, mémoire et historique ne sont pas modifiés.
+Si l’hôte ne fournit pas ces API, le plugin l’indique avant d’installer. Le parcours
+réel sur macOS reste à valider sur le poste cible ; les tests utilisent le contrat SDK
+et des hôtes simulés, sans piloter un Copilot installé.
 
-L’API `session.rpc.plugins.reload` est expérimentale. Elle recharge les plugins
-du chat ; d’autres extensions et connexions MCP peuvent donc être relancées.
-OneAgent désactive la redécouverte des agents personnalisés et des hooks dans cet
-appel et ne modifie aucun réglage BMAD, permission, dossier mémoire ou historique.
-Le rechargement réel dans l’application macOS reste à valider sur le poste cible.
-Si l’API est absente ou refusée, le message demande un rechargement natif Copilot
-dans ce même chat, sans promettre une fonction que l’hôte ne fournit pas.
+**Passage depuis 0.6.14 ou une version antérieure :** le bouton chargé dans une
+ancienne conversation appartient encore à l’ancien code. Cette première installation
+suit donc l’ancien parcours de rechargement, une dernière fois. Le nouveau parcours
+s’applique une fois 0.6.15 effectivement chargée, aux mises à jour suivantes.
+Installer depuis un autre chat ne remplace pas les modules déjà chargés dans l’ancien.
 
-**Pour une conversation déjà ouverte avec une version antérieure à 0.6.11**,
-la nouvelle logique n’est pas encore en mémoire. Installer depuis un autre chat,
-puis simplement rouvrir le Canvas dans l’ancien ne garantit pas la nouvelle
-version. Demander une fois à Copilot de rafraîchir ses plugins, extensions et
-serveurs MCP dans l’ancien chat. Si cet hôte n’expose pas ce rechargement, une
-nouvelle conversation reste son dernier recours ; ne pas recommencer la tâche,
-mais transférer uniquement le résultat à mémoriser. Les mises à jour suivantes
-bénéficieront de l’observateur dans les conversations utilisant 0.6.11 ou plus.
+Référence officielle vérifiée le 8 octobre 2026 : [SDK Copilot — gestion des plugins et Canvas](https://github.com/github/copilot-sdk/blob/main/nodejs/src/generated/rpc.ts).
 
-Référence officielle : [SDK Copilot — rechargement des plugins](https://github.com/github/copilot-sdk/blob/main/nodejs/src/generated/rpc.ts).
-
-Équivalent dans un terminal, sans télécharger de ZIP :
+Les demandes dans le chat restent possibles : « Vérifie les mises à jour OneAgent »
+utilise la vérification GitHub ; « Mets à jour OneAgent » appelle le gestionnaire CLI
+via MCP. Ce chemin exige encore le CLI. Préférer le bouton pour le parcours intégré.
+Équivalent Terminal :
 
 ```sh
 copilot plugin marketplace update oneagent
@@ -336,7 +325,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.14.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.15.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.

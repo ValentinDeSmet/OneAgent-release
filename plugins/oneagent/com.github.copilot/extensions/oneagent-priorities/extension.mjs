@@ -1,3 +1,4 @@
+import { createCanvasHandoff } from "../oneagent-cockpit/reload-canvases.mjs";
 import { createCanvas, joinSession } from "@github/copilot-sdk/extension";
 import { startPriorityServer } from "./server.mjs";
 
@@ -8,7 +9,8 @@ const { PluginUpdates } = await import("../../../runtime/packages/mcp-server/src
 const { callPriorityTool, priorityTools } = await import("../../../runtime/packages/mcp-server/src/priorities.ts");
 const connection = new MemoryConnection({ configPath: process.env.ONEAGENT_CONFIG, settingsPath: process.env.ONEAGENT_COPILOT_SETTINGS });
 const updates = new PluginUpdates();
-const instances = new Map();
+const instances = new Map(), releases = new Map();
+const handoff = createCanvasHandoff(updates.reload.directory, process.env.SESSION_ID, updates.currentVersion);
 let queue = Promise.resolve();
 const call = (name, input) => {
   const operation = queue.then(() => {
@@ -31,8 +33,8 @@ await joinSession({ canvases: [createCanvas({
     let entry = instances.get(ctx.instanceId);
     if (!entry) {
       updates.assertSessionCurrent();
-      const end = updates.reload.begin();
-      entry = startPriorityServer(call).then((server) => ({ ...server, async close() { try { await server.close(); } finally { end(); } } }), (error) => { end(); throw error; });
+      releases.set(ctx.instanceId, handoff.register(ctx));
+      entry = startPriorityServer(call);
       instances.set(ctx.instanceId, entry);
       entry.catch(() => instances.delete(ctx.instanceId));
     }
@@ -41,7 +43,7 @@ await joinSession({ canvases: [createCanvas({
   onClose: async (ctx) => {
     const entry = instances.get(ctx.instanceId);
     instances.delete(ctx.instanceId);
-    if (entry) await (await entry).close();
+    try { if (entry) await (await entry).close(); } finally { releases.get(ctx.instanceId)?.(); releases.delete(ctx.instanceId); }
   }
 })] });
 let closing = false;

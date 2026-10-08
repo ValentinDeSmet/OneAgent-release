@@ -1,3 +1,4 @@
+import { createCanvasGuard } from "../oneagent-cockpit/reload-canvases.mjs";
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { existsSync } from "node:fs";
@@ -7,6 +8,9 @@ import { readFile } from "node:fs/promises";
 export async function startPriorityServer(call) {
   const token = randomBytes(32).toString("hex");
   const assets = new Map(await Promise.all(["index.html", "app.js", "style.css"].map(async (name) => [name, await readFile(new URL(name, existsSync(new URL("index.html", import.meta.url)) ? import.meta.url : new URL("../../../../vscode-extension/src/priorities/", import.meta.url)), "utf8")])));
+  const guard = createCanvasGuard();
+  for (const name of ["reload-ui.js", "reload-ui.css"]) assets.set(name, await readFile(new URL("../oneagent-cockpit/" + name, import.meta.url), "utf8"));
+  assets.set("index.html", assets.get("index.html").replace("</head>", '<script src="/reload-ui.js?token=__ONEAGENT_TOKEN__" defer></script><link rel="stylesheet" href="/reload-ui.css?token=__ONEAGENT_TOKEN__"></head>'));
   let authority;
   const server = createServer(async (req, res) => {
     const send = (status, value, type = "application/json; charset=utf-8") => {
@@ -24,7 +28,7 @@ export async function startPriorityServer(call) {
       }
       if (req.headers["x-oneagent-token"] !== token || (req.headers.origin && req.headers.origin !== `http://${authority}`)) return send(403, { error: "Accès refusé." });
       const operation = { "/api/list": "oneagent_list_priorities", "/api/save": "oneagent_save_priority", "/api/reorder": "oneagent_reorder_priority", "/api/delete": "oneagent_delete_priority", "/api/tasks": "oneagent_list_priority_tasks", "/api/task-attach": "oneagent_attach_priority_task", "/api/task-detach": "oneagent_detach_priority_task", "/api/task-save": "oneagent_save_priority_task", "/api/views": "oneagent_list_priority_views", "/api/view-save": "oneagent_save_priority_view", "/api/view-delete": "oneagent_delete_priority_view" }[url.pathname];
-      if (req.method !== "POST" || !operation) return send(404, { error: "Action inconnue." });
+      if (req.method !== "POST" || !operation && url.pathname !== "/api/reload-ui") return send(404, { error: "Action inconnue." });
       if (req.headers["content-type"] !== "application/json") return send(415, { error: "JSON requis." });
       const chunks = []; let size = 0;
       for await (const chunk of req) {
@@ -33,7 +37,7 @@ export async function startPriorityServer(call) {
         chunks.push(chunk);
       }
       const input = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-      send(200, await call(operation, input));
+      send(200, url.pathname === "/api/reload-ui" ? guard.handle(input) : await call(operation, input));
     } catch (error) {
       if (!res.headersSent) send(400, { error: error instanceof Error ? error.message : "Impossible de mettre à jour les priorités." });
     }

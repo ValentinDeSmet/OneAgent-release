@@ -15,7 +15,7 @@ const { runMemoryTextCommand } = await import(pathToFileURL(path.join(pluginRoot
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 
 /** One UI instance, one injected host. No VS Code module or real workspace activation. */
-export function createCockpitHost({ connection, updates, emit, runAgentLoop, openFile, runCommand = runMemoryTextCommand }) {
+export function createCockpitHost({ connection, updates, emit, runAgentLoop, openFile, manageUpdate, runCommand = runMemoryTextCommand }) {
   const tracked = (operation) => updates.run ? updates.run(operation) : operation();
   const pending = new Map(), tools = new Map();
   let closed = false, cli, controller;
@@ -113,6 +113,7 @@ export function createCockpitHost({ connection, updates, emit, runAgentLoop, ope
       if (["workMemory.openCockpit", "workMemory.cockpit.focus", "workMemory.refresh"].includes(command)) return emitHost({ kind: "focus" });
       if (command === "revealFileInOS") return showDocument(await openDocument(target));
       if (command === "workMemory.checkForUpdates") {
+        if (manageUpdate) return manageUpdate();
         let result;
         try { result = await updates.check(); }
         catch (error) {

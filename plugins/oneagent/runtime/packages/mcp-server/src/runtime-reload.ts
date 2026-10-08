@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 
 export interface ReloadRequest { id: string; installedVersion: string | null; requestedAt: number; }
 /** Coordination only: no memory content, repository paths or Copilot settings. */
@@ -48,6 +49,37 @@ export class RuntimeReload {
     this.write("request.json", value);
     return value;
   }
+  installing(): boolean {
+    const value = this.read("installing.json");
+    if (!value) return false;
+    if (!Number.isSafeInteger(value.pid) || value.pid <= 0 || typeof value.id !== "string") throw new Error("Installation OneAgent invalide.");
+    try { process.kill(value.pid, 0); return true; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") return false; throw error; }
+  }
+  beginInstallation(): () => void {
+    this.prepare();
+    const file = path.join(this.directory, "installing.json"), id = randomUUID();
+    // A separate empty SQLite file is an OS-released cross-process mutex. It
+    // contains no memory data; a killed installer cannot leave a permanent lock.
+    const mutex = path.join(this.directory, "installer-lock.sqlite");
+    try { fs.closeSync(fs.openSync(mutex, "wx", 0o600)); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+    const stat = fs.lstatSync(mutex);
+    if (stat.isSymbolicLink() || !stat.isFile()) throw new Error("Verrou d’installation OneAgent invalide.");
+    const lock = new DatabaseSync(mutex);
+    try {
+      lock.exec("PRAGMA busy_timeout=0; BEGIN EXCLUSIVE");
+      this.write("installing.json", { id, pid: process.pid });
+    } catch (error) {
+      lock.close();
+      if (/locked|busy/i.test(String((error as Error).message))) throw new Error("Une mise à jour OneAgent est déjà en cours.");
+      throw error;
+    }
+    return () => {
+      try { if (this.read("installing.json")?.id === id) fs.rmSync(file, { force: true }); }
+      finally { try { lock.exec("ROLLBACK"); } finally { lock.close(); } }
+    };
+  }
   begin(): () => void {
     this.operations++;
     try { this.write(this.lease, { pid: process.pid, runningVersion: this.runningVersion, operations: this.operations }); }
@@ -59,13 +91,14 @@ export class RuntimeReload {
       else this.write(this.lease, { pid: process.pid, runningVersion: this.runningVersion, operations: this.operations });
     };
   }
-  busy(): boolean {
+  busy(allowedOwnOperations = 0): boolean {
     if (!fs.existsSync(this.directory)) return false;
     for (const name of fs.readdirSync(this.directory)) {
       if (!/^\d+-[a-f0-9-]{36}\.json$/.test(name)) continue;
       const value = this.read(name);
       if (!value) continue; // Another process may just have drained its lease.
       if (!Number.isSafeInteger(value.pid) || value.pid <= 0 || !Number.isSafeInteger(value.operations) || value.operations < 1) throw new Error("Opération OneAgent invalide.");
+      if (name === this.lease && value.operations <= allowedOwnOperations) continue;
       try { process.kill(value.pid, 0); }
       catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") continue; throw error; }
       return true;
