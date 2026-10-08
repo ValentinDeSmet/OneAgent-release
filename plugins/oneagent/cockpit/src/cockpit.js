@@ -1,3 +1,5 @@
+const { createMemoryExplorer } = require("./memory-explorer.js");
+const memoryExplorerCss = require("node:fs").readFileSync(require("node:path").join(__dirname, "memory-explorer.css"), "utf8");
 const { prioritiesBootstrap } = require("./priorities-view.js");
 const { documentReviewBootstrap } = require("./inbox-documents.js");
 
@@ -1291,6 +1293,7 @@ function renderCockpitHtml(payload, assets = {}) {
         .help-article { padding: 24px 18px 54px; }
         .help-banner { grid-template-columns: 1fr; }
       }
+      ${memoryExplorerCss}
     </style>
   </head>
   <body>
@@ -1299,7 +1302,7 @@ function renderCockpitHtml(payload, assets = {}) {
         <div class="logo"><div class="logo-mark"><span></span><span></span><span></span><span></span></div></div>
         <nav class="nav">
           <button data-view="today" title="Today">★</button>
-          <button class="active" data-view="map" title="Memory graph">⌘</button>
+          <button class="active" data-view="map" title="Mémoire · graphe et liste">⌘</button>
           <button data-view="priorities" title="Priorités" aria-label="Priorités">!</button>
           <button data-view="tasks" title="Tasks">✓</button>
           <button data-view="notes" title="Notes">✎</button>
@@ -1412,6 +1415,7 @@ function renderCockpitHtml(payload, assets = {}) {
     <script nonce="${escapeHtmlAttribute(nonce)}">
       const vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : undefined;
       let state = ${data};
+      let memoryExplorer;
       const defaultContextTokenBudget = Math.max(1000, Number(state.contextTokenBudget) || 64000);
       function contextTokenBudgetOrDefault(value) {
         const parsed = Number(value);
@@ -1663,7 +1667,7 @@ function renderCockpitHtml(payload, assets = {}) {
       let graphSelectedRelationCategories = new Set(RELATION_CATEGORY_ORDER);
       const graphExpandedFilterTypes = new Set(["product", "team", "source"]);
       let selectedGraphFilterType = "product";
-      let graphFilterPanelOpen = true;
+      let graphFilterPanelOpen = false;
       let graphFocusThreshold = "informational";
       let graphGroupMode = "none";
       let graphLayoutMode = "force";
@@ -2045,7 +2049,7 @@ function renderCockpitHtml(payload, assets = {}) {
         if (view) {
           applyGraphView(view);
         } else {
-          renderGraphViewControls();
+          applyGraphView({ payload: { perspective: "map", memory: { layout: "list" } } });
         }
         scheduleGraphFiltersSave();
       });
@@ -2151,6 +2155,7 @@ function renderCockpitHtml(payload, assets = {}) {
 
       function setActiveView(view) {
         activeCockpitView = view;
+        memoryExplorer?.setActive(view === "map");
         if (view === "priorities") mountPriorities();
         document.querySelectorAll("[data-view]").forEach((item) => item.classList.toggle("active", item.dataset.view === view));
         document.querySelectorAll("[data-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === view));
@@ -2523,6 +2528,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function matchesGraphTextFilter(node, filter) {
+        if (memoryExplorer) return memoryExplorer.matchesNode(node);
         return !filter || node.label.toLowerCase().includes(filter) || graphViewType(node).includes(filter) || node.type.includes(filter) || (node.provider || "").includes(filter);
       }
 
@@ -2538,6 +2544,7 @@ function renderCockpitHtml(payload, assets = {}) {
         };
         let nodes = [];
         for (const node of graph.nodes || []) {
+          if (memoryExplorer && !memoryExplorer.matchesNode(node)) { mark(node, "memory", "Filtre de la mémoire"); continue; }
           const pinned = graphPinnedNodeIds.has(node.id);
           if (!pinned && !isNodeInContextScope(node)) {
             const viewType = graphViewType(node);
@@ -2684,6 +2691,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function renderGraphSearchResults() {
+        if (memoryExplorer?.isList()) return;
         const container = document.querySelector("#graphSearchResults");
         const input = document.querySelector("#filter");
         if (!container || !input) return;
@@ -2809,6 +2817,9 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function renderGraph() {
+        renderGraphViewControls();
+        memoryExplorer?.render();
+        if (memoryExplorer?.isList()) return;
         const graph = applyGroupFolding(state.graph);
         const svg = document.querySelector("#graph");
         const width = svg.clientWidth || 900;
@@ -3772,6 +3783,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function selectNode(node, options) {
+        memoryExplorer?.openDetail();
         const opts = options || {};
         if (!opts.restore && graphSelectionMode === "context") {
           if (isVirtualTypeGroup(node)) {
@@ -3811,6 +3823,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function selectRelation(edge) {
+        memoryExplorer?.openDetail();
         if (!edge) return;
         selectedNodeId = undefined;
         selectedRelationId = String(edge.id || graphRelationMenuTitle(edge));
@@ -4457,7 +4470,7 @@ function renderCockpitHtml(payload, assets = {}) {
 
       function renderRequestedEntityContext(ref) {
         const selected = (state.graph?.nodes || []).find((node) => node.id === selectedNodeId);
-        if (selected && entityRefForNode(selected) === ref) renderEntityContext(ref);
+        if ((selected && entityRefForNode(selected) === ref) || (memoryExplorer?.isList() && entityPanelUi.ref === ref)) renderEntityContext(ref);
         if (workspaceRef === ref) renderWorkspace();
       }
 
@@ -5759,6 +5772,7 @@ function renderCockpitHtml(payload, assets = {}) {
           if (values.size) excludedValues[type] = Array.from(values);
         }
         return {
+          memory: memoryExplorer?.snapshot(),
           activeTypes: Array.from(activeGraphTypes),
           excludedValues,
           hiddenMode: graphHiddenMode,
@@ -5805,6 +5819,7 @@ function renderCockpitHtml(payload, assets = {}) {
       // A saved view is the full visual state minus camera and panel chrome.
       function serializeGraphView() {
         const filters = serializeGraphFilters();
+        delete filters.memory;
         delete filters.panelOpen;
         delete filters.selectedType;
         delete filters.expandedTypes;
@@ -5815,13 +5830,14 @@ function renderCockpitHtml(payload, assets = {}) {
           depth: graphDepth,
           selfLinks: selfLinksMode,
           focusedNodeId: focusedNodeId || undefined,
-          textFilter: (document.querySelector("#filter")?.value || "").trim(),
+          memory: memoryExplorer?.snapshot(),
           context: comparableGraphViewContext(contextScopeDraft)
         };
       }
 
       function applyGraphView(view) {
         const payload = view?.payload || {};
+        memoryExplorer?.apply(payload.memory);
         hydrateGraphFilters(payload.filters || {});
         setGraphPerspective(payload.perspective || "map");
         graphDepth = Number(payload.depth) || 0;
@@ -5875,25 +5891,34 @@ function renderCockpitHtml(payload, assets = {}) {
       // view does not immediately read as dirty.
       function normalizedGraphViewPayload(payload) {
         const filters = payload && typeof payload.filters === "object" && payload.filters ? { ...payload.filters } : {};
+        delete filters.memory;
         const excludedValues = normalizedExcludedValues(filters);
         delete filters.valueMode;
         delete filters.selectedValues;
         filters.excludedValues = excludedValues;
         if (filters.hiddenMode !== "fade") filters.hiddenMode = "hide";
         if (!Array.isArray(filters.pinnedNodes)) filters.pinnedNodes = [];
-        return { ...payload, filters, context: comparableGraphViewContext(payload?.context) };
+        const defaults = { activeTypes: typeOrder, relationValueMode: "all", selectedRelationTypes: [], selectedRelationCategories: RELATION_CATEGORY_ORDER, focusThreshold: "informational", groupMode: "none", layoutMode: "force", relationQuickMode: "all", expandedTypeGroups: [], collapsedTypeGroups: [] };
+        for (const [key, value] of Object.entries(defaults)) if (filters[key] === undefined) filters[key] = value;
+        for (const key of ["panelOpen", "selectedType", "expandedTypes", "activeGraphViewId"]) delete filters[key];
+        const normalized = { perspective: "map", depth: 0, selfLinks: "show", ...payload, filters, memory: memoryExplorer?.sanitize(payload?.memory), context: comparableGraphViewContext(payload?.context) };
+        delete normalized.textFilter;
+        return normalized;
       }
 
       function graphViewIsDirty() {
         const view = activeGraphView();
         if (!view) return false;
-        return stableGraphViewString(serializeGraphView()) !== stableGraphViewString(normalizedGraphViewPayload({ ...(view.payload || {}), context: view.context }));
+        const current = normalizedGraphViewPayload(serializeGraphView());
+        const saved = normalizedGraphViewPayload({ ...(view.payload || {}), context: view.context || view.payload?.context });
+        if (!view.context && !view.payload?.context) { delete current.context; delete saved.context; }
+        return stableGraphViewString(current) !== stableGraphViewString(saved);
       }
 
       function graphViewVisualIsDirty() {
         const view = activeGraphView();
         if (!view) return false;
-        const current = serializeGraphView();
+        const current = normalizedGraphViewPayload(serializeGraphView());
         const saved = normalizedGraphViewPayload({ ...(view.payload || {}), context: view.context });
         delete current.context;
         delete saved.context;
@@ -5907,10 +5932,10 @@ function renderCockpitHtml(payload, assets = {}) {
           activeGraphViewId = undefined;
         }
         const dirty = graphViewIsDirty();
-        let html = '<option value="">View: none</option>';
+        let html = '<option value="">Tout</option>';
         for (const view of graphViews) {
           const isActive = view.id === activeGraphViewId;
-          html += '<option value="' + escapeAttr(view.id) + '"' + (isActive ? " selected" : "") + '>View: ' + escapeHtml(view.name) + (isActive && dirty ? " ●" : "") + '</option>';
+          html += '<option value="' + escapeAttr(view.id) + '"' + (isActive ? " selected" : "") + '>' + escapeHtml(view.name) + (isActive && dirty ? " ●" : "") + '</option>';
         }
         select.innerHTML = html;
         select.value = activeGraphViewId || "";
@@ -5928,6 +5953,7 @@ function renderCockpitHtml(payload, assets = {}) {
         if (compareBtn) compareBtn.style.display = activeGraphViewId && graphViews.length > 1 ? "" : "none";
         const deleteBtn = document.querySelector("#graphViewDelete");
         if (deleteBtn) deleteBtn.style.display = activeGraphViewId ? "" : "none";
+        memoryExplorer?.refreshViews();
       }
 
       function parseEntityRefString(ref) {
@@ -9478,6 +9504,25 @@ function renderCockpitHtml(payload, assets = {}) {
         return typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(String(value)) : String(value).replace(/[^a-zA-Z0-9_-]/g, "\\$&");
       }
 
+      memoryExplorer = (${createMemoryExplorer.toString()})({
+        state: () => state, typeLabel, entityRef: entityRefForNode,
+        refresh: () => document.querySelector("#refresh").click(),
+        views: () => ({ views: graphViews, activeId: activeGraphViewId, dirty: graphViewIsDirty() }),
+        changed: () => { scheduleGraphFiltersSave(); renderGraph(); renderGraphViewControls(); },
+        selectView: (id) => { const select = document.querySelector("#graphViewPreset"); select.value = id; select.dispatchEvent(new Event("change")); },
+        restoreView: () => { if (activeGraphView()) applyGraphView(activeGraphView()); scheduleGraphFiltersSave(); },
+        graphFilters: () => { graphFilterPanelOpen = true; renderGraphFilterPanel(); renderGraphFilterToggle(); },
+        open: (entry, action) => vscode?.postMessage({ type: "openMemoryEntry", id: entry.id, action }),
+        inspect: (entry) => {
+          const node = state.graph.nodes.find(item => item.id === entry.nodeId || (entry.detailRef && entityRefForNode(item) === entry.detailRef)) || {
+            id: entry.id, type: entry.kind, label: entry.title, status: entry.status, meta: entry.detailRef ? { kind: entry.detailRef.split(":")[0], entityId: entry.detailRef.split(":").slice(1).join(":"), description: entry.description } : { description: entry.description }
+          };
+          selectNode(node, { restore: true });
+        },
+        task: (id) => { setActiveView("tasks"); selectedTaskId = id; renderTasks(); renderTaskDetail(); },
+        note: (id) => { if (!findManualNote(id)) return false; setActiveView("notes"); selectManualNote(id); return true; }
+      });
+      memoryExplorer.apply(state.graphFilters?.memory);
       const documentationLaunch = state.documentation?.launchState || {};
       const initialView = state.documentationOnly || documentationLaunch.showWelcome || documentationLaunch.isFirstWorkspaceUse
         ? "help"

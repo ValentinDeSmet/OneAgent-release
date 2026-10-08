@@ -29,11 +29,11 @@
     },
     {
       "id": "graph-views",
-      "title": "Graph views",
-      "summary": "Filter the graph and save reusable visual views for a topic or activity.",
+      "title": "Vues de la mémoire",
+      "summary": "Retrouver documents et entités en liste ou en graphe, filtrer et enregistrer des vues.",
       "category": "Organize knowledge",
       "order": 40,
-      "keywords": ["graph view", "vue", "vue graphe", "filters", "focus", "dependencies", "layout", "preset"],
+      "keywords": ["graph view", "vue", "vue graphe", "filters", "focus", "dependencies", "layout", "preset", "liste", "recherche", "documents", "Google Sheets", "mémoire"],
       "file": "graph-views.md"
     },
     {

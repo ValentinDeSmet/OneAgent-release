@@ -2949,6 +2949,15 @@ async function handleCockpitMessage(cli, webview, message) {
       );
       await postCockpitState(cli, webview);
     }
+    if (message.type === "openMemoryEntry") {
+      const index = await cli.json(["memory-index", "--json"]);
+      const entry = index.entries.find((item) => item.id === message.id);
+      if (!entry) throw new Error("Cet élément n’est plus accessible. Actualise la mémoire.");
+      if (message.action === "url" && entry.url) await vscode.env.openExternal(vscode.Uri.parse(entry.url));
+      else if (message.action === "file" && entry.file) await openPathInEditor(entry.file);
+      else throw new Error("Ce contenu n’est pas accessible directement.");
+      return;
+    }
     if (message.type === "openFile") {
       await openPathInEditor(message.path);
     }
@@ -3257,6 +3266,7 @@ async function saveGraphFiltersFromCockpit(cli, message) {
     activeTypes: stringArray(payload.activeTypes),
     excludedValues: payload.excludedValues && typeof payload.excludedValues === "object" ? payload.excludedValues : {},
     hiddenMode: payload.hiddenMode === "fade" ? "fade" : "hide",
+    memory: payload.memory && typeof payload.memory === "object" ? payload.memory : undefined,
     pinnedNodes: stringArray(payload.pinnedNodes),
     relationValueMode: payload.relationValueMode === "selected" ? "selected" : "all",
     selectedRelationTypes: stringArray(payload.selectedRelationTypes),
@@ -3311,7 +3321,7 @@ async function saveGraphView(cli, webview, message) {
   const existing = message.id ? views.find((view) => view.id === message.id) : undefined;
   const authorization = { approved: false };
   if (existing) {
-    await postOperation(webview, "running", `Updating graph view "${existing.name}"...`);
+    await postOperation(webview, "running", `Updating memory view "${existing.name}"...`);
     const result = await runContextBoundaryCommand(
       cli,
       ["context-view", "update", existing.id, "--stdin", "--json", "--context-scope", "active"],
@@ -3324,17 +3334,17 @@ async function saveGraphView(cli, webview, message) {
       return;
     }
     await postGraphViews(cli, webview, existing.id);
-    await postOperation(webview, "success", `Graph view "${existing.name}" updated.`);
+    await postOperation(webview, "success", `Memory view "${existing.name}" updated.`);
     return;
   }
   const name = (message.name ? String(message.name) : await vscode.window.showInputBox({
     ignoreFocusOut: true,
-    prompt: "Graph view name",
-    placeHolder: "e.g. Rental MVP focus",
+    prompt: "Memory view name",
+    placeHolder: "Ex. Documents DKT FF",
     validateInput: (value) => value.trim() ? undefined : "Name is required"
   }) || "").trim();
   if (!name) return;
-  await postOperation(webview, "running", `Saving graph view "${name}"...`);
+  await postOperation(webview, "running", `Saving memory view "${name}"...`);
   const result = await runContextBoundaryCommand(
     cli,
     ["context-view", "create", "--stdin", "--json", "--context-scope", "active"],
@@ -3348,14 +3358,14 @@ async function saveGraphView(cli, webview, message) {
   }
   const view = JSON.parse(result.output);
   await postGraphViews(cli, webview, view.id);
-  await postOperation(webview, "success", `Graph view "${view.name || name}" saved.`);
+  await postOperation(webview, "success", `Memory view "${view.name || name}" saved.`);
 }
 
 async function renameGraphView(cli, webview, message) {
   const views = await loadGraphViews(cli);
   const view = views.find((item) => item.id === message.id);
   if (!view) return;
-  const name = (await vscode.window.showInputBox({ ignoreFocusOut: true, prompt: "Rename graph view", value: view.name }) || "").trim();
+  const name = (await vscode.window.showInputBox({ ignoreFocusOut: true, prompt: "Rename memory view", value: view.name }) || "").trim();
   if (!name || name === view.name) return;
   await cli.run(["context-view", "rename", view.id, "--name", name, "--json", "--context-scope", "active"], { logOutput: false });
   await postGraphViews(cli, webview, view.id);
@@ -3367,7 +3377,7 @@ async function duplicateGraphView(cli, webview, message) {
   if (!view) return;
   const name = (await vscode.window.showInputBox({
     ignoreFocusOut: true,
-    prompt: "Duplicate graph and Context view",
+    prompt: "Dupliquer la vue mémoire",
     value: `${view.name} copy`
   }) || "").trim();
   if (!name) return;
@@ -3399,7 +3409,7 @@ async function deleteGraphView(cli, webview, message) {
   const views = await loadGraphViews(cli);
   const view = views.find((item) => item.id === message.id);
   if (!view) return;
-  const choice = await vscode.window.showWarningMessage(`Delete graph view "${view.name}"?`, { modal: true }, "Delete");
+  const choice = await vscode.window.showWarningMessage(`Delete memory view "${view.name}"?`, { modal: true }, "Delete");
   if (choice !== "Delete") return;
   await cli.run(["context-view", "delete", view.id, "--json", "--context-scope", "active", "--allow-boundary-change"], { logOutput: false });
   await postGraphViews(cli, webview, undefined);
@@ -3444,7 +3454,7 @@ async function loadCockpitState(cli, options = {}) {
     if (options.refreshGraphify) {
       graphArgs.push("--refresh-graphify");
     }
-    const [graph, tasks, inbox, graphChangeHistoryState, curationPackageState, sources, diagnostics, entities, captures, manualNotes, today, graphFilters, contextScope, cockpitTheme, graphViews, taxonomy, documentation, documentationState] = await Promise.all([
+    const [graph, tasks, inbox, graphChangeHistoryState, curationPackageState, sources, diagnostics, entities, captures, manualNotes, today, graphFilters, contextScope, cockpitTheme, graphViews, taxonomy, documentation, documentationState, memoryIndex] = await Promise.all([
       cli.json(graphArgs),
       cli.json(["tasks", "--json", "--scope", "portfolio"]),
       cli.json(["inbox", "--json", "--scope", "portfolio", "--context-scope", "active"]),
@@ -3462,11 +3472,13 @@ async function loadCockpitState(cli, options = {}) {
       loadGraphViews(cli),
       cli.json(["taxonomy", "list", "--json"]),
       options.includeDocumentation ? cli.documentationPayload() : undefined,
-      cli.documentationState()
+      cli.documentationState(),
+      cli.json(["memory-index", "--json"]).catch(error => ({ entries: [], error: error.message || String(error) }))
     ]);
     const enrichedInbox = await enrichInboxSummaries(cli, inbox);
     return {
       graph,
+      memoryIndex,
       graphLimits: { visibleMaxNodes, visibleMaxEdges, loadedMaxNodes, loadedMaxEdges },
       contextTokenBudget,
       tasks,

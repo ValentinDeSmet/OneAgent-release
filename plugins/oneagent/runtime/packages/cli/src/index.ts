@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { buildMemoryIndex } from "../../graph/src/memory-index.ts";
 import path from "node:path";
 import { buildTodayModel } from "../../bmad/src/index.ts";
 import {
@@ -452,6 +453,13 @@ async function executeCommand(argv: string[]): Promise<void> {
 
   if (command === "graph") {
     graphCommand(rest);
+    return;
+  }
+
+  if (command === "memory-index") {
+    const runtime = createCliRuntime(rest);
+    try { console.log(JSON.stringify(buildMemoryIndex(runtime.config, runtime.db, activeResolvedContextScope(runtime, rest)))); }
+    finally { runtime.close(); }
     return;
   }
 
@@ -8191,6 +8199,7 @@ Commands:
   pnpm wm graph-change propose (--stdin | --reason <why> --evidence <observation-ids> --changes '<json>') [--title <title>] [--json]
   pnpm wm graph-change list|get|preview|accept|reject [<id>] [--status pending] [--limit <count>] [--reason <why>] [--json]
   pnpm wm graph [--scope product|dependencies|manual|portfolio] [--limit 25]
+  pnpm wm memory-index [--context-scope active] [--json]
   pnpm wm graph-view [--scope product|dependencies|manual|portfolio] [--include product-a,product-b] [--max-nodes 150] [--max-edges 300] [--entity-kind practice,mission] [--content-type insight,okr] [--ingestion-status indexed] [--relation-type requested_by] [--focus <kind:id>] [--context-scope active] [--refresh-graphify] [--json]
   pnpm wm context [path] [--scope product|dependencies|manual|portfolio] [--include product-a,product-b]
   pnpm wm ingest <file> --entity <kind:id> [--entities <kind:id,...>] [--source-type meeting_transcript|meeting_summary|raw_user_input|decision_note|markdown|plain_text] [--json]

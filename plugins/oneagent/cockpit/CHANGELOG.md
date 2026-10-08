@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.139
+
+- Espace Mémoire commun avec Copilot 0.6.16 : graphe et liste, vues enregistrées par affichage, filtres multiples par type et entité liée, tri, regroupement et propriétés visibles.
+- Catalogue indépendant des limites du graphe : entités, pages Markdown, sources et liens Google Docs/Sheets, notes et tâches. Recherche textuelle dans les titres, descriptions, chemins et liens connus.
+- Ouverture directe des fichiers dans l’éditeur de chaque hôte ; les liens source utilisent leur URL. Les recherches ponctuelles restent temporaires et les anciennes vues sont conservées.
+- Barre allégée, menus de réglages et sélecteur de vues compact. La fiche devient un panneau superposé avec retour sur fenêtre étroite.
+
 ## 0.1.138
 
 - Vues enregistrées des priorités, communes à Copilot 0.6.14 : onglets, filtres multiples, recherche, tri et sens du tri.

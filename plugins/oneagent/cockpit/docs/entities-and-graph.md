@@ -24,6 +24,13 @@ A relationship explains how two entities are connected, for example:
 
 The graph is a map of these entities and relationships. It is not a folder tree, so the same entity can participate in several useful paths.
 
+## Retrouver une entité ou un document
+
+Dans **Mémoire → Liste**, rechercher un titre ou un nom de fichier et filtrer par
+type ou entité liée. Le bouton **Markdown** ouvre directement la page locale.
+La liste reste complète même lorsque le graphe limite ses nœuds visibles.
+Voir les [vues enregistrées de la mémoire](graph-views.md).
+
 ## Work with the graph
 
 1. Open **Memory graph**.
