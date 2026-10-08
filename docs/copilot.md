@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.6.15 : bouton de mise à jour avec installation native, rechargement dans la conversation courante et réouverture automatique des onglets ; Inbox avec documents Markdown proposés par l’agent, aperçu formaté, édition et acceptation humaine sans embeddings ; cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.6.16 : espace Mémoire avec liste recherchable, vues enregistrées par affichage et barre de graphe adaptée aux fenêtres étroites ; bouton de mise à jour avec installation native, rechargement dans la conversation courante et réouverture automatique des onglets ; Inbox avec documents Markdown proposés par l’agent, aperçu formaté, édition et acceptation humaine sans embeddings ; cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -66,12 +66,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.15.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.16.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.15/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.16/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -120,6 +120,29 @@ Pour essayer ensuite :
 
 > Crée une note privée OneAgent intitulée Test installation, avec le contenu
 > Première utilisation sur ce Mac, puis relis-la.
+
+## Retrouver un contenu dans Mémoire
+
+Ouvrir **Mémoire**, puis **Liste**. La recherche porte sur les titres, descriptions,
+noms de fichiers, entités liées et URL connus de OneAgent. Les cases à cocher
+filtrent plusieurs types ou plusieurs entités : OU dans un même champ, ET entre
+les champs. Les choix viennent du catalogue disponible, pas de toute la taxonomie.
+
+Les résultats incluent les entités, chaque page Markdown, les sources liées
+(dont Google Docs/Sheets), les notes et les tâches. La liste ne dépend pas du
+nombre de nœuds affichés dans le graphe. Elle ne télécharge pas le contenu des
+documents Google ; seuls les documents déjà référencés dans la mémoire apparaissent.
+
+**Markdown/Fichier** ouvre le fichier local ; **Source** ouvre son URL. Le titre
+d’une entité ouvre sa fiche, celui d’une tâche son éditeur. Les onglets et le
+sélecteur **Toutes les vues** permettent de retrouver les vues enregistrées.
+Chaque vue conserve son affichage, ses filtres, son tri et ses propriétés visibles.
+La recherche ponctuelle reste temporaire. **Enregistrer** applique les modifications
+à la vue ; **Annuler les modifications** la rétablit. La navigation humaine
+ne change pas le contexte actif de l’agent.
+
+Sur un panneau étroit, les réglages se trouvent dans **Filtres**, **Trier** et
+**Affichage** ; la fiche s’ouvre au-dessus des résultats avec un bouton de retour.
 
 ## Ouvrir les fichiers Markdown
 
@@ -325,7 +348,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.15.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.16.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.

@@ -2,14 +2,14 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.15](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [GitHub Copilot 0.6.16](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 
-**Mise à jour depuis le bouton (Copilot 0.6.15).** Dans Réglages → Version, cliquer sur Mettre à jour OneAgent. L’application actualise le catalogue, installe le plugin, recharge ses outils dans la même conversation et réouvre ses onglets automatiquement. Le bouton utilise les API natives de Copilot, sans CLI dans le Terminal ni demande à l’agent. Un brouillon ou une opération en cours diffère l’installation ; elle reprend automatiquement une fois les éditeurs prêts. Une tentative de rechargement se reprend depuis un bouton, sans réinstaller.
+**Mémoire : graphe et liste (Copilot 0.6.16 / VS Code 0.1.139).** Recherche textuelle, filtres multiples par type et entité liée, tri, regroupement et vues enregistrées avec leur affichage. Le catalogue couvre les entités, pages Markdown, sources liées, notes et tâches, indépendamment du nombre de nœuds chargés dans le graphe. Ouverture directe du fichier ou de sa source. La barre de navigation se compacte et les fiches s’ouvrent en panneau superposé sur fenêtre étroite. [Guide des vues](docs/memory-views.md).
 
-Les API de gestion Copilot sont expérimentales ; le parcours macOS reste à valider sur le poste cible. Le rechargement de la session peut relancer les autres extensions/MCP ; les réglages et l’historique restent conservés. Une conversation encore sur 0.6.14 ou plus ancien utilise l’ancien code jusqu’au premier chargement de 0.6.15 : cette transition suit l’ancien parcours une dernière fois. [Guide et compatibilité](docs/copilot.md#recharger-sans-recommencer-le-chat).
+Les mises à jour Copilot conservent le parcours du bouton introduit en 0.6.15 : installation native, rechargement des outils dans la même conversation, réouverture des onglets. [Guide et compatibilité](docs/copilot.md#recharger-sans-recommencer-le-chat).
 
 **Vues de priorités enregistrées.** Onglets, filtres multiples et tri enregistrés, ajustements temporaires et mise à jour explicite, duplication et choix par défaut. Les listes restent dynamiques ; Mon classement conserve le rang global. [Guide des priorités](docs/priorities.md).
 
