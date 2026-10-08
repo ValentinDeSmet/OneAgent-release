@@ -2,20 +2,18 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.14](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [GitHub Copilot 0.6.15](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 
-**Vues enregistrées (Copilot 0.6.14 et VS Code 0.1.138).** Onglets au-dessus des filtres, création par +, filtres multiples et tri enregistrés, ajustements temporaires marqués Modifiée et mise à jour explicite. Renommer, dupliquer, supprimer seulement la vue ou la choisir par défaut. Les listes restent dynamiques ; Mon classement conserve le rang global. Vues et défaut communs aux deux plugins, conservés dans les exports privés. [Guide des priorités](docs/priorities.md).
+**Mise à jour depuis le bouton (Copilot 0.6.15).** Dans Réglages → Version, cliquer sur Mettre à jour OneAgent. L’application actualise le catalogue, installe le plugin, recharge ses outils dans la même conversation et réouvre ses onglets automatiquement. Le bouton utilise les API natives de Copilot, sans CLI dans le Terminal ni demande à l’agent. Un brouillon ou une opération en cours diffère l’installation ; elle reprend automatiquement une fois les éditeurs prêts. Une tentative de rechargement se reprend depuis un bouton, sans réinstaller.
 
-**Rechargement dans le chat courant.** Après mise à jour, OneAgent attend la fin du travail du chat, des opérations mémoire et la fermeture de ses Canvas, puis demande au SDK Copilot de rafraîchir les plugins, outils et extensions sans effacer la conversation. Enregistrer les brouillons, fermer seulement les onglets OneAgent et demander à rouvrir le Canvas après rechargement. Les autres extensions et connexions MCP du chat peuvent être relancées ; leurs réglages et hooks restent inchangés. L’API hôte est expérimentale et le parcours macOS reste à valider sur le poste cible.
+Les API de gestion Copilot sont expérimentales ; le parcours macOS reste à valider sur le poste cible. Le rechargement de la session peut relancer les autres extensions/MCP ; les réglages et l’historique restent conservés. Une conversation encore sur 0.6.14 ou plus ancien utilise l’ancien code jusqu’au premier chargement de 0.6.15 : cette transition suit l’ancien parcours une dernière fois. [Guide et compatibilité](docs/copilot.md#recharger-sans-recommencer-le-chat).
 
-Pour un ancien chat démarré avant 0.6.11, demander une fois à Copilot un rechargement natif des plugins, extensions et serveurs MCP dans ce chat : simplement rouvrir le Canvas ne recharge pas les modules déjà en mémoire. Vérifier ensuite que oneagent_update_status indique currentVersion = installedVersion et reloadRequired = false. Aucun transfert ou reparamétrage de mémoire nécessaire.
+**Vues de priorités enregistrées.** Onglets, filtres multiples et tri enregistrés, ajustements temporaires et mise à jour explicite, duplication et choix par défaut. Les listes restent dynamiques ; Mon classement conserve le rang global. [Guide des priorités](docs/priorities.md).
 
-[Guide du rechargement](docs/copilot.md#recharger-sans-recommencer-le-chat) · [Code du coordinateur](plugins/oneagent/com.github.copilot/extensions/oneagent-cockpit/reload.mjs)
-
-L’Inbox Markdown reste disponible : proposer un document, modifier l’aperçu puis accepter sa publication privée, sans embeddings.
+L’Inbox Markdown permet de proposer un document, modifier l’aperçu puis accepter sa publication privée, sans embeddings.
 
 ---
 
