@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.142
+
+- Priorités adopte le tableau et les vues de Mémoire, avec les mêmes contrôles de colonnes et styles partagés avec Copilot 0.6.19.
+- Colonnes masquables, ordre par glisser-déposer ou clavier, largeur réglable, filtres recherchables dans les en-têtes et présentation enregistrée par vue.
+- Onglets, sélecteur Toutes les vues, création sans filtre et Enregistrer sous pour copier les réglages courants ; anciennes vues conservées.
+- Classement manuel, révisions des écritures, tâches en accordéon et retrait sans suppression de tâche conservés. L’agent et les exports privés préservent les réglages de colonnes.
+
 ## 0.1.141
 
 - Tableau Mémoire pleine largeur partagé avec Copilot 0.6.18 : en-têtes triables, filtres de colonnes recherchables à cases multiples, compteurs contextuels, dates et texte.

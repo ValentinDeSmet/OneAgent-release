@@ -1,3 +1,4 @@
+const { createTableColumns } = require("./table-columns.js");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -8,9 +9,11 @@ function prioritiesBootstrap() {
   // The embedded view inherits the exact cockpit tokens, including live theme
   // switches. Standalone canvas defaults must never override those variables.
   const css = read("style.css").replace(/\/\* standalone-theme:start \*\/[\s\S]*?\/\* standalone-theme:end \*\//, "").replace(/\bbody\b/g, ":host");
-  const html = `<style>${css} :host {display:block;color:var(--text);font:inherit} main{padding:0}</style>${body}`;
+  const sharedCss = fs.readFileSync(path.join(__dirname, "table-view.css"), "utf8");
+  const html = `<style>${sharedCss}\n${css} :host {display:block;color:var(--text);font:inherit} main{padding:0}</style>${body}`;
   const script = read("app.js")
     .replace('const $ = (selector) => document.querySelector(selector);', 'const $ = (selector) => root.querySelector(selector);')
+    .replace('const priorityRoot = document;', 'const priorityRoot = root;')
     .replace('const openExternal = null;', 'const openExternal = (url) => vscode?.postMessage({type:"openExternal",url});')
     .replace('const token = $(\'meta[name="oneagent-token"]\').content;', '')
     .replaceAll('document.querySelectorAll(', 'root.querySelectorAll(')
@@ -41,6 +44,7 @@ function prioritiesBootstrap() {
         vscode?.postMessage({type:"priorityRequest", operation, input:{...input,scope:"portfolio"}, requestId});
       });
     }
+    const createTableColumns = ${createTableColumns.toString()};
     ${script}
     refreshPriorities = autoRefresh;
     window.addEventListener("message", (event) => { if (event.data?.type === "state") autoRefresh(); });

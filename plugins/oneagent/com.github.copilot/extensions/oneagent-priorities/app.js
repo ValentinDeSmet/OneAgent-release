@@ -16,6 +16,7 @@ const expandedTasks = new Set(), taskCache = new Map(), taskLoads = new Map();
 let taskPanels = new Map(), taskContext = null, taskChoices = [], taskNextOffset = null, taskSearchVersion = 0, taskSearchTimer;
 let menuItem = null, menuTrigger = null;
 const viewEditor = $("#view-editor"), viewForm = $("#view-form"), viewDeletion = $("#view-delete-confirm");
+let tableColumns, presentation, activeColumn = "";
 let savedViews = [], viewsRevision = "", defaultViewId = null, activeViewId = "", viewsReady = false, viewDraft = null, viewBusy = false;
 const priorityLabels = { critical: "Critique", high: "Haute", medium: "Normale", low: "Basse" };
 const workTypeLabels = { unspecified: "À préciser", discovery: "Discovery", technical_study: "Étude technique", implementation: "Développement / implémentation", validation: "Validation / recette", documentation: "Documentation", other: "Autre" };
@@ -48,10 +49,10 @@ const activeView = () => savedViews.find(view => view.id === activeViewId);
 function renderViewControls() {
   const focused = document.activeElement?.shadowRoot?.activeElement || document.activeElement;
   const focusedId = $("#view-tabs").contains(focused) ? focused?.dataset?.viewId : undefined;
-  const current = activeView(), dirty = Boolean(current && !sameCriteria(viewCriteria(), current.criteria));
-  const choices = [{ id: "", name: activeViewId ? "Toutes mes priorités" : activeFilterCount() || $("#search").value || sortBy !== "manual" || $("#view").value !== "active" ? "Vue libre" : "Toutes mes priorités" }, ...savedViews];
+  const current = activeView(), dirty = Boolean(current && (!sameCriteria(viewCriteria(), current.criteria) || JSON.stringify(presentation) !== JSON.stringify(tableColumns.normalize(current.presentation))));
+  const choices = [{ id: "", name: "Toutes mes priorités" }, ...savedViews];
   const buttons = choices.map((view,index) => {
-    const button = node("button", view.name + (view.id && view.id === defaultViewId ? " ★" : ""), "view-tab");
+    const button = node("button", view.name + (view.id && view.id === defaultViewId ? " ★" : ""), "memory-view-tab" + (view.id === activeViewId ? " active" : ""));
     button.type = "button"; button.dataset.viewId = view.id; button.disabled = saving || reordering || viewBusy;
     button.setAttribute("role", "tab"); button.setAttribute("aria-selected", String(view.id === activeViewId)); button.setAttribute("aria-controls", "priority-table");
     button.tabIndex = view.id === activeViewId ? 0 : -1;
@@ -64,11 +65,15 @@ function renderViewControls() {
   $("#view-tabs").replaceChildren(...buttons);
   if (focusedId !== undefined) buttons.find(button => button.dataset.viewId === focusedId && !button.disabled)?.focus();
   $("#view-dirty").hidden = !dirty; $("#view-update").hidden = !dirty; $("#view-revert").hidden = !dirty;
-  $("#view-actions").hidden = !current;
+  $("#view-picker").replaceChildren(...choices.map(view => Object.assign(node("option", view.name), { value: view.id })));
+  $("#view-picker").value = activeViewId; $("#view-picker").disabled = saving || reordering || viewBusy;
+  $("#view-actions").hidden = false;
+  for (const id of ["view-rename", "view-duplicate", "view-default", "view-delete"]) $("#" + id).hidden = !current;
   $("#view-default").textContent = current?.id === defaultViewId ? "Ne plus ouvrir par défaut" : "Ouvrir par défaut";
-  for (const id of ["view-save-as", "view-update", "view-revert", "view-rename", "view-duplicate", "view-default", "view-delete"]) $("#" + id).disabled = !viewsRevision || saving || reordering || viewBusy;
+  for (const id of ["view-new", "view-save-as", "view-update", "view-revert", "view-rename", "view-duplicate", "view-default", "view-delete"]) $("#" + id).disabled = !viewsRevision || saving || reordering || viewBusy;
 }
-function applyViewCriteria(value = {}) {
+function applyViewCriteria(value = {}, columns) {
+  presentation = tableColumns.normalize(columns);
   clearTimeout(searchTimer); closeFilterMenus(); closeRowMenu(); $("#view-actions").open = false;
   $("#search").value = value.query || ""; $("#view").value = value.view || "active";
   sortBy = value.sortBy || "manual"; sortDirection = value.sortDirection || "asc";
@@ -82,7 +87,7 @@ function applyViewCriteria(value = {}) {
 function chooseView(id) {
   if (saving || reordering || viewBusy || editor.open || taskEditor.open || viewEditor.open) return;
   const view = savedViews.find(view => view.id === id); if (id && !view) return;
-  activeViewId = id; applyViewCriteria(view?.criteria); refresh();
+  activeViewId = id; applyViewCriteria(view?.criteria, view?.presentation); refresh();
 }
 async function readViews(version) {
   try {
@@ -91,20 +96,20 @@ async function readViews(version) {
     savedViews = data.items || []; viewsRevision = data.revision || ""; defaultViewId = data.defaultViewId || null; viewsReady = true;
     if (activeViewId && !activeView()) { activeViewId = ""; $("#view-feedback").textContent = "Cette vue a été supprimée ailleurs ; tes filtres actuels sont conservés."; }
     if (initial && defaultViewId && !activeFilterCount() && !$("#search").value && sortBy === "manual" && $("#view").value === "active") {
-      const view = savedViews.find(view => view.id === defaultViewId); if (view) { activeViewId = view.id; applyViewCriteria(view.criteria); }
+      const view = savedViews.find(view => view.id === defaultViewId); if (view) { activeViewId = view.id; applyViewCriteria(view.criteria, view.presentation); }
     }
     error($("#view-error")); renderViewControls();
   } catch (failure) { if (version === requestVersion) { viewsRevision = ""; renderViewControls(); error($("#view-error"), "Vues indisponibles : " + failure.message + "\nActualise pour recharger les vues. Les filtres actuels sont conservés."); } }
 }
 function openViewEditor(mode) {
   if (!viewsRevision || saving || reordering || viewBusy) return;
-  const current = activeView(); if (mode !== "create" && !current) return;
+  const current = activeView(); if (["rename", "duplicate"].includes(mode) && !current) return;
   $("#view-actions").open = false; closeFilterMenus(); viewForm.reset(); error($("#view-form-error"));
-  viewDraft = { mode, id: current?.id, criteria: mode === "duplicate" ? current.criteria : viewCriteria() };
+  viewDraft = { mode, id: current?.id, criteria: mode === "new" ? {view:"active", sortBy:"manual",sortDirection:"asc"} : viewCriteria(), presentation: mode === "new" ? tableColumns.normalize() : tableColumns.normalize(presentation) };
   viewForm.elements.name.value = mode === "rename" ? current.name : mode === "duplicate" ? current.name + " · copie" : "";
   viewForm.elements.makeDefault.checked = mode === "rename" && current.id === defaultViewId;
   $("#view-editor-title").textContent = mode === "rename" ? "Renommer la vue" : mode === "duplicate" ? "Dupliquer la vue" : "Nouvelle vue";
-  $("#view-editor-help").textContent = mode === "rename" ? "Le nom change ; les filtres et le tri enregistrés sont conservés." : mode === "duplicate" ? "Copie les critères enregistrés dans une nouvelle vue." : "Enregistre les filtres, la recherche et le tri actuels. Les priorités restent à jour automatiquement.";
+  $("#view-editor-help").textContent = mode === "rename" ? "Le nom change ; les filtres et le tri enregistrés sont conservés." : mode === "duplicate" ? "Copie les filtres, le tri et les colonnes actuels dans une nouvelle vue." : mode === "new" ? "Crée une vue sans filtre, avec les colonnes par défaut et le classement manuel." : "Enregistre les filtres, la recherche, le tri et les colonnes actuels.";
   $("#view-submit").disabled = false; viewEditor.showModal(); viewForm.elements.name.focus();
 }
 async function writeView(operation, input, target, confirmed) {
@@ -119,6 +124,8 @@ async function writeView(operation, input, target, confirmed) {
     error(target, failure.message + "\nModification non confirmée. Ferme cette fenêtre et actualise les vues avant de réessayer.");
   } finally { viewBusy = false; saving = false; renderViewControls(); render(); }
 }
+$("#view-new").addEventListener("click", () => openViewEditor("new"));
+$("#view-picker").addEventListener("change", event => chooseView(event.target.value));
 $("#view-save-as").addEventListener("click", () => openViewEditor("create"));
 $("#view-rename").addEventListener("click", () => openViewEditor("rename"));
 $("#view-duplicate").addEventListener("click", () => openViewEditor("duplicate"));
@@ -128,17 +135,17 @@ viewForm.addEventListener("submit", async event => {
   event.preventDefault(); if (!viewDraft || $("#view-submit").disabled || viewBusy) return;
   const input = { name: viewForm.elements.name.value, makeDefault: viewForm.elements.makeDefault.checked };
   if (viewDraft.mode === "rename") input.id = viewDraft.id;
-  else input.criteria = viewDraft.criteria;
+  else { input.criteria = viewDraft.criteria; input.presentation = viewDraft.presentation; }
   $("#view-submit").disabled = true;
   await writeView("view-save", input, $("#view-form-error"), data => {
     activeViewId = data.saved.id; viewEditor.close();
-    if (viewDraft.mode === "duplicate") applyViewCriteria(data.saved.criteria);
+    if (viewDraft.mode !== "rename") applyViewCriteria(data.saved.criteria, data.saved.presentation);
     $("#view-feedback").textContent = "Vue enregistrée.";
   });
 });
 $("#view-update").addEventListener("click", () => {
   const current = activeView(); if (!current) return;
-  return writeView("view-save", { id: current.id, criteria: viewCriteria() }, $("#view-error"), () => { $("#view-feedback").textContent = "Filtres et tri de la vue mis à jour."; });
+  return writeView("view-save", { id: current.id, criteria: viewCriteria(), presentation: tableColumns.normalize(presentation) }, $("#view-error"), () => { $("#view-feedback").textContent = "Filtres, tri et colonnes de la vue mis à jour."; });
 });
 $("#view-revert").addEventListener("click", () => chooseView(activeViewId));
 $("#view-default").addEventListener("click", () => {
@@ -161,6 +168,116 @@ $("#view-delete-submit").addEventListener("click", async () => {
     viewDeletion.close(); $("#view-feedback").textContent = "Vue supprimée ; les priorités et les filtres actuels sont conservés.";
   });
 });
+const priorityColumns = {
+  rank: {label:'Rang',width:76,minWidth:70,fields:[]},
+  title: {label:'Sujet',width:330,fields:['titleQuery','itemType','entity']},
+  body: {label:'Description',width:260,fields:['bodyQuery']},
+  workType: {label:'Type de travail',width:195,fields:['workType']},
+  product: {label:'Produit principal',width:185,fields:['productId','involvedEntity']},
+  relatedEntities: {label:'Autres produits / équipes',width:230,fields:['relatedEntity']},
+  requester: {label:'Attendu par',width:170,fields:['requesterQuery']},
+  priority: {label:'Prio',width:120,fields:['priority']},
+  deadline: {label:'Échéance',width:180,fields:['deadlineKind','deadlineQuarter','deadlineYear','deadlineFrom','deadlineTo']},
+  url: {label:'Documentation',width:190,fields:['urlQuery']},
+  sourceUrl: {label:'Source',width:190,fields:['sourceUrlQuery']},
+  status: {label:'Avancement',width:165,fields:['status']}
+};
+const columnGroups = new Map(), headerColumns = new Map();
+function columnFilterCount(key) { return priorityColumns[key].fields.reduce((sum,field) => sum + (selectedFilters[field]?.size || (filterFields[field] && $('#'+filterFields[field]).value ? 1 : 0)),0); }
+function updateColumnButtons() {
+  for (const [key,th] of headerColumns) {
+    const button=th.querySelector('[data-column-menu]'); if (!button) continue;
+    const count=columnFilterCount(key); button.classList.toggle('filtered',Boolean(count));
+    button.querySelector('span').textContent=count||'';
+    button.setAttribute('aria-expanded',String(activeColumn===key)); button.disabled=saving||reordering;
+  }
+}
+function renderColumns() {
+  if (!tableColumns) return;
+  const table=$('#priority-table table'), visible=tableColumns.visible();
+  const group=table.querySelector('colgroup');
+  group.replaceChildren(...visible.map(key=>{const col=node('col'); col.dataset.column=key; col.style.width=tableColumns.width(key)+'px';return col;}));
+  table.style.width=visible.reduce((sum,key)=>sum+tableColumns.width(key),0)+'px';
+  for (const key of presentation.columnOrder) { const th=headerColumns.get(key); th.hidden=!visible.includes(key); table.querySelector('thead tr').append(th); th.querySelector('[data-resize-column]').setAttribute('aria-valuenow',String(tableColumns.width(key))); }
+  tableColumns.renderSettings($('#column-settings')); updateColumnButtons();
+  if (activeColumn) positionColumnMenu();
+}
+function positionColumnMenu() {
+  if (!activeColumn) return;
+  const button=headerColumns.get(activeColumn).querySelector('[data-column-menu]'), menu=$('#column-menu');
+  const rect=button.getBoundingClientRect(), width=Math.min(340,window.innerWidth-32), space=window.innerHeight-rect.bottom-16;
+  menu.style.width=width+'px';menu.style.left=Math.max(16,Math.min(rect.left,window.innerWidth-width-16))+'px';
+  menu.style.top=(space>=220?rect.bottom+5:Math.max(16,rect.top-Math.min(menu.scrollHeight||400,window.innerHeight-32)-5))+'px';
+  menu.style.maxHeight=Math.max(160,space>=220?space-5:rect.top-32)+'px';
+}
+function closeColumnMenu(restore=false) {
+  const key=activeColumn; if (!key) return;
+  for (const details of columnGroups.get(key).querySelectorAll('details')) details.open=false;
+  $('#column-filter-store').append(columnGroups.get(key)); $('#column-menu').hidden=true;activeColumn='';
+  updateColumnButtons(); if (restore) headerColumns.get(key).querySelector('[data-column-menu]').focus();
+}
+function openColumnMenu(key) {
+  if(saving||reordering)return;
+  if(activeColumn===key)return closeColumnMenu(true);
+  closeFilterMenus();closeRowMenu();$('#view-actions').open=false;activeColumn=key;
+  $('#column-menu-title').textContent=priorityColumns[key].label;
+  $('#column-menu').setAttribute('aria-label','Trier et filtrer : '+priorityColumns[key].label);
+  $('#column-filter-content').replaceChildren(columnGroups.get(key));
+  for(const details of columnGroups.get(key).querySelectorAll('details'))details.open=true;
+  for(const direction of ['asc','desc'])$('#column-sort-'+direction).setAttribute('aria-pressed',String(sortBy===key&&sortDirection===direction));
+  $('#column-menu').hidden=false; updateColumnButtons();positionColumnMenu();
+  columnGroups.get(key).querySelector('input')?.focus();
+}
+function initializeColumns() {
+  // Keep the existing server-side facets; only their placement changes.
+  for (const [key,column] of Object.entries(priorityColumns)) {
+    const section=node('div');section.dataset.columnFilters=key;
+    for(const field of column.fields) {
+      const id=facetFields[field]?.[0]||filterFields[field], control=$('#'+id);
+      const holder=control.closest(facetFields[field]?'.filter-field':'label');section.append(holder);
+    }
+    columnGroups.set(key,section);$('#column-filter-store').append(section);
+  }
+  $('#view-scope').append($('#view').closest('label'));
+  $('#attention-filter').append($('#filter').closest('.filter-field'));
+  const priorityRoot = document;
+  tableColumns=createTableColumns({root:priorityRoot,columns:priorityColumns,required:['rank','title'],config:()=>presentation,isFiltered:columnFilterCount,disabled:()=>saving||reordering||viewBusy,
+    onHide(key){if(sortBy===key){sortBy='manual';sortDirection='asc';refresh();}},
+    changed(){render();}
+  });
+  presentation=tableColumns.normalize();
+  const table=$('#priority-table table');table.insertBefore(node('colgroup'),table.querySelector('thead'));
+  [...table.querySelectorAll('thead th')].forEach((th,index)=>{
+    const key=Object.keys(priorityColumns)[index];th.dataset.headerColumn=key;headerColumns.set(key,th);
+    const sort=th.querySelector('[data-sort]')||node('button','Rang');sort.type='button';sort.dataset.sortColumn=key;sort.classList.add('memory-column-title');
+    sort.textContent=priorityColumns[key].label;
+    const heading=node('div','','memory-column-heading');heading.append(sort);
+    if(key!=='rank'){
+      const filter=node('button','','memory-filter-button');filter.type='button';filter.dataset.columnMenu=key;
+      filter.setAttribute('aria-label','Filtrer '+priorityColumns[key].label);filter.setAttribute('aria-haspopup','dialog');filter.setAttribute('aria-expanded','false');
+      filter.innerHTML='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12L9 9v4l-2-1V9Z"/></svg><span></span>';
+      filter.addEventListener('click',()=>openColumnMenu(key));heading.append(filter);
+    }
+    const handle=node('span','','memory-column-resize');handle.dataset.resizeColumn=key;handle.tabIndex=0;
+    for(const [name,value] of Object.entries({role:'separator','aria-orientation':'vertical','aria-label':'Largeur de '+priorityColumns[key].label,'aria-valuemin':priorityColumns[key].minWidth||100,'aria-valuemax':900,'aria-valuenow':priorityColumns[key].width}))handle.setAttribute(name,String(value));
+    th.replaceChildren(heading,handle);
+  });
+  tableColumns.bind(table);renderColumns();
+  for(const direction of ['asc','desc'])$('#column-sort-'+direction).addEventListener('click',()=>{if(!activeColumn||saving||reordering)return;sortBy=activeColumn;sortDirection=direction;refresh();});
+  $('#column-clear').addEventListener('click',()=>{
+    if(!activeColumn||saving||reordering)return;
+    clearTimeout(searchTimer);
+    for(const field of priorityColumns[activeColumn].fields){if(selectedFilters[field])selectedFilters[field].clear();else $('#'+filterFields[field]).value='';}
+    renderFacets();refresh();
+  });
+  $('#columns-menu').addEventListener('toggle',()=>{if($('#columns-menu').open){closeColumnMenu();$('#view-actions').open=false;$('#filter').open=false;}});
+  $('#view-actions').addEventListener('toggle',()=>{if($('#view-actions').open)closeFilterMenus();});
+  document.addEventListener('pointerdown',event=>{const path=event.composedPath();for(const id of ['columns-menu','view-actions'])if(!path.includes($('#'+id)))$('#'+id).open=false;if(activeColumn&&!path.includes($('#column-menu'))&&!path.includes(headerColumns.get(activeColumn)))closeColumnMenu();});
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&activeColumn){event.preventDefault();closeColumnMenu(true);}});
+  $('#priority-table').addEventListener('scroll',()=>{if(activeColumn)positionColumnMenu();},{passive:true});
+  window.addEventListener('resize',positionColumnMenu);
+}
+
 function activeFilterCount() { return Object.values(filters()).filter(value => Array.isArray(value) ? value.length : value).length; }
 const normalize = value => String(value).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("fr");
 function renderFacet(key) {
@@ -188,7 +305,7 @@ function renderFacet(key) {
   nextFocus?.focus();
 }
 function renderFacets() { for (const key of Object.keys(facetFields)) renderFacet(key); }
-function closeFilterMenus() { for (const [id] of Object.values(facetFields)) $("#" + id).open = false; }
+function closeFilterMenus() { closeColumnMenu(); $("#columns-menu").open = false; $("#filter").open = false; }
 function selectOptions(select, choices, placeholder, value = select.value) {
   const options = [Object.assign(node("option", placeholder), { value: "" })];
   for (const choice of choices) options.push(Object.assign(node("option", choice.label), { value: choice.value }));
@@ -255,7 +372,7 @@ async function movePriority(taskId, targetTaskId, position) {
   if (!manualView() || loading || saving || reordering || !orderRevision) return;
   clearTimeout(searchTimer);
   clearDrag(); reordering = true; render(); error($("#error"));
-  const controls = [...document.querySelectorAll(".toolbar input, .toolbar select, .toolbar button, .filters input, .filters select, .filters button, [data-sort], [data-filter], #add, #empty-add, #refresh, #more, #manual-order")];
+  const controls = [...document.querySelectorAll(".toolbar input, .toolbar select, .toolbar button, .filters input, .filters select, .filters button, #column-menu input, #column-menu button, [data-column-menu], #column-settings input, #column-settings button, [data-sort], [data-filter], #add, #empty-add, #refresh, #more, #manual-order")];
   const previous = controls.map(control => control.disabled);
   for (const control of controls) control.disabled = true;
   $("#rank-feedback").textContent = "Enregistrement du classement…";
@@ -343,6 +460,7 @@ function actionButton(label, icon) {
   return button;
 }
 function render() {
+  renderColumns();
   renderViewControls();
   taskPanels = new Map();
   closeRowMenu();
@@ -389,11 +507,13 @@ function render() {
     } else due.append(node("span", "À préciser", "muted"));
     const status = node("td"); status.append(node("span", statusLabels[item.status] || item.status, "badge"));
     const work = node("td", workTypeLabels[item.workType] || "À préciser", "work-type-cell");
-    row.append(rankCell(item, row, index), subject, description, work, product, related, requester, priority, due, link, source, status);
+    const cells = {rank: rankCell(item,row,index), title: subject, body: description, workType: work, product, relatedEntities: related, requester, priority, deadline: due, url: link, sourceUrl: source, status};
+    const visible = tableColumns.visible();
+    for (const key of presentation.columnOrder) { const cell = cells[key]; cell.dataset.column = key; cell.hidden = !visible.includes(key); row.append(cell); }
     fragment.append(row);
     if (expandedTasks.has(item.id)) {
       const detailRow = node("tr", "", "tasks-accordion"), cell = node("td"), panel = node("section", "", "priority-tasks");
-      cell.colSpan = 12; panel.id = "priority-tasks-" + encodeURIComponent(item.id); panel.setAttribute("aria-label", "Tâches pour " + item.title);
+      cell.colSpan = tableColumns.visible().length; panel.id = "priority-tasks-" + encodeURIComponent(item.id); panel.setAttribute("aria-label", "Tâches pour " + item.title);
       cell.append(panel); detailRow.append(cell); fragment.append(detailRow); taskPanels.set(item.id, panel);
       renderPriorityTasks(item, panel);
     }
@@ -410,6 +530,8 @@ function render() {
     ? "Ces éléments restent dans Tâches. Utilise le menu ⋯ pour les remettre dans tes priorités." : manualView()
     ? "Glisse la poignée ⠿ pour classer les sujets, ou utilise les flèches ↑ / ↓ au clavier. Les filtres conservent l’ordre commun à VS Code et Copilot."
     : "Un tri par colonne est appliqué. Reviens à « Mon classement » pour déplacer les sujets.";
+  updateColumnButtons();
+  for (const direction of ['asc','desc']) $('#column-sort-'+direction).setAttribute('aria-pressed', String(sortBy===activeColumn&&sortDirection===direction));
   const count = activeFilterCount();
   $("#filter-count").textContent = count ? `(${count} actif${count > 1 ? "s" : ""})` : "";
 }
@@ -683,13 +805,14 @@ $("#reset-filters").addEventListener("click", () => {
   $("#view").value = "active"; renderFacets(); refresh();
 });
 for (const [key, [id]] of Object.entries(facetFields)) {
-  $("#" + id).addEventListener("toggle", () => { if ($("#" + id).open) for (const [other] of Object.values(facetFields)) if (other !== id) $("#" + other).open = false; });
+
   $("#" + id + "-search").addEventListener("input", () => renderFacet(key));
   $("#" + id + "-clear").addEventListener("click", () => { if (reordering || saving) return; selectedFilters[key].clear(); renderFacet(key); refresh(); });
-  $("#" + id).addEventListener("keydown", event => { if (event.key === "Escape") { event.preventDefault(); $("#" + id).open = false; } });
+  $("#" + id).addEventListener("keydown", event => { if (event.key === "Escape") { event.preventDefault(); closeColumnMenu(true); $("#" + id).open = false; } });
 }
-const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !editor.open && !taskEditor.open && !deletion.open && !viewEditor.open && !viewDeletion.open && !$("#view-actions").open && rowMenu.hidden && !Object.values(facetFields).some(([id]) => $("#" + id).open) && !document.hidden) refresh(); };
+const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !activeColumn && !$("#columns-menu").open && !editor.open && !taskEditor.open && !deletion.open && !viewEditor.open && !viewDeletion.open && !$("#view-actions").open && rowMenu.hidden && !Object.values(facetFields).some(([id]) => $("#" + id).open) && !document.hidden) refresh(); };
 document.addEventListener("visibilitychange", autoRefresh);
 setInterval(autoRefresh, 60000);
+initializeColumns();
 $("#add").disabled = true; $("#empty-add").disabled = true;
 refresh();

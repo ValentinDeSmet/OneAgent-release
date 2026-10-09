@@ -8,6 +8,7 @@ import { readFile } from "node:fs/promises";
 export async function startPriorityServer(call) {
   const token = randomBytes(32).toString("hex");
   const assets = new Map(await Promise.all(["index.html", "app.js", "style.css"].map(async (name) => [name, await readFile(new URL(name, existsSync(new URL("index.html", import.meta.url)) ? import.meta.url : new URL("../../../../vscode-extension/src/priorities/", import.meta.url)), "utf8")])));
+  for (const name of ["table-columns.js", "table-view.css"]) assets.set(name, await readFile(new URL(name, existsSync(new URL(name, import.meta.url)) ? import.meta.url : new URL("../../../../vscode-extension/src/", import.meta.url)), "utf8"));
   const guard = createCanvasGuard();
   for (const name of ["reload-ui.js", "reload-ui.css"]) assets.set(name, await readFile(new URL("../oneagent-cockpit/" + name, import.meta.url), "utf8"));
   assets.set("index.html", assets.get("index.html").replace("</head>", '<script src="/reload-ui.js?token=__ONEAGENT_TOKEN__" defer></script><link rel="stylesheet" href="/reload-ui.css?token=__ONEAGENT_TOKEN__"></head>'));

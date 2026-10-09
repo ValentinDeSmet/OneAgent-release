@@ -1,10 +1,11 @@
 // DOM table renderer shared by both hosts. All state belongs to the saved view;
 // selections and popover searches are temporary and never activate agent context.
-function createMemoryTable(api) {
+function createMemoryTable(api, createTableColumns) {
   const { root, esc, columns } = api;
   const $ = (selector, node = root) => node.querySelector(selector);
   let page = 1, fingerprint = '', visible = [], selected = new Set(), menuColumn, menuSearch = '', optionLimit = 80;
-  let dragColumn;
+  const layout = createTableColumns({ root, columns, required: ['title', 'open'], leadingWidth: 40, config: api.config, isFiltered: columnFilters, changed: api.changed,
+    onHide(key) { if (api.config().sort === key) { api.config().sort = 'title'; api.config().direction = 'asc'; } } });
   const collator = new Intl.Collator("fr", { numeric: true, sensitivity: "base" });
   const menu = document.createElement('div');
   menu.className = 'memory-column-menu'; menu.hidden = true; menu.setAttribute('role', 'dialog');
@@ -51,21 +52,6 @@ function createMemoryTable(api) {
   function setSort(key, direction) {
     const config = api.config(); config.sort = key; config.direction = direction;
     api.changed();
-  }
-  function moveColumn(key, target) {
-    const order = api.config().columnOrder;
-    if (key === target || !order.includes(key) || !order.includes(target)) return;
-    order.splice(order.indexOf(key), 1); order.splice(order.indexOf(target), 0, key);
-    api.changed();
-  }
-  function setWidth(key, width, persist = true) {
-    width = Math.max(100, Math.min(900, Math.round(width)));
-    api.config().widths[key] = width;
-    const col = [...root.querySelectorAll('col[data-column]')].find(el => el.dataset.column === key);
-    if (col) col.style.width = width + 'px';
-    const table = $(".memory-table");
-    if (table) table.style.width = (40 + [...root.querySelectorAll("col[data-column]")].reduce((sum,col) => sum + (api.config().widths[col.dataset.column] || columns[col.dataset.column].width), 0)) + "px";
-    if (persist) api.changed();
   }
   function columnFilters(key) {
     const config = api.config(), column = columns[key];
@@ -122,24 +108,6 @@ function createMemoryTable(api) {
     menuColumn = key; columnButton(key)?.setAttribute('aria-expanded','true'); menuSearch = ''; optionLimit = 80; renderMenu();
     $('input', menu)?.focus();
   }
-  function renderColumns(target) {
-    const config = api.config();
-    target.innerHTML = config.columnOrder.map((key, i) => '<div class="memory-column-setting"><label><input type="checkbox" data-visible-column="' + key + '"' + (['title', 'open'].includes(key) || config.columns.includes(key) ? ' checked' : '') + (['title', 'open'].includes(key) ? ' disabled' : '') + '>' + columns[key].label + '</label><button class="memory-button" type="button" data-column-up="' + key + '" aria-label="Déplacer ' + columns[key].label + ' vers la gauche"' + (!i ? ' disabled' : '') + '>←</button><button class="memory-button" type="button" data-column-down="' + key + '" aria-label="Déplacer ' + columns[key].label + ' vers la droite"' + (i === config.columnOrder.length - 1 ? ' disabled' : '') + '>→</button></div>').join('');
-    target.querySelectorAll('[data-visible-column]').forEach(input => input.addEventListener('change', () => {
-      const key = input.dataset.visibleColumn;
-      if (!input.checked && columnFilters(key)) { input.checked = true; return; }
-      if (!input.checked && config.sort === key) { config.sort = "title"; config.direction = "asc"; }
-      config.columns = input.checked ? [...config.columns, key] : config.columns.filter(value => value !== key);
-      api.changed();
-    }));
-    for (const [attribute, delta] of [['up', -1], ['down', 1]]) target.querySelectorAll('[data-column-' + attribute + ']').forEach(button => button.addEventListener('click', () => {
-      const key = button.dataset[attribute === 'up' ? 'columnUp' : 'columnDown'], order = config.columnOrder, i = order.indexOf(key);
-      [order[i], order[i + delta]] = [order[i + delta], order[i]]; api.changed();
-    }));
-    target.querySelectorAll('[data-visible-column]').forEach(input => {
-      if (columnFilters(input.dataset.visibleColumn)) { input.disabled = true; input.parentElement.title = 'Effacer le filtre de la colonne avant de la masquer.'; }
-    });
-  }
   function compare(a, b) {
     const config = api.config(), left = api.value(a, config.sort), right = api.value(b, config.sort);
     const group = config.group === 'kind' ? api.label(a.kind).localeCompare(api.label(b.kind), 'fr') : 0;
@@ -167,7 +135,7 @@ function createMemoryTable(api) {
     const filtered = entries.filter(entry => api.matches(entry)).sort(compare);
     const pages = Math.max(1, Math.ceil(filtered.length / 80)); page = Math.min(page, pages);
     visible = filtered.slice((page - 1) * 80, page * 80);
-    const keys = config.columnOrder.filter(key => ['title', 'open'].includes(key) || config.columns.includes(key) || columnFilters(key));
+    const keys = layout.visible();
     const tableWidth = 40 + keys.reduce((sum,key) => sum + (config.widths[key] || columns[key].width), 0);
     const oldScroll = $('.memory-table-scroll'); const scroll = oldScroll ? { top: oldScroll.scrollTop, left: oldScroll.scrollLeft } : { top: 0, left: 0 };
     let previousGroup;
@@ -181,25 +149,9 @@ function createMemoryTable(api) {
     root.querySelectorAll('[data-sort-column]').forEach(button => {
       const key = button.dataset.sortColumn;
       if (key !== 'open') button.addEventListener('click', () => setSort(key, config.sort === key && config.direction === 'asc' ? 'desc' : 'asc'));
-      button.addEventListener('dragstart', event => { dragColumn = key; event.dataTransfer?.setData('application/x-oneagent-column', key); if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'; });
-      button.addEventListener('dragend', () => { dragColumn = undefined; });
-    });
-    root.querySelectorAll('[data-header-column]').forEach(th => {
-      th.addEventListener('dragover', event => { if (dragColumn) event.preventDefault(); });
-      th.addEventListener('drop', event => { if (!dragColumn) return; event.preventDefault(); moveColumn(dragColumn, th.dataset.headerColumn); dragColumn = undefined; });
     });
     root.querySelectorAll('[data-column-menu]').forEach(button => button.addEventListener('click', () => openMenu(button.dataset.columnMenu)));
-    root.querySelectorAll('[data-resize-column]').forEach(handle => {
-      const key = handle.dataset.resizeColumn;
-      handle.addEventListener('keydown', event => { if (['ArrowLeft', 'ArrowRight'].includes(event.key)) { event.preventDefault(); setWidth(key, (config.widths[key] || columns[key].width) + (event.key === 'ArrowRight' ? 16 : -16)); [...root.querySelectorAll('[data-resize-column]')].find(el => el.dataset.resizeColumn === key)?.focus(); } });
-      handle.addEventListener('pointerdown', event => {
-        if (event.button !== 0) return; event.preventDefault();
-        const start = event.clientX, width = config.widths[key] || columns[key].width;
-        const move = event => setWidth(key, width + event.clientX - start, false);
-        const end = () => { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', end); document.removeEventListener('pointercancel', end); api.changed(); };
-        document.addEventListener('pointermove', move); document.addEventListener('pointerup', end); document.addEventListener('pointercancel', end);
-      });
-    });
+    layout.bind($('.memory-table'));
     const byId = new Map(visible.map(entry => [entry.id, entry]));
     root.querySelectorAll('[data-memory-id]').forEach(row => {
       const entry = byId.get(row.dataset.memoryId);
@@ -212,6 +164,6 @@ function createMemoryTable(api) {
     root.querySelectorAll('[data-page]').forEach(button => button.addEventListener('click', () => { page += Number(button.dataset.page); closeMenu(); render(); $('.memory-table-scroll').scrollTop = 0; $('.memory-title')?.focus(); }));
     updateSelection(); if (menuColumn) renderMenu();
   }
-  return { render, renderColumns, closeMenu, reset() { page = 1; selected.clear(); closeMenu(); } };
+  return { render, renderColumns: layout.renderSettings, closeMenu, reset() { page = 1; selected.clear(); closeMenu(); } };
 }
 module.exports = { createMemoryTable };

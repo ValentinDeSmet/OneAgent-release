@@ -1,6 +1,7 @@
+const { createTableColumns } = require("./table-columns.js");
 const { createMemoryTable } = require("./memory-table.js");
 const { createMemoryExplorer } = require("./memory-explorer.js");
-const memoryExplorerCss = require("node:fs").readFileSync(require("node:path").join(__dirname, "memory-explorer.css"), "utf8");
+const memoryExplorerCss = ["memory-explorer.css", "table-view.css"].map(name => require("node:fs").readFileSync(require("node:path").join(__dirname, name), "utf8")).join("\n");
 const { prioritiesBootstrap } = require("./priorities-view.js");
 const { documentReviewBootstrap } = require("./inbox-documents.js");
 
@@ -9536,7 +9537,7 @@ function renderCockpitHtml(payload, assets = {}) {
         },
         task: (id) => { setActiveView("tasks"); selectedTaskId = id; renderTasks(); renderTaskDetail(); },
         note: (id) => { if (!findManualNote(id)) return false; setActiveView("notes"); selectManualNote(id); return true; }
-      }, ${createMemoryTable.toString()});
+      }, (api) => (${createMemoryTable.toString()})(api, ${createTableColumns.toString()}));
       memoryExplorer.apply({ ...state.graphFilters?.memory, layout: activeGraphViewId ? state.graphFilters?.memory?.layout || "graph" : "list" });
       const documentationLaunch = state.documentation?.launchState || {};
       const initialView = state.documentationOnly || documentationLaunch.showWelcome || documentationLaunch.isFirstWorkspaceUse

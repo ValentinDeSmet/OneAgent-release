@@ -4,7 +4,9 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="oneagent-token" content="__ONEAGENT_TOKEN__">
   <title>OneAgent · Priorités</title>
+  <link rel="stylesheet" href="table-view.css?token=__ONEAGENT_TOKEN__">
   <link rel="stylesheet" href="style.css?token=__ONEAGENT_TOKEN__">
+  <script src="table-columns.js?token=__ONEAGENT_TOKEN__" defer></script>
   <script src="app.js?token=__ONEAGENT_TOKEN__" defer></script>
 </head>
 <body>
@@ -12,19 +14,15 @@
   <header><div><h1>Priorités</h1><p class="intro">Qui attend quoi, et pour quand ?</p></div><div class="actions"><button id="manual-order" aria-pressed="true">Mon classement</button><button id="refresh">Actualiser</button><button id="add" class="primary">+ Nouvelle sollicitation</button></div></header>
   <p id="error" class="error" role="alert" hidden></p>
   <p id="action-feedback" class="hint" role="status" hidden></p>
-  <section class="metrics" aria-label="Vue d’ensemble des sollicitations actives">
-    <button data-filter="all"><strong id="count-active">—</strong><span>En cours de suivi</span></button>
-    <button data-filter="urgent"><strong id="count-urgent">—</strong><span>Priorité haute ou critique</span></button>
-    <button data-filter="overdue"><strong id="count-overdue">—</strong><span>Dates fermes dépassées</span></button>
-    <button data-filter="clarify"><strong id="count-clarify">—</strong><span>À préciser</span></button>
-  </section>
   <section class="saved-views" aria-label="Vues enregistrées">
-    <div id="view-tabs" class="view-tabs" role="tablist" aria-label="Vues des priorités"></div>
+    <div id="view-tabs" class="view-tabs memory-view-tabs" role="tablist" aria-label="Vues des priorités"></div>
+    <label class="view-picker">Toutes les vues <select id="view-picker" aria-label="Toutes les vues de priorités"></select></label>
+    <button type="button" id="view-new" class="memory-button">+ Vue</button>
     <span id="view-dirty" class="badge" hidden>Modifiée</span>
-    <button type="button" id="view-save-as" class="view-add" title="Enregistrer les filtres et le tri dans une nouvelle vue" aria-label="Ajouter une vue">+</button>
-    <button type="button" id="view-update" hidden>Mettre à jour</button>
-    <button type="button" id="view-revert" hidden>Réappliquer</button>
-    <details id="view-actions" class="view-actions" hidden><summary aria-label="Actions de la vue">⋯</summary><div class="view-actions-menu">
+
+    <button type="button" id="view-update" hidden>Enregistrer</button>
+
+    <details id="view-actions" class="view-actions" hidden><summary aria-label="Actions de la vue">⋯</summary><div class="view-actions-menu"><button type="button" id="view-save-as">Enregistrer sous…</button><button type="button" id="view-revert" hidden>Rétablir la vue</button>
       <button type="button" id="view-rename">Renommer</button>
       <button type="button" id="view-duplicate">Dupliquer</button>
       <button type="button" id="view-default">Ouvrir par défaut</button>
@@ -33,8 +31,14 @@
     <p id="view-feedback" class="hint" role="status"></p>
   </section>
   <p id="view-error" class="error" role="alert" hidden></p>
-  <section class="toolbar" aria-label="Filtres">
-    <label class="search">Rechercher<input id="search" type="search" placeholder="Sujet, produit, équipe, personne ou lien source…" maxlength="500"></label>
+  <section class="toolbar priority-tools" aria-label="Outils du tableau">
+    <label class="search"><span class="sr-only">Rechercher</span><input id="search" type="search" placeholder="Rechercher un sujet, une équipe, une personne ou un lien…" maxlength="500"></label>
+    <details id="columns-menu" class="memory-menu"><summary class="memory-button">Colonnes</summary><div class="columns-popover"><div id="column-settings"></div></div></details>
+    <div id="view-scope"></div><div id="attention-filter"></div>
+    <button type="button" id="reset-filters" class="memory-button">Effacer les filtres <span id="filter-count"></span></button>
+  </section>
+  <div id="column-filter-store" hidden>  <section class="toolbar" aria-label="Filtres">
+
     <div class="filter-field"><span>Nature</span><details id="item-type" class="multi-filter"><summary><span id="item-type-summary">Sujets et tâches</span></summary><div class="filter-popover"><label class="sr-only" for="item-type-search">Rechercher dans nature</label><input id="item-type-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="item-type-clear" type="button" class="filter-clear">Tout afficher</button><div id="item-type-choices" class="filter-options" role="group" aria-label="Nature"></div></div></details></div>
     <div class="filter-field"><span>Type de travail</span><details id="work-type-filter" class="multi-filter"><summary><span id="work-type-filter-summary">Tous les types de travail</span></summary><div class="filter-popover"><label class="sr-only" for="work-type-filter-search">Rechercher dans type de travail</label><input id="work-type-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="work-type-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="work-type-filter-choices" class="filter-options" role="group" aria-label="Type de travail"></div></div></details></div>
     <div class="filter-field"><span>Produit / équipe concerné</span><details id="involved-filter" class="multi-filter"><summary><span id="involved-filter-summary">Tous les produits et équipes</span></summary><div class="filter-popover"><label class="sr-only" for="involved-filter-search">Rechercher dans produit / équipe concerné</label><input id="involved-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="involved-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="involved-filter-choices" class="filter-options" role="group" aria-label="Produit / équipe concerné"></div></div></details></div>
@@ -42,7 +46,7 @@
     <label>Afficher<select id="view"><option value="active">Sollicitations actives</option><option value="done">Terminées</option><option value="all">Toutes les priorités</option><option value="excluded">Retirées des priorités</option></select></label>
     <div class="filter-field"><span>Attention particulière</span><details id="filter" class="multi-filter"><summary><span id="filter-summary">Toutes les priorités</span></summary><div class="filter-popover"><label class="sr-only" for="filter-search">Rechercher dans attention particulière</label><input id="filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="filter-choices" class="filter-options" role="group" aria-label="Attention particulière"></div></div></details></div>
   </section>
-  <details class="filters"><summary>Filtres par champ <span id="filter-count"></span></summary>
+  <details class="filters"><summary>Filtres par champ </summary>
     <div class="filter-grid">
       <label>Sujet<input id="title-query" type="search" maxlength="500"></label>
       <label>Description<input id="body-query" type="search" maxlength="500"></label>
@@ -58,12 +62,22 @@
       <div class="filter-field"><span>Année du trimestre</span><details id="year-filter" class="multi-filter"><summary><span id="year-filter-summary">Toutes les années</span></summary><div class="filter-popover"><label class="sr-only" for="year-filter-search">Rechercher dans année du trimestre</label><input id="year-filter-search" type="search" placeholder="Rechercher une valeur…" maxlength="200"><button id="year-filter-clear" type="button" class="filter-clear">Tout afficher</button><div id="year-filter-choices" class="filter-options" role="group" aria-label="Année du trimestre"></div></div></details></div>
       <label>URL documentation<input id="url-query" type="search" maxlength="500" placeholder="Domaine ou partie du lien"></label>
       <label>URL source<input id="source-url-query" type="search" maxlength="500" placeholder="Google Sheet, domaine ou partie du lien"></label>
-      <button type="button" id="reset-filters">Réinitialiser les filtres</button>
+
     </div>
   </details>
+</div>
+  <div id="column-menu" class="memory-column-menu priority-column-menu" role="dialog" hidden>
+    <strong id="column-menu-title"></strong><div class="memory-column-sorts"><button type="button" id="column-sort-asc" class="memory-button">↑ Croissant</button><button type="button" id="column-sort-desc" class="memory-button">↓ Décroissant</button></div><div id="column-filter-content"></div><button type="button" id="column-clear" class="memory-button">Effacer le filtre de cette colonne</button>
+  </div>
+  <section class="metrics" aria-label="Vue d’ensemble des sollicitations actives">
+    <button data-filter="all"><strong id="count-active">—</strong><span>En cours de suivi</span></button>
+    <button data-filter="urgent"><strong id="count-urgent">—</strong><span>Priorité haute ou critique</span></button>
+    <button data-filter="overdue"><strong id="count-overdue">—</strong><span>Dates fermes dépassées</span></button>
+    <button data-filter="clarify"><strong id="count-clarify">—</strong><span>À préciser</span></button>
+  </section>
   <p id="rank-help" class="hint rank-help">Glisse la poignée pour classer les priorités.</p>
   <p id="rank-feedback" class="sr-only" role="status" aria-live="polite"></p>
-  <div id="priority-table" class="table-wrap" tabindex="0" role="region" aria-label="Tableau des priorités, défilement horizontal disponible"><table><caption class="sr-only">Cliquer sur un en-tête pour trier : croissant, décroissant, puis retour au classement manuel. La poignée se déplace aussi avec les flèches haut et bas.</caption><thead><tr><th scope="col" class="rank-heading">Rang</th><th scope="col" aria-sort="none"><button type="button" data-sort="title">Sujet<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="body">Description<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="workType">Type de travail<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="product">Produit principal<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="relatedEntities">Autres produits / équipes<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="requester">Attendu par<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="priority">Prio<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="deadline">Deadline<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="url">Documentation<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="sourceUrl">Source<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="status">Avancement<span aria-hidden="true"></span></button></th></tr></thead><tbody id="rows"></tbody></table></div>
+  <div id="priority-table" class="table-wrap" tabindex="0" role="region" aria-label="Tableau des priorités, défilement horizontal disponible"><table class="memory-table"><caption class="sr-only">Cliquer sur un en-tête pour trier : croissant, décroissant, puis retour au classement manuel. La poignée se déplace aussi avec les flèches haut et bas.</caption><thead><tr><th scope="col" class="rank-heading">Rang</th><th scope="col" aria-sort="none"><button type="button" data-sort="title">Sujet<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="body">Description<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="workType">Type de travail<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="product">Produit principal<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="relatedEntities">Autres produits / équipes<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="requester">Attendu par<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="priority">Prio<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="deadline">Deadline<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="url">Documentation<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="sourceUrl">Source<span aria-hidden="true"></span></button></th><th scope="col" aria-sort="none"><button type="button" data-sort="status">Avancement<span aria-hidden="true"></span></button></th></tr></thead><tbody id="rows"></tbody></table></div>
   <section id="empty" class="empty" hidden><h2 id="empty-title">Aucune sollicitation pour le moment</h2><p id="empty-text">Ajoute ce que l’on attend de toi, même si la personne ou la date reste à préciser.</p><button id="empty-add" class="primary">Ajouter une sollicitation</button></section>
   <footer><span id="summary" aria-live="polite">Chargement…</span><span id="sort-summary">Ordre : mon classement</span><button id="more" hidden>Afficher la suite</button></footer>
 </main>

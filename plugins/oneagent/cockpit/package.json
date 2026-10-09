@@ -3,7 +3,7 @@
   "displayName": "OneAgent",
   "description": "Local-first product knowledge, curation, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.141",
+  "version": "0.1.142",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",
@@ -3331,6 +3331,123 @@
               },
               "additionalProperties": false,
               "description": "Same live query criteria as list_priorities, excluding scope/today/pagination. Required for creation; omitted on edits preserves the saved filters and sort."
+            },
+            "presentation": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "columns": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "rank",
+                      "title",
+                      "body",
+                      "workType",
+                      "product",
+                      "relatedEntities",
+                      "requester",
+                      "priority",
+                      "deadline",
+                      "url",
+                      "sourceUrl",
+                      "status"
+                    ]
+                  },
+                  "uniqueItems": true,
+                  "maxItems": 12
+                },
+                "columnOrder": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "enum": [
+                      "rank",
+                      "title",
+                      "body",
+                      "workType",
+                      "product",
+                      "relatedEntities",
+                      "requester",
+                      "priority",
+                      "deadline",
+                      "url",
+                      "sourceUrl",
+                      "status"
+                    ]
+                  },
+                  "uniqueItems": true,
+                  "maxItems": 12
+                },
+                "widths": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "rank": {
+                      "type": "integer",
+                      "minimum": 70,
+                      "maximum": 900
+                    },
+                    "title": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    },
+                    "body": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    },
+                    "workType": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    },
+                    "product": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    },
+                    "relatedEntities": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    },
+                    "requester": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    },
+                    "priority": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    },
+                    "deadline": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    },
+                    "url": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    },
+                    "sourceUrl": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    },
+                    "status": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    }
+                  }
+                }
+              },
+              "description": "Table presentation: visible columns, their left-to-right order, and widths in pixels. Rank and title always remain visible. Omit on edits to preserve; {} resets the default layout. Independent of filters and global priority ranking."
             },
             "makeDefault": {
               "type": "boolean"

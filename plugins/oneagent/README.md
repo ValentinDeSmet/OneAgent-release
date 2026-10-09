@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.6.18 : tableau pleine largeur avec tri et filtres dans les colonnes, vues Tableau/Graphe créées explicitement et réglages de colonnes sauvegardés ; Reset et Toute la mémoire rétablissent l’accès à toute la mémoire dans le même chat ; contexte de vue explicite, graphe sans plafond de nœuds, budget automatique et lecture des documents par sections ; espace Mémoire avec liste recherchable, vues enregistrées par affichage et barre de graphe adaptée aux fenêtres étroites ; bouton de mise à jour avec installation native, rechargement dans la conversation courante et réouverture automatique des onglets ; Inbox avec documents Markdown proposés par l’agent, aperçu formaté, édition et acceptation humaine sans embeddings ; cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.6.19 : Priorités reprend le tableau et les vues de Mémoire, avec colonnes masquables, déplaçables et redimensionnables, filtres dans les en-têtes et présentation enregistrée par vue ; tableau pleine largeur avec tri et filtres dans les colonnes, vues Tableau/Graphe créées explicitement et réglages de colonnes sauvegardés ; Reset et Toute la mémoire rétablissent l’accès à toute la mémoire dans le même chat ; contexte de vue explicite, graphe sans plafond de nœuds, budget automatique et lecture des documents par sections ; espace Mémoire avec liste recherchable, vues enregistrées par affichage et barre de graphe adaptée aux fenêtres étroites ; bouton de mise à jour avec installation native, rechargement dans la conversation courante et réouverture automatique des onglets ; Inbox avec documents Markdown proposés par l’agent, aperçu formaté, édition et acceptation humaine sans embeddings ; cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -66,12 +66,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.18.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.19.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.18/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.19/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -353,7 +353,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.18.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.19.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.
