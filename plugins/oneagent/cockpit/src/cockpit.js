@@ -1,3 +1,4 @@
+const { createMemoryTable } = require("./memory-table.js");
 const { createMemoryExplorer } = require("./memory-explorer.js");
 const memoryExplorerCss = require("node:fs").readFileSync(require("node:path").join(__dirname, "memory-explorer.css"), "utf8");
 const { prioritiesBootstrap } = require("./priorities-view.js");
@@ -1423,7 +1424,7 @@ function renderCockpitHtml(payload, assets = {}) {
         renderMemoryAccessStatus();
         vscode?.postMessage({ type: "selectMemoryView", id: id || undefined, requestId: memoryViewRequest });
       }
-      function resetMemoryView() { selectMemoryView(undefined, memoryExplorer?.snapshot().layout || "graph"); }
+      function resetMemoryView() { selectMemoryView(undefined, "list"); }
       function renderMemoryAccessStatus() {
         const label = document.querySelector("#memoryAccessStatus");
         if (!label) return;
@@ -1431,7 +1432,7 @@ function renderCockpitHtml(payload, assets = {}) {
         label.textContent = memoryViewPending ? "Accès agent : mise à jour…" : scope?.mode === "strict" ? "Accès agent : limité à " + (scope.selectedEntities || []).map(ref => refLabel(ref.kind + ":" + ref.id)).join(", ") : "Accès agent : toute la mémoire";
         label.title = label.textContent;
         label.dataset.restricted = String(scope?.mode === "strict");
-        document.querySelectorAll("[data-memory-view], #graphViewPreset, #memoryResetAll").forEach(button => { button.disabled = Boolean(memoryViewPending); });
+        document.querySelectorAll("[data-memory-view], #graphViewPreset, #memoryResetAll, #memoryNewView").forEach(button => { button.disabled = Boolean(memoryViewPending); });
       }
       const defaultContextTokenBudget = Math.max(0, Number(state.contextTokenBudget) || 0);
       function contextTokenBudgetOrDefault(value) {
@@ -2095,7 +2096,7 @@ function renderCockpitHtml(payload, assets = {}) {
         selectMemoryView(requestedId, "list");
       });
       document.querySelector("#graphViewSaveAs")?.addEventListener("click", () => {
-        vscode?.postMessage({ type: "saveGraphView", payload: serializeGraphView() });
+        memoryExplorer?.createView(memoryExplorer.snapshot().layout, true);
       });
       document.querySelector("#graphViewUpdate")?.addEventListener("click", () => {
         if (!activeGraphViewId) return;
@@ -2105,7 +2106,7 @@ function renderCockpitHtml(payload, assets = {}) {
         if (activeGraphViewId) vscode?.postMessage({ type: "renameGraphView", id: activeGraphViewId });
       });
       document.querySelector("#graphViewDuplicate")?.addEventListener("click", () => {
-        if (activeGraphViewId) vscode?.postMessage({ type: "duplicateGraphView", id: activeGraphViewId });
+        if (activeGraphViewId) memoryExplorer?.createView(memoryExplorer.snapshot().layout, true);
       });
       document.querySelector("#graphViewCompare")?.addEventListener("click", () => {
         if (activeGraphViewId) vscode?.postMessage({ type: "compareGraphView", id: activeGraphViewId });
@@ -5861,18 +5862,18 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       // Stable stringify for dirty-compare: object keys sorted, string arrays
-      // treated as sets (their order carries no meaning in filter payloads).
-      function stableGraphViewString(value) {
+      // treated as sets for filters, but columnOrder retains its display order.
+      function stableGraphViewString(value, field) {
         if (Array.isArray(value)) {
-          const items = value.map(stableGraphViewString);
-          if (value.every((item) => typeof item === "string")) items.sort();
+          const items = value.map(item => stableGraphViewString(item));
+          if (field !== "columnOrder" && value.every((item) => typeof item === "string")) items.sort();
           return "[" + items.join(",") + "]";
         }
         if (value && typeof value === "object") {
-          return "{" + Object.keys(value).filter((key) => key !== "updatedAt").sort().map((key) => {
+          return "{" + Object.keys(value).filter((key) => key !== "updatedAt" || field === "widths").sort().map((key) => {
             const item = value[key];
             if (item === undefined) return "";
-            return JSON.stringify(key) + ":" + stableGraphViewString(item);
+            return JSON.stringify(key) + ":" + stableGraphViewString(item, key);
           }).filter(Boolean).join(",") + "}";
         }
         return JSON.stringify(value === undefined ? null : value);
@@ -5917,6 +5918,10 @@ function renderCockpitHtml(payload, assets = {}) {
         return stableGraphViewString(current) !== stableGraphViewString(saved);
       }
 
+      function memoryViewLabel(view) {
+        return /^(all|tout)$/i.test(String(view.name).trim()) ? "Vue générale — " + (view.payload?.memory?.layout === "list" ? "tableau" : "graphe") : view.name;
+      }
+
       function renderGraphViewControls() {
         const select = document.querySelector("#graphViewPreset");
         if (!select) return;
@@ -5924,10 +5929,10 @@ function renderCockpitHtml(payload, assets = {}) {
           activeGraphViewId = undefined;
         }
         const dirty = graphViewIsDirty();
-        let html = '<option value="">Tout</option>';
+        let html = '<option value="">☷ Toute la mémoire</option>';
         for (const view of graphViews) {
           const isActive = view.id === activeGraphViewId;
-          html += '<option value="' + escapeAttr(view.id) + '"' + (isActive ? " selected" : "") + '>' + escapeHtml(view.name) + (isActive && dirty ? " ●" : "") + '</option>';
+          html += '<option value="' + escapeAttr(view.id) + '"' + (isActive ? " selected" : "") + '>' + (view.payload?.memory?.layout === "list" ? "☷ " : "⌘ ") + escapeHtml(memoryViewLabel(view)) + (isActive && dirty ? " ●" : "") + '</option>';
         }
         select.innerHTML = html;
         select.value = activeGraphViewId || "";
@@ -9510,7 +9515,13 @@ function renderCockpitHtml(payload, assets = {}) {
         state: () => state, typeLabel, entityRef: entityRefForNode,
         refresh: () => document.querySelector("#refresh").click(),
         reset: resetMemoryView,
-        newView: () => vscode?.postMessage({ type: "saveGraphView", payload: { ...serializeGraphView(), context: normalizeContextScopeDraft({ mode: "guided", selectedEntities: [], sourceAccess: "full" }) } }),
+        viewLabel: memoryViewLabel,
+        createView: ({ name, layout, copy }) => {
+          if (memoryViewPending) return;
+          const payload = copy ? serializeGraphView() : { perspective: "map", depth: 0, selfLinks: "show", filters: {}, context: normalizeContextScopeDraft({ mode: "guided", selectedEntities: [], sourceAccess: "full" }) };
+          payload.memory = { ...(copy ? memoryExplorer.snapshot() : memoryExplorer.defaults()), layout };
+          vscode?.postMessage({ type: "saveGraphView", name, payload });
+        },
         views: () => ({ views: graphViews, activeId: activeGraphViewId, dirty: graphViewIsDirty() }),
         changed: () => { scheduleGraphFiltersSave(); renderGraph(); renderGraphViewControls(); },
         selectView: (id) => { const select = document.querySelector("#graphViewPreset"); select.value = id; select.dispatchEvent(new Event("change")); },
@@ -9525,8 +9536,8 @@ function renderCockpitHtml(payload, assets = {}) {
         },
         task: (id) => { setActiveView("tasks"); selectedTaskId = id; renderTasks(); renderTaskDetail(); },
         note: (id) => { if (!findManualNote(id)) return false; setActiveView("notes"); selectManualNote(id); return true; }
-      });
-      memoryExplorer.apply(state.graphFilters?.memory);
+      }, ${createMemoryTable.toString()});
+      memoryExplorer.apply({ ...state.graphFilters?.memory, layout: activeGraphViewId ? state.graphFilters?.memory?.layout || "graph" : "list" });
       const documentationLaunch = state.documentation?.launchState || {};
       const initialView = state.documentationOnly || documentationLaunch.showWelcome || documentationLaunch.isFirstWorkspaceUse
         ? "help"

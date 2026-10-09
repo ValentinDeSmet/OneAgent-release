@@ -3,7 +3,7 @@
   "displayName": "OneAgent",
   "description": "Local-first product knowledge, curation, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.140",
+  "version": "0.1.141",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",

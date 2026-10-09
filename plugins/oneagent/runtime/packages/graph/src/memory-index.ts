@@ -14,6 +14,7 @@ export interface MemoryEntry {
   description?: string;
   status?: string;
   updatedAt?: string;
+  createdAt?: string;
   refs: string[];
   labels: string[];
   file?: string;
@@ -64,7 +65,7 @@ export function buildMemoryIndex(config: WorkMemoryConfig, db: WorkMemoryDatabas
   for (const entity of entities) {
     const ref = key(entity), content = contentRefs.has(ref);
     add({ id: `entity:${ref}`, kind: entity.kind, category: "entity", title: entity.label, refs: [ref, ...(related.get(ref) ?? [])], detailRef: ref,
-      ...(content ? { description: [entity.description, ...(entity.aliases ?? [])].filter(Boolean).join(" · "), status: entity.status, updatedAt: entity.updatedAt,
+      ...(content ? { description: [entity.description, ...(entity.aliases ?? [])].filter(Boolean).join(" · "), status: entity.status, createdAt: entity.createdAt, updatedAt: entity.updatedAt,
         url: access === "full" ? webUrl(entity.metadata?.url) : undefined } : {}) });
   }
   const entityEntries = new Map(entries.filter(entry => entry.category === "entity").map(entry => [entry.detailRef, entry]));
@@ -106,7 +107,7 @@ export function buildMemoryIndex(config: WorkMemoryConfig, db: WorkMemoryDatabas
       if (strict && !contentRefs.has(primary)) continue;
       const note = capture.sourceKind === "manual" && ["note", "question"].includes(capture.contentType);
       if (capture.sourceId) capturedSources.set(capture.sourceId, `capture:${capture.id}`);
-      add({ id: `capture:${capture.id}`, category: note ? "note" : "capture", kind: capture.contentType, title: capture.title, status: capture.status, updatedAt: capture.updatedAt,
+      add({ id: `capture:${capture.id}`, category: note ? "note" : "capture", kind: capture.contentType, title: capture.title, status: capture.status, createdAt: capture.createdAt, updatedAt: capture.updatedAt,
         refs: [primary, ...capture.relatedEntities.map(ref => `${ref.entityKind}:${ref.entityId}`)], detailRef: primary,
         file: filePath(capture.path), noteId: note && access === "full" ? capture.id : undefined });
     }
@@ -118,13 +119,13 @@ export function buildMemoryIndex(config: WorkMemoryConfig, db: WorkMemoryDatabas
       const existing = entries.find(entry => entry.id === capturedSources.get(source.id) || (file && entry.file === file && entry.category === "document"));
       if (existing) { if (url) existing.url = url; continue; }
       const kind = url?.includes("docs.google.com/spreadsheets/") ? "google_sheet" : url?.includes("docs.google.com/document/") ? "google_doc" : url ? "linked_document" : "source";
-      add({ id: `source:${source.id}`, category: "source", kind, title: source.title, refs: source.entityLinks.map(key), status: source.status, updatedAt: source.capturedAt,
+      add({ id: `source:${source.id}`, category: "source", kind, title: source.title, refs: source.entityLinks.map(key), status: source.status,
         url, file, description: access === "full" ? source.originUri : undefined });
     }
   }
   for (const task of listTaskReadModel(db, [])) {
     if (strict && !strict.taskIds.includes(task.id)) continue;
-    add({ id: `task:${task.id}`, category: "task", kind: "task", title: task.title, taskId: task.id, status: task.status, updatedAt: task.updatedAt,
+    add({ id: `task:${task.id}`, category: "task", kind: "task", title: task.title, taskId: task.id, status: task.status, createdAt: task.createdAt, updatedAt: task.updatedAt,
       description: access === "full" ? task.body : undefined,
       refs: [...(task.productId ? [`product:${task.productId}`] : []), ...task.links.map(link => `${link.targetKind}:${link.targetId}`)] });
   }

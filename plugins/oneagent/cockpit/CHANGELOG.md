@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.141
+
+- Tableau Mémoire pleine largeur partagé avec Copilot 0.6.18 : en-têtes triables, filtres de colonnes recherchables à cases multiples, compteurs contextuels, dates et texte.
+- Colonnes optionnelles, largeur réglable et ordre par glisser-déposer ou clavier, conservés avec les filtres et le tri dans chaque vue.
+- Création de vues Tableau/Graphe et duplication entre affichages ; Toute la mémoire distincte des anciennes vues All/Tout conservées.
+- Sélection de lignes indépendante du contexte, ouvertures explicites des Markdown, liens et fiches, sans panneau vide permanent.
+- Regroupement des représentations certaines d’un même fichier sans fusion par titre ni suppression ; dates inconnues laissées vides et pagination du catalogue complet.
+
 ## 0.1.140
 
 - Tout et Réinitialiser effacent aussi le contexte actif ; création d’une vue avec accès à toute la mémoire et indicateur de l’accès réel de l’agent.

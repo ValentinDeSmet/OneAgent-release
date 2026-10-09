@@ -1,77 +1,104 @@
-# Vues de la mémoire : graphe et liste
+# Vues de la mémoire : tableau et graphe
 
-**Mémoire** propose deux affichages du même espace de travail. Le graphe aide à
-explorer les relations. La liste permet de retrouver un élément ou son fichier
-sans devoir le repérer parmi les nœuds. La liste inclut également les pages et
-sources rattachées aux entités, même si elles ne sont pas dessinées comme nœuds.
+**Mémoire** permet de retrouver tous les éléments connus et leurs documents.
+**Toute la mémoire** ouvre un tableau sans filtre. Les vues enregistrées ont un
+nom et un type choisi à leur création : **Tableau** pour retrouver des documents,
+**Graphe** pour explorer leurs relations.
 
-## Retrouver une information
+## Rechercher et filtrer dans le tableau
 
-1. Ouvrir **Mémoire**, puis **Liste**.
-2. Chercher un titre, une description, un nom de fichier, une entité ou une URL.
-   La recherche ignore les accents et la casse ; chaque mot saisi doit correspondre.
-3. Dans **Filtres**, cocher un ou plusieurs types et/ou entités liées.
-   Les choix sont issus des résultats, en tenant compte des autres filtres.
-   Plusieurs valeurs d’un champ sont combinées par OU ; les champs par ET.
-4. Cliquer sur le titre pour ouvrir la fiche ou l’éditeur de tâche/note.
-   **Markdown/Fichier** ouvre directement le fichier ; **Source** ouvre le lien.
+La recherche générale porte sur les titres, descriptions, noms de fichiers,
+entités liées et URL. Elle ignore les accents et la casse ; chaque mot saisi doit
+correspondre. Elle reste temporaire et ne modifie pas la vue enregistrée.
 
-Le catalogue n’est pas limité par le nombre de nœuds du graphe. Il couvre les
-entités, chaque page du wiki, les sources connues (dont Google Docs et Sheets),
-les notes et les tâches. Il n’effectue aucune recherche distante dans Google Drive
-et ne recherche pas dans le corps complet de tous les documents. Les pages des
-dépôts sont accessibles si ces dépôts sont configurés dans la mémoire.
+Le tableau occupe toute la largeur. Les colonnes par défaut sont **Titre**,
+**Type**, **Entités liées**, **Dernière modification** et **Ouvrir**. **Colonnes**
+permet d’ajouter **Création**, **Statut** et **Emplacement / source**, de masquer
+les propriétés inutiles et de réorganiser les colonnes. Les en-têtes se déplacent
+également par glisser-déposer ; leur bord droit permet de régler la largeur.
+Des boutons et les flèches du clavier proposent les mêmes réglages.
 
-## Enregistrer une vue
+- Cliquer sur un en-tête de données pour trier, puis inverser le sens du tri.
+- Cliquer sur son icône de filtre pour filtrer cette colonne.
+- **Type**, **Entités liées** et **Statut** proposent une recherche et des cases
+  à cocher. Les valeurs et compteurs viennent des résultats tenant compte des
+  autres filtres. Plusieurs valeurs d’une colonne sont combinées par OU ; les
+  colonnes par ET. Un choix déjà coché reste disponible même avec zéro résultat.
+- **Titre** et **Emplacement / source** proposent un texte puis **Appliquer**.
+  Les colonnes de dates proposent une période de début et de fin.
+- L’icône indique les filtres actifs. **Effacer le filtre de cette colonne**
+  permet de les retirer, y compris lorsque le tableau est vide. Une colonne
+  filtrée reste visible tant que son filtre n’a pas été effacé.
 
-Les vues sont des onglets ; **Toutes les vues** reste disponible lorsque la
-fenêtre est étroite. **+ Vue** enregistre l’état courant sous un nom, par exemple
-« Documents OneFF » ou « Équipe DKT FF ».
+Les dates inconnues affichent un tiret, restent en fin de tri et sont exclues
+lorsqu’une période est filtrée. Une date d’import ne remplace pas une date de
+création ou de modification inconnue. Les résultats sont paginés par 80 lignes ;
+la recherche, les filtres et le tri portent sur le catalogue complet.
 
-Une vue conserve l’affichage (graphe ou liste), les filtres, le tri et son sens,
-le regroupement par type et les propriétés visibles de la liste. Elle conserve
-également les anciens paramètres du graphe : perspective, disposition et focus.
-Les vues déjà enregistrées restent des vues graphe.
+## Sélectionner et ouvrir
 
-Les modifications sont temporaires jusqu’à **Enregistrer**. Le menu **…** permet
-de rétablir la vue, l’enregistrer sous un autre nom, la renommer, la dupliquer ou
-la supprimer. Supprimer une vue ne supprime pas les éléments de la mémoire.
-La recherche ponctuelle n’est pas enregistrée dans les nouvelles vues ; les anciennes
-vues ayant une recherche peuvent encore la réappliquer à leur ouverture.
+Cliquer sur une ligne la sélectionne. Les cases à cocher et Cmd/Ctrl-clic
+permettent une sélection multiple, conservée pendant le tri et le filtrage.
+**Markdown/Fichier** ouvre le document dans l’hôte ; **Source** ouvre son URL.
+**Fiche**, **Note** ou **Tâche** ouvre explicitement les détails correspondants.
+Aucun panneau vide ne réserve de place à droite. Une fiche d’entité s’ouvre
+au-dessus du tableau ; **Retour aux résultats** ou Échap la referme.
 
-## Utiliser une petite fenêtre
+Ces sélections et ouvertures ne modifient jamais le contexte de l’agent.
 
-La barre sépare vues et outils. Les réglages avancés du graphe sont regroupés dans
-**Affichage** et **Filtres**. Les propriétés des lignes passent sous leur titre.
-La fiche s’ouvre en panneau superposé : **Retour aux résultats** ou Échap permet
-de retrouver la liste et ses filtres. Aucun bouton n’a besoin de se chevaucher.
+Le catalogue couvre les entités, les pages Markdown, les sources connues (dont
+Google Docs et Sheets), les notes et les tâches. Il n’effectue aucune recherche
+distante dans Google Drive ni dans le corps complet des documents. Les dépôts
+sont accessibles lorsqu’ils sont configurés dans la mémoire.
+
+Les représentations qui pointent avec certitude vers le même fichier sont
+regroupées dans une ligne, avec leurs types et leurs liens. Leurs autres titres
+restent recherchables. Deux fiches métier distinctes ou deux fichiers portant le
+même titre ne sont pas fusionnés. Ce regroupement d’affichage ne supprime aucune
+donnée.
+
+## Créer et enregistrer une vue
+
+**+ Vue** demande un nom et un type **Tableau** ou **Graphe**. La nouvelle vue
+commence sans filtre, avec accès à toute la mémoire. Le menu **…** permet de
+**Dupliquer en tableau** ou **Dupliquer en graphe** une vue existante en conservant
+ses filtres, son tri et son contexte explicite ; la vue d’origine reste intacte.
+Il n’y a plus de bascule Tableau/Graphe permanente dans la barre d’outils.
+
+Chaque vue conserve ses filtres de colonnes, le tri et son sens, le regroupement,
+les colonnes visibles, leur ordre et leur largeur, ainsi que les paramètres du
+graphe et son contexte. Les modifications restent temporaires jusqu’à
+**Enregistrer**. **Rétablir la vue** récupère les réglages sauvegardés. Renommer,
+dupliquer ou supprimer une vue ne supprime pas les éléments de la mémoire.
+
+Les onglets et **Toutes les vues** donnent accès aux vues sauvegardées. Les
+anciennes vues conservent leurs réglages et leur type. Une ancienne vue nommée
+« All » ou « Tout » apparaît comme **Vue générale — graphe/tableau** pour la
+distinguer de **Toute la mémoire** ; son nom stocké et son contexte restent intacts.
 
 ## Vue et contexte de l’agent (Active Context)
 
-**Tout** et **Réinitialiser** enlèvent les filtres, la recherche, le focus, les
-regroupements manuels et le contexte actif. L’agent retrouve toute la mémoire
-connectée dès ses prochains appels, dans la même conversation. Les documents
-ajoutés plus tard sont également accessibles ; aucune liste figée de nœuds n’est
-utilisée comme permission. Les vues sauvegardées restent intactes.
+**Toute la mémoire** enlève les filtres, la recherche, le focus, les regroupements
+manuels et le contexte actif. L’agent retrouve toute la mémoire connectée dès ses
+prochains appels, dans la même conversation. Les nouveaux documents restent
+accessibles ; aucune liste figée de nœuds ne sert de permission. Les vues
+sauvegardées restent intactes.
 
-**+ Vue** crée une vue avec accès à toute la mémoire. Une vue peut orienter le
-travail de l’agent sans interdire la consultation d’un document complémentaire.
-Dans **Contexte**, **Limiter à cette sélection** est un choix explicite : préparer
-la sélection puis l’activer/enregistrer. Les anciennes vues strictes conservent
-leur restriction. Choisir une vue applique son contexte enregistré ; une vue sans
-contexte ne conserve jamais la restriction de la vue précédente.
+Choisir une vue applique son contexte enregistré. Une vue sans contexte ne
+conserve jamais la restriction précédente. Les anciennes vues strictes gardent
+leur restriction. **Contexte**, dans le menu de la vue, permet de préparer une
+sélection puis de la limiter explicitement et de l’enregistrer.
 
-L’indicateur **Accès agent : toute la mémoire / limité à…** décrit le contexte
-réel du moteur, indépendamment d’un brouillon en cours d’édition. Le Reset attend
-la confirmation du moteur ; en cas d’erreur, la restriction précédente reste
-indiquée. Le contexte est partagé par les hôtes branchés sur la même mémoire.
-Il ne retire pas les informations déjà présentes dans l’historique du chat.
+**Accès agent : toute la mémoire / limité à…** décrit le contexte réel du moteur,
+indépendamment du brouillon. La réinitialisation attend sa confirmation ; en cas
+d’erreur, la restriction précédente reste indiquée. Le contexte est partagé entre
+les hôtes connectés à la même mémoire. Le réinitialiser ne retire pas les
+informations déjà présentes dans l’historique du chat.
 
-Le graphe humain charge tous les nœuds et liens, sans seuil de 500/1 000 éléments.
-Les filtres et regroupements explicites restent disponibles. Le moteur Canvas
+Le graphe charge tous les nœuds et liens sans seuil de 500/1 000 éléments. Canvas
 conserve les positions, adapte les libellés et regroupe les rafraîchissements.
-La liste et les menus de filtres affichent progressivement leurs résultats.
-Les requêtes de graphe destinées à l’agent peuvent toujours demander un extrait.
+Les filtres d’un tableau dupliqué en graphe restent visibles sous forme de pastilles
+supprimables. Les réglages du graphe se trouvent dans **Affichage** et **Filtres**.
 
 Le budget **Automatique** remplace le plafond fixe par défaut. Un budget **Manuel**
 reste possible dans les réglages avancés de Contexte. Les budgets positifs des
