@@ -42,3 +42,17 @@ Do not treat an old pack as automatically current. It preserves provenance; it d
 You can reuse one Graph View, activate its context, and prepare several Context Packs for different objectives.
 
 See [Graph views](graph-views.md) for visual presets and [Manage the agent context](active-context.md) for guided and strict boundaries.
+
+## Automatic budget and complete document reads
+
+New contexts default to automatic budgeting (0). OneAgent selects content for the
+objective and adapts delivery to the model input capacity when the host exposes
+it. A manual positive budget remains available. A pack is a selection, never an
+access limit on the remaining documents. Copilot applications may have their own
+transport and context limits; OneAgent does not force a one-million-token window.
+
+Copilot tools `oneagent_list_memory` and `oneagent_read_document` discover and read
+Markdown by catalogue ID. `oneagent_read_source` and `oneagent_read_note` also
+return `nextOffset`, `totalChars` and `revision`. Continue with that offset and
+revision until `nextOffset` is null. A changed document rejects a stale cursor.
+VS Code exposes the same discovery and continuation through `workMemoryExpand`.

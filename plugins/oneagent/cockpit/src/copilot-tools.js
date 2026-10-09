@@ -12,8 +12,7 @@ const {
 // Keep these defaults aligned with packages/shared/src/context-scope.ts. The
 // extension is packaged as plain CommonJS and cannot import that TypeScript
 // module directly at runtime.
-const LEGACY_CONTEXT_TOKEN_BUDGET = 12000;
-const DEFAULT_CONTEXT_TOKEN_BUDGET = 64000;
+const DEFAULT_CONTEXT_TOKEN_BUDGET = 0;
 const MAX_CONTEXT_TOKEN_BUDGET = 1000000;
 
 const TOOL_IDS = {
@@ -344,18 +343,26 @@ async function manageOutcomes(cli, input) {
 }
 
 async function readExpand(cli, input) {
+  if (input.listDocuments) {
+    const catalogue = await cli.json(["memory-index", "--context-scope", "active", "--json"]);
+    const start = numberInRange(input.offset, 0, 0, Number.MAX_SAFE_INTEGER);
+    const query = String(input.query || "").toLowerCase();
+    const entries = catalogue.entries.filter(entry => !query || [entry.title, entry.description, ...(entry.labels || [])].join(" ").toLowerCase().includes(query));
+    return { items: entries.slice(start, start + 50), total: entries.length, nextOffset: start + 50 < entries.length ? start + 50 : null };
+  }
   const sourceId = String(input.sourceId || "").trim();
   const chunkId = String(input.chunkId || "").trim();
+  const sectionArgs = ["--max-chars", String(numberInRange(input.maxChars, 32000, 500, 200000)), "--offset", String(numberInRange(input.offset, 0, 0, Number.MAX_SAFE_INTEGER)), ...(input.revision ? ["--revision", String(input.revision)] : []), "--context-scope", "active", "--json"];
+  if (input.entryId) return { tool: "workMemoryExpand", target: "document", document: await cli.json(["memory-document", String(input.entryId), ...sectionArgs]) };
   if (sourceId) {
-    const maxChars = numberInRange(input.maxChars, 8000, 500, 20000);
-    const source = await cli.json(["sources", "show", sourceId, "--context-scope", "active", "--json", "--max-chars", String(maxChars)]);
+    const source = await cli.json(["sources", "show", sourceId, ...sectionArgs]);
     return { tool: "workMemoryExpand", target: "source", source };
   }
   if (chunkId) {
     const chunk = await cli.json(["sources", "show-chunk", chunkId, "--context-scope", "active", "--json"]);
     return { tool: "workMemoryExpand", target: "chunk", chunk };
   }
-  throw new Error("Provide a sourceId or chunkId to expand.");
+  throw new Error("Provide an entryId, sourceId or chunkId to read, or listDocuments=true to find a document.");
 }
 
 async function manageContextView(cli, input) {
@@ -460,7 +467,7 @@ async function manageContextView(cli, input) {
       viewId: input.viewId ? String(input.viewId) : undefined,
       scope: input.viewId ? undefined : contextViewScopeInput(input, false),
       sessionId: input.sessionId ? String(input.sessionId) : undefined,
-      tokenBudget: input.tokenBudget ? numberInRange(input.tokenBudget, configuredContextTokenBudget(), 1, MAX_CONTEXT_TOKEN_BUDGET) : undefined
+      tokenBudget: input.tokenBudget !== undefined ? numberInRange(input.tokenBudget, configuredContextTokenBudget(), 0, MAX_CONTEXT_TOKEN_BUDGET) : undefined
     };
     const pack = JSON.parse(await cli.run(["context-pack", "compile", "--stdin", "--json", ...scoped, ...boundaryChange], {
       input: JSON.stringify(payload),
@@ -523,7 +530,7 @@ function contextViewScopeInput(input, partial) {
     observationEvidenceStatuses: Array.isArray(input.observationEvidenceStatuses) ? input.observationEvidenceStatuses.map(String) : undefined,
     observationMeasurement: input.observationMeasurement,
     sourceAccess: input.sourceAccess,
-    tokenBudget: input.tokenBudget === undefined ? undefined : numberInRange(input.tokenBudget, configuredContextTokenBudget(), 1, MAX_CONTEXT_TOKEN_BUDGET),
+    tokenBudget: input.tokenBudget === undefined ? undefined : numberInRange(input.tokenBudget, configuredContextTokenBudget(), 0, MAX_CONTEXT_TOKEN_BUDGET),
     refreshPolicy: input.refreshPolicy
   };
   if (!partial) {
@@ -545,7 +552,7 @@ function explicitBoundaryScope(input) {
     includedTypes: Array.isArray(input.includedTypes) ? input.includedTypes.map(String) : undefined,
     allowedRelationTypes: Array.isArray(input.allowedRelationTypes) ? input.allowedRelationTypes.map(String) : undefined,
     sourceAccess: input.sourceAccess || "snippets",
-    tokenBudget: input.tokenBudget ? numberInRange(input.tokenBudget, configuredContextTokenBudget(), 1, MAX_CONTEXT_TOKEN_BUDGET) : configuredContextTokenBudget(),
+    tokenBudget: input.tokenBudget !== undefined ? numberInRange(input.tokenBudget, configuredContextTokenBudget(), 0, MAX_CONTEXT_TOKEN_BUDGET) : configuredContextTokenBudget(),
     refreshPolicy: "monitored"
   };
 }
@@ -847,7 +854,7 @@ async function handleMemoryChatRequest(cli, request, chatContext, stream, token,
   const activeContext = await readActiveContextScope(cli);
   if (activeContext?.active && command !== "ingest") {
     const view = activeContext.viewId ? ` · view \`${activeContext.viewId}\` v${activeContext.viewVersion || 1}` : "";
-    stream.markdown(`> OneAgent context: **${activeContext.mode}**${view} · ${(activeContext.selectedEntities || []).join(", ")} · sources **${activeContext.sourceAccess || "full"}** · budget **${effectiveContextTokenBudget(activeContext.tokenBudget)} tokens**\n\n`);
+    stream.markdown(`> OneAgent context: **${activeContext.mode}**${view} · ${(activeContext.selectedEntities || []).join(", ")} · sources **${activeContext.sourceAccess || "full"}** · budget **${effectiveContextTokenBudget(activeContext.tokenBudget) || "automatique"} tokens**\n\n`);
   }
 
   if (command === "ingest") {
@@ -3461,8 +3468,8 @@ function renderSnapshotMarkdown(snapshot) {
 
 function toolResult(data, contextTokenBudget) {
   const charBudget = contextTokenBudget
-    ? Math.min(1000000, Math.max(48000, effectiveContextTokenBudget(contextTokenBudget) * 4 + 8000))
-    : 48000;
+    ? Math.max(48000, effectiveContextTokenBudget(contextTokenBudget) * 4 + 8000)
+    : 256000;
   const text = serializeToolResult(data, charBudget);
   return new vscode.LanguageModelToolResult([
     new vscode.LanguageModelTextPart(text)
@@ -3661,20 +3668,13 @@ function numberInRange(value, fallback, min, max) {
 
 function configuredContextTokenBudget() {
   const configured = vscode.workspace?.getConfiguration?.("workMemory")?.get?.("contextTokenBudget", DEFAULT_CONTEXT_TOKEN_BUDGET);
-  return numberInRange(configured, DEFAULT_CONTEXT_TOKEN_BUDGET, 1000, MAX_CONTEXT_TOKEN_BUDGET);
+  return numberInRange(configured, DEFAULT_CONTEXT_TOKEN_BUDGET, 0, MAX_CONTEXT_TOKEN_BUDGET);
 }
 
-/**
- * Persisted contexts created before this setting existed contain 12k as if it
- * were an explicit choice. Treat both the legacy and current built-in defaults
- * as inheriting the setting; any other value remains a context-specific override.
- */
+/** Zero inherits model capacity; positive values remain explicit overrides. */
 function effectiveContextTokenBudget(storedBudget) {
   const parsed = Number(storedBudget);
-  if (!Number.isFinite(parsed) || parsed === LEGACY_CONTEXT_TOKEN_BUDGET || parsed === DEFAULT_CONTEXT_TOKEN_BUDGET) {
-    return configuredContextTokenBudget();
-  }
-  return numberInRange(parsed, configuredContextTokenBudget(), 1, MAX_CONTEXT_TOKEN_BUDGET);
+  return Number.isFinite(parsed) ? numberInRange(parsed, configuredContextTokenBudget(), 0, MAX_CONTEXT_TOKEN_BUDGET) : configuredContextTokenBudget();
 }
 
 function contextTransportCharBudget(contextTokenBudget, modelMaxInputTokens) {
@@ -3682,9 +3682,9 @@ function contextTransportCharBudget(contextTokenBudget, modelMaxInputTokens) {
   const modelTokens = Number(modelMaxInputTokens);
   const usableModelTokens = Number.isFinite(modelTokens)
     ? Math.max(1000, modelTokens - 8000)
-    : requestedTokens;
-  const deliveredTokens = Math.min(requestedTokens, usableModelTokens);
-  return Math.min(1000000, Math.max(24000, deliveredTokens * 4 + 12000));
+    : requestedTokens || 256000;
+  const deliveredTokens = requestedTokens > 0 ? Math.min(requestedTokens, usableModelTokens) : usableModelTokens;
+  return Math.max(24000, deliveredTokens * 4);
 }
 
 function roundNumber(value) {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.140
+
+- Tout et Réinitialiser effacent aussi le contexte actif ; création d’une vue avec accès à toute la mémoire et indicateur de l’accès réel de l’agent.
+- Sélection d’une vue avec application de son contexte enregistré ; anciennes vues strictes conservées, erreurs de changement signalées sans faux succès.
+- Graphe sans plafonds de nœuds/liens ni repli automatique ; Canvas prioritaire, positions conservées, rafraîchissements regroupés et facettes progressives.
+- Budget automatique par défaut, réglage manuel explicite, découverte et lecture des Markdown/notes/sources par sections avec curseur et contrôle de révision, sur les deux hôtes.
+
 ## 0.1.139
 
 - Espace Mémoire commun avec Copilot 0.6.16 : graphe et liste, vues enregistrées par affichage, filtres multiples par type et entité liée, tri, regroupement et propriétés visibles.

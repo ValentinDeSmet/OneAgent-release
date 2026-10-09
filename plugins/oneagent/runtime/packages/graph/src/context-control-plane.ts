@@ -307,7 +307,7 @@ export function previewContextScope(
     outOfScope,
     estimatedTokens,
     budget,
-    overBudget: estimatedTokens > budget
+    overBudget: budget > 0 && estimatedTokens > budget
   };
 }
 
@@ -715,7 +715,7 @@ export function compileContextPack(db: WorkMemoryDatabase, input: CompileContext
   const estimatedTokens = candidates.reduce((sum, entry) => sum + entry.tokenCount, 0);
   const plannedEntries: Array<ContextPackEntry | PlannedSourceEntry> = [];
   const selectedChunkIds: string[] = [];
-  let remaining = budget;
+  let remaining = budget === 0 ? estimatedTokens : budget;
   let truncated = false;
   for (const candidate of candidates) {
     if (remaining <= 0) {
@@ -1182,7 +1182,7 @@ function retrieveSourcePackCandidates(
   const sourceIds = uniqueStrings(input.sourceIds).sort();
   const candidateLimit = Math.max(
     SOURCE_CHUNK_CANDIDATE_MIN,
-    Math.min(SOURCE_CHUNK_CANDIDATE_MAX, Math.ceil(input.budget / 64))
+    Math.min(SOURCE_CHUNK_CANDIDATE_MAX, input.budget === 0 ? SOURCE_CHUNK_CANDIDATE_MAX : Math.ceil(input.budget / 64))
   );
   // Reserve part of the bounded candidate window for source coverage. A broad
   // request must not let many hits from one long document starve every other

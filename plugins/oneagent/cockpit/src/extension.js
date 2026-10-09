@@ -2502,6 +2502,26 @@ async function handleCockpitMessage(cli, webview, message) {
       const preview = JSON.parse(await cli.run(["context-scope", "preview", "--stdin", "--json"], { input: JSON.stringify(message.scope || {}), logOutput: false }));
       await webview.postMessage({ type: "contextScopePreview", payload: preview });
     }
+    if (message.type === "selectMemoryView") {
+      // Canonical saved context only: never trust a scope supplied in this message.
+      // This action comes from an explicit click on a view or Reset.
+      try {
+        const view = message.id ? (await loadGraphViews(cli)).find(item => item.id === message.id) : undefined;
+        if (message.id && !view) throw new Error("Cette vue n’existe plus. Actualise la mémoire.");
+        if (view?.context?.mode === "strict" && !view.context.selectedEntities?.length) throw new Error("Cette vue restreinte n’a aucune entité sélectionnée.");
+        let payload = null;
+        if (view?.context?.selectedEntities?.length) {
+          const activation = await cli.json(["context-view", "activate", view.id, "--allow-boundary-change", "--json"]);
+          payload = { ...activation.preview, scope: activation.view.context, counts: activation.preview?.resolved?.counts || {} };
+        } else {
+          await cli.run(["context-scope", "clear", "--allow-boundary-change"], { logOutput: false });
+        }
+        await webview.postMessage({ type: "memoryViewSelected", requestId: message.requestId, view, payload });
+      } catch (error) {
+        await webview.postMessage({ type: "memoryViewSelected", requestId: message.requestId, error: error.message || String(error) });
+      }
+      return;
+    }
     if (message.type === "clearContextScope") {
       const result = await runContextBoundaryCommand(
         cli,
@@ -3290,7 +3310,7 @@ async function saveGraphFiltersFromCockpit(cli, message) {
 
 async function loadGraphViews(cli) {
   try {
-    const stored = await cli.json(["context-view", "list", "--json", "--context-scope", "active"]);
+    const stored = await cli.json(["context-view", "list", "--json", "--allow-boundary-change"]);
     const views = Array.isArray(stored?.views) ? stored.views : [];
     return views
       .filter((view) => view && typeof view === "object" && view.id && view.name)
@@ -3309,8 +3329,8 @@ async function loadGraphViews(cli) {
   }
 }
 
-async function postGraphViews(cli, webview, activeId) {
-  await webview.postMessage({ type: "graphViews", views: await loadGraphViews(cli), activeId });
+async function postGraphViews(cli, webview, activeId, applyView = false) {
+  await webview.postMessage({ type: "graphViews", views: await loadGraphViews(cli), activeId, applyView });
 }
 
 async function saveGraphView(cli, webview, message) {
@@ -3319,7 +3339,7 @@ async function saveGraphView(cli, webview, message) {
   delete payload.context;
   const views = await loadGraphViews(cli);
   const existing = message.id ? views.find((view) => view.id === message.id) : undefined;
-  const authorization = { approved: false };
+  const authorization = { approved: !existing };
   if (existing) {
     await postOperation(webview, "running", `Updating memory view "${existing.name}"...`);
     const result = await runContextBoundaryCommand(
@@ -3357,7 +3377,14 @@ async function saveGraphView(cli, webview, message) {
     return;
   }
   const view = JSON.parse(result.output);
-  await postGraphViews(cli, webview, view.id);
+  if (view.context?.selectedEntities?.length) {
+    const activated = await cli.json(["context-view", "activate", view.id, "--allow-boundary-change", "--json"]);
+    await webview.postMessage({ type: "contextScope", payload: { ...activated.preview, scope: activated.view.context, counts: activated.preview?.resolved?.counts || {} } });
+  } else {
+    await cli.run(["context-scope", "clear", "--allow-boundary-change"], { logOutput: false });
+    await webview.postMessage({ type: "contextScope", payload: null });
+  }
+  await postGraphViews(cli, webview, view.id, true);
   await postOperation(webview, "success", `Memory view "${view.name || name}" saved.`);
 }
 
@@ -3439,11 +3466,11 @@ async function loadScopedManualNotes(cli) {
 async function loadCockpitState(cli, options = {}) {
   const load = async () => {
     const graphConfig = vscode.workspace.getConfiguration("workMemory");
-    const visibleMaxNodes = Math.max(20, Number(graphConfig.get("graphMaxNodes")) || 500);
-    const visibleMaxEdges = Math.max(20, Number(graphConfig.get("graphMaxEdges")) || 1200);
-    const contextTokenBudget = Math.max(1000, Math.min(1000000, Number(graphConfig.get("contextTokenBudget")) || 64000));
-    const loadedMaxNodes = Math.max(1000, visibleMaxNodes);
-    const loadedMaxEdges = Math.max(2500, visibleMaxEdges);
+    const visibleMaxNodes = 0; // The human graph is complete; agent graph tools remain bounded.
+    const visibleMaxEdges = 0;
+    const contextTokenBudget = Math.max(0, Math.min(1000000, Number(graphConfig.get("contextTokenBudget")) || 0));
+    const loadedMaxNodes = 0;
+    const loadedMaxEdges = 0;
     const graphArgs = ["graph-view", "--json", "--scope", "portfolio", "--max-nodes", String(loadedMaxNodes), "--max-edges", String(loadedMaxEdges)];
     const graphifyCommand = cli.graphifyCommand();
     if (graphifyCommand && options.refreshGraphify) {

@@ -1416,12 +1416,29 @@ function renderCockpitHtml(payload, assets = {}) {
       const vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : undefined;
       let state = ${data};
       let memoryExplorer;
-      const defaultContextTokenBudget = Math.max(1000, Number(state.contextTokenBudget) || 64000);
+      let memoryViewRequest = 0, memoryViewPending;
+      function selectMemoryView(id, layout) {
+        if (memoryViewPending) return;
+        memoryViewPending = { requestId: ++memoryViewRequest, layout };
+        renderMemoryAccessStatus();
+        vscode?.postMessage({ type: "selectMemoryView", id: id || undefined, requestId: memoryViewRequest });
+      }
+      function resetMemoryView() { selectMemoryView(undefined, memoryExplorer?.snapshot().layout || "graph"); }
+      function renderMemoryAccessStatus() {
+        const label = document.querySelector("#memoryAccessStatus");
+        if (!label) return;
+        const scope = state.contextScope?.scope;
+        label.textContent = memoryViewPending ? "Accès agent : mise à jour…" : scope?.mode === "strict" ? "Accès agent : limité à " + (scope.selectedEntities || []).map(ref => refLabel(ref.kind + ":" + ref.id)).join(", ") : "Accès agent : toute la mémoire";
+        label.title = label.textContent;
+        label.dataset.restricted = String(scope?.mode === "strict");
+        document.querySelectorAll("[data-memory-view], #graphViewPreset, #memoryResetAll").forEach(button => { button.disabled = Boolean(memoryViewPending); });
+      }
+      const defaultContextTokenBudget = Math.max(0, Number(state.contextTokenBudget) || 0);
       function contextTokenBudgetOrDefault(value) {
         const parsed = Number(value);
-        return !Number.isFinite(parsed) || parsed === 12000 || parsed === 64000
+        return !Number.isFinite(parsed)
           ? defaultContextTokenBudget
-          : Math.max(1, parsed);
+          : Math.max(0, parsed);
       }
       let graphPerspective = "focus";
       let graphSelectionMode = "navigate";
@@ -1877,11 +1894,40 @@ function renderCockpitHtml(payload, assets = {}) {
             activeGraphViewId = undefined;
             scheduleGraphFiltersSave();
           }
+          if (event.data.applyView && activeGraphView()) applyGraphView(activeGraphView());
           renderGraphViewControls();
           renderGraphContextPanel();
         }
+        if (event.data?.type === "memoryViewSelected" && event.data.requestId === memoryViewPending?.requestId) {
+          const result = event.data, pending = memoryViewPending;
+          memoryViewPending = undefined;
+          if (result.error) {
+            operationStatus = { status: "error", message: result.error };
+            renderOperation();
+          } else {
+            state.contextScope = result.payload || null;
+            initContextScopeFromState();
+            activeGraphViewId = result.view?.id;
+            window.clearTimeout(contextScopePreviewTimer);
+            graphIsolateMode = "show";
+            graphSelectionMode = "navigate";
+            contextPanelDismissed = true;
+            graphPinnedNodeIds.clear();
+            graphExpandedTypeGroups.clear(); graphCollapsedTypeGroups.clear();
+            userCollapsedGroups.clear(); userExpandedGroups.clear();
+            applyGraphView(result.view || { payload: { perspective: "map", memory: { layout: pending.layout || "list" } } });
+            updateGraphIsolateControls();
+            document.querySelectorAll("[data-graph-select]").forEach(button => button.classList.toggle("active", button.dataset.graphSelect === "navigate"));
+            contextPackHistory = []; selectedContextPack = undefined; contextPackOutdated = false;
+            scheduleGraphFiltersSave();
+          }
+          renderMemoryAccessStatus();
+        }
         if (event.data?.type === "contextScope") {
           const payload = event.data.payload;
+          state.contextScope = payload || null;
+          contextScopeDraft = normalizeContextScopeDraft(payload?.scope);
+          renderMemoryAccessStatus();
           contextScopeCounts = payload && payload.counts ? payload.counts : { entities: 0, captures: 0, sources: 0 };
           contextScopePreviewDetails = payload || undefined;
           contextScopeActivated = Boolean(payload && payload.scope && (payload.scope.selectedEntities || []).length > 0);
@@ -1897,7 +1943,7 @@ function renderCockpitHtml(payload, assets = {}) {
           renderContextScopePanel();
         }
         if (event.data?.type === "contextScopePreview") {
-          if (event.data.payload) {
+          if (event.data.payload && contextScopeDraft?.selectedEntities?.length && !memoryViewPending) {
             const previewCounts = event.data.payload.counts || event.data.payload.resolved?.counts;
             if (previewCounts) contextScopeCounts = previewCounts;
             contextScopePreviewDetails = event.data.payload;
@@ -2044,14 +2090,9 @@ function renderCockpitHtml(payload, assets = {}) {
         scheduleGraphFiltersSave();
       });
       document.querySelector("#graphViewPreset")?.addEventListener("change", (event) => {
-        activeGraphViewId = event.target.value || undefined;
-        const view = activeGraphView();
-        if (view) {
-          applyGraphView(view);
-        } else {
-          applyGraphView({ payload: { perspective: "map", memory: { layout: "list" } } });
-        }
-        scheduleGraphFiltersSave();
+        const requestedId = event.target.value;
+        event.target.value = activeGraphViewId || "";
+        selectMemoryView(requestedId, "list");
       });
       document.querySelector("#graphViewSaveAs")?.addEventListener("click", () => {
         vscode?.postMessage({ type: "saveGraphView", payload: serializeGraphView() });
@@ -2364,7 +2405,7 @@ function renderCockpitHtml(payload, assets = {}) {
       function isGroupCollapsed(nodeId, childCount) {
         if (userExpandedGroups.has(nodeId)) return false;
         if (userCollapsedGroups.has(nodeId)) return true;
-        return childCount >= GROUP_FOLD_AUTO_THRESHOLD;
+        return false; // Folding is explicit; All must really show all nodes.
       }
 
       // Fold collapsed groups: hide their part_of/contains descendants and reroute
@@ -2542,6 +2583,8 @@ function renderCockpitHtml(payload, assets = {}) {
         const mark = (node, cause, label) => {
           if (!hidden.has(node.id)) hidden.set(node.id, { cause, label });
         };
+        const focus = graphPerspective === "map" ? undefined : focusedNodeId || ensureFocusedNode(graph);
+        const perspectiveNodes = focus ? nodesWithinDepth(graph, focus, graphPerspective === "deps" ? 3 : 2) : undefined;
         let nodes = [];
         for (const node of graph.nodes || []) {
           if (memoryExplorer && !memoryExplorer.matchesNode(node)) { mark(node, "memory", "Filtre de la mémoire"); continue; }
@@ -2550,7 +2593,7 @@ function renderCockpitHtml(payload, assets = {}) {
             const viewType = graphViewType(node);
             if (!activeGraphTypes.has(viewType)) { mark(node, "type", typeLabel(viewType) + " hidden"); continue; }
             if (!matchesGraphValueFilter(node)) { mark(node, "value", "unchecked in " + typeLabel(viewType)); continue; }
-            if (!matchesGraphPerspective(node, graph)) { mark(node, "perspective", "outside " + graphPerspective + " perspective"); continue; }
+            if (!matchesGraphPerspective(node, perspectiveNodes)) { mark(node, "perspective", "outside " + graphPerspective + " perspective"); continue; }
           }
           if (!pinned && !matchesGraphFocusFilter(node)) { mark(node, "focus", "below focus level"); continue; }
           if (!pinned && !matchesGraphTextFilter(node, filter)) { mark(node, "text", "text filter"); continue; }
@@ -2861,7 +2904,7 @@ function renderCockpitHtml(payload, assets = {}) {
           degrees.set(edge.target, (degrees.get(edge.target) || 0) + 1);
         }
         // The legacy SVG renderer has no hierarchy layout; fall back to force.
-        const positions = layoutNodes(nodes, edges, width, height, graphLayoutMode === "hierarchy" ? "force" : graphLayoutMode);
+
         svg.querySelectorAll(".empty").forEach((item) => item.remove());
         const layer = ensureGraphLayer(svg);
         layer.innerHTML = "";
@@ -2877,6 +2920,9 @@ function renderCockpitHtml(payload, assets = {}) {
         if (renderEnhancedGraph(nodes, edges, degrees)) {
           return;
         }
+        // Never run the quadratic SVG force layout before the Canvas renderer.
+        const fallbackLayout = nodes.length > 500 && ["force", "hierarchy"].includes(graphLayoutMode) ? "grid" : graphLayoutMode === "hierarchy" ? "force" : graphLayoutMode;
+        const positions = layoutNodes(nodes, edges, width, height, fallbackLayout);
 
         for (const edge of edges) {
           const left = positions.get(edge.source);
@@ -3200,18 +3246,8 @@ function renderCockpitHtml(payload, assets = {}) {
         });
       }
 
-      function graphNodeLimit(filter) {
-        const configured = Math.max(20, Number(state.graphLimits?.visibleMaxNodes) || 500);
-        if (filter || graphPerspective === "map") return configured;
-        if (graphPerspective === "focus" || graphPerspective === "product") return Math.min(configured, 240);
-        return Math.min(configured, 220);
-      }
-
-      function graphEdgeLimit(filter) {
-        const configured = Math.max(20, Number(state.graphLimits?.visibleMaxEdges) || 1200);
-        if (filter || graphPerspective === "map") return configured;
-        return Math.min(configured, 500);
-      }
+      function graphNodeLimit() { return Infinity; }
+      function graphEdgeLimit() { return Infinity; }
 
       function shouldRenderNodeLabel(node, visibleCount, filter) {
         if (node.ghost) return false;
@@ -3282,16 +3318,10 @@ function renderCockpitHtml(payload, assets = {}) {
         });
       }
 
-      function matchesGraphPerspective(node, graph) {
-        const type = graphViewType(node);
+      function matchesGraphPerspective(node, perspectiveNodes) {
         if (graphPerspective === "map") return true;
-        if (graphPerspective === "focus" || graphPerspective === "product") {
-          return isInFocusedEntityArea(node, graph, 2);
-        }
-        if (graphPerspective === "deps") {
-          return isInFocusedEntityArea(node, graph, 3) && ["domain", "subdomain", "team", "product", "repository", "source", "decision", "question", "risk", "task"].includes(type);
-        }
-        return true;
+        if (perspectiveNodes && !perspectiveNodes.has(node.id)) return false;
+        return graphPerspective !== "deps" || ["domain", "subdomain", "team", "product", "repository", "source", "decision", "question", "risk", "task"].includes(graphViewType(node));
       }
 
       function renderFocusSelector() {
@@ -3638,28 +3668,6 @@ function renderCockpitHtml(payload, assets = {}) {
 
       function isSupportingFocus(node) {
         return focusLevelForNode(node) === "supporting";
-      }
-
-      function isInFocusedEntityArea(node, graph, maxDepth) {
-        const focus = focusedNodeId || ensureFocusedNode(graph);
-        if (!focus) return true;
-        if (node.id === focus) return true;
-        const visited = new Set([focus]);
-        let frontier = [focus];
-        for (let depth = 0; depth < maxDepth; depth += 1) {
-          const next = [];
-          for (const id of frontier) {
-            for (const edge of graph.edges || []) {
-              if (!matchesGraphRelationFilter(edge)) continue;
-              const other = edge.source === id ? edge.target : edge.target === id ? edge.source : undefined;
-              if (!other || visited.has(other)) continue;
-              visited.add(other);
-              next.push(other);
-            }
-          }
-          frontier = next;
-        }
-        return visited.has(node.id);
       }
 
       function layoutNodes(nodes, edges, width, height, mode) {
@@ -5212,23 +5220,7 @@ function renderCockpitHtml(payload, assets = {}) {
           button.addEventListener("click", () => setGraphRelationQuickMode(button.dataset.relationQuick));
         });
         document.querySelector("#resetGraphFilters").addEventListener("click", () => {
-          activeGraphTypes.clear();
-          typeOrder.forEach((entry) => activeGraphTypes.add(entry));
-          for (const key of Object.keys(graphExcludedValues)) delete graphExcludedValues[key];
-          for (const key of Object.keys(graphFilterSearches)) delete graphFilterSearches[key];
-          graphPinnedNodeIds.clear();
-          graphRelationValueMode = "all";
-          graphSelectedRelationTypes = new Set();
-          graphRelationQuickMode = "all";
-          graphSelectedRelationCategories = new Set(RELATION_CATEGORY_ORDER);
-          graphExpandedFilterTypes.clear();
-          ["product", "team", "source"].forEach((type) => {
-            if (typeOrder.includes(type)) graphExpandedFilterTypes.add(type);
-          });
-          renderLegend();
-          renderGraphFilterPanel();
-          renderGraph();
-          scheduleGraphFiltersSave();
+          resetMemoryView();
         });
         document.querySelectorAll("[data-filter-section-row]").forEach((row) => {
           row.addEventListener("click", (event) => {
@@ -5846,7 +5838,7 @@ function renderCockpitHtml(payload, assets = {}) {
         focusedNodeId = payload.focusedNodeId || undefined;
         const filterInput = document.querySelector("#filter");
         if (filterInput) filterInput.value = payload.textFilter || "";
-        const savedContext = view?.context || payload.context;
+        const savedContext = view?.context || payload.context || { mode: "guided", selectedEntities: [] };
         if (savedContext) {
           contextScopeDraft = normalizeContextScopeDraft(savedContext);
           contextScopeDraftDirty = false;
@@ -5954,6 +5946,7 @@ function renderCockpitHtml(payload, assets = {}) {
         const deleteBtn = document.querySelector("#graphViewDelete");
         if (deleteBtn) deleteBtn.style.display = activeGraphViewId ? "" : "none";
         memoryExplorer?.refreshViews();
+        renderMemoryAccessStatus();
       }
 
       function parseEntityRefString(ref) {
@@ -6101,7 +6094,7 @@ function renderCockpitHtml(payload, assets = {}) {
           includedTypes: types.size > 0 ? Array.from(types) : undefined,
           sourceAccess: contextScopeDraft?.sourceAccess || "full",
           refreshPolicy: contextScopeDraft?.refreshPolicy || "monitored",
-          tokenBudget: contextScopeDraft?.tokenBudget || defaultContextTokenBudget
+          tokenBudget: contextScopeDraft?.tokenBudget ?? defaultContextTokenBudget
         });
         markContextDraftChanged();
         renderContextScopePanel();
@@ -6185,13 +6178,21 @@ function renderCockpitHtml(payload, assets = {}) {
         updateGraphIsolateControls();
       }
 
+      function contextBudgetControl(id, draft) {
+        const budget = contextTokenBudgetOrDefault(draft.tokenBudget);
+        return '<label class="context-panel-field">Budget de contexte<select id="' + id + 'Mode"><option value="auto"' + (!budget ? ' selected' : '') + '>Automatique</option><option value="manual"' + (budget ? ' selected' : '') + '>Manuel</option></select><input id="' + id + '" type="number" min="1" max="1000000" aria-label="Budget manuel en tokens" value="' + (budget || 128000) + '"' + (!budget ? ' hidden' : '') + '></label>';
+      }
+      function bindContextBudget(id, container) {
+        container.querySelector("#" + id + "Mode")?.addEventListener("change", event => contextScopeUpdatePolicy("tokenBudget", event.target.value === "auto" ? 0 : 128000));
+      }
+
       function renderContextScopePanel() {
         renderGraphContextPanel();
         const body = document.querySelector("#contextScopeBody");
         if (!body || !contextScopeDraft) return;
         const draft = contextScopeDraft;
         const count = draft.selectedEntities.length;
-        const modeBtn = (mode) => '<button type="button" data-cs-mode="' + mode + '" style="height:26px;padding:0 9px;border:1px solid var(--border);border-radius:6px;font-size:11px;' + (draft.mode === mode ? "background:var(--active-bg);color:var(--active-fg);" : "background:transparent;color:var(--muted);") + '">' + mode + '</button>';
+        const modeBtn = (mode) => '<button type="button" data-cs-mode="' + mode + '" style="height:26px;padding:0 9px;border:1px solid var(--border);border-radius:6px;font-size:11px;' + (draft.mode === mode ? "background:var(--active-bg);color:var(--active-fg);" : "background:transparent;color:var(--muted);") + '">' + (mode === 'strict' ? 'Limiter à cette sélection' : 'Toute la mémoire') + '</button>';
         const selections = (draft.nodeSelections || []).slice().sort((left, right) => left.role.localeCompare(right.role) || refLabel(left.entity.kind + ":" + left.entity.id).localeCompare(refLabel(right.entity.kind + ":" + right.entity.id)));
         const roleOptions = (selected) => ["pinned", "included", "proposed", "exploratory", "excluded"].map((role) => '<option value="' + role + '"' + (role === selected ? " selected" : "") + '>' + role + '</option>').join("");
         const chips = selections.length === 0
@@ -6209,10 +6210,10 @@ function renderCockpitHtml(payload, assets = {}) {
         const inputStyle = "height:28px;width:100%;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);color:inherit;padding:0 7px;font-size:11px;";
         const preview = contextScopePreviewDetails || {};
         const estimated = Number(preview.estimatedTokens || 0);
-        const budget = Number(preview.budget || draft.tokenBudget || defaultContextTokenBudget);
+        const budget = Number(preview.budget ?? draft.tokenBudget ?? defaultContextTokenBudget);
         const previewLine = 'Included ' + (preview.included?.length || count) + ' · proposed ' + (preview.proposed?.length || selections.filter((item) => item.role === "proposed").length) + ' · excluded ' + (preview.excluded?.length || selections.filter((item) => item.role === "excluded").length) + ' · stale ' + (preview.stale?.length || 0) + ' · out ' + (preview.outOfScope?.length || 0);
         body.innerHTML =
-          '<div style="display:flex;gap:6px;margin-bottom:10px;">' + ["strict", "guided", "disabled"].map(modeBtn).join("") + '</div>'
+          '<div style="display:flex;gap:6px;margin-bottom:10px;">' + ["guided", "strict"].map(modeBtn).join("") + '</div>'
           + '<div style="margin-bottom:10px;"><button type="button" id="contextScopeSeed" style="' + actionStyle + '">Base on current view</button></div>'
           + '<div style="color:var(--muted);font-size:11px;text-transform:uppercase;margin-bottom:6px;">Context roles (' + selections.length + ')</div>'
           + '<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:12px;">' + chips + '</div>'
@@ -6222,14 +6223,14 @@ function renderCockpitHtml(payload, assets = {}) {
           + '<label style="font-size:10px;color:var(--muted);">Refresh policy<select id="contextRefreshPolicy" style="' + inputStyle + '">' + ["frozen", "monitored", "dynamic"].map((value) => '<option value="' + value + '"' + (draft.refreshPolicy === value ? " selected" : "") + '>' + value + '</option>').join("") + '</select></label>'
           + '<label style="font-size:10px;color:var(--muted);">From<input id="contextTimeFrom" type="date" value="' + escapeAttr(draft.timeRange?.from?.slice(0, 10) || "") + '" style="' + inputStyle + '"></label>'
           + '<label style="font-size:10px;color:var(--muted);">To<input id="contextTimeTo" type="date" value="' + escapeAttr(draft.timeRange?.to?.slice(0, 10) || "") + '" style="' + inputStyle + '"></label>'
-          + '<label style="font-size:10px;color:var(--muted);grid-column:1/-1;">Token budget<input id="contextTokenBudget" type="number" min="1" value="' + escapeAttr(draft.tokenBudget || defaultContextTokenBudget) + '" style="' + inputStyle + '"></label>'
+          + '<label style="font-size:10px;color:var(--muted);grid-column:1/-1;">Budget tokens (0 = automatique)<input id="contextTokenBudget" type="number" min="0" value="' + escapeAttr(draft.tokenBudget ?? defaultContextTokenBudget) + '" style="' + inputStyle + '"></label>'
           + '<label style="font-size:10px;color:var(--muted);grid-column:1/-1;">Allowed relations<input id="contextAllowedRelations" value="' + escapeAttr((draft.allowedRelationTypes || []).join(", ")) + '" placeholder="all relation types" style="' + inputStyle + '"></label>'
           + '<label style="font-size:10px;color:var(--muted);grid-column:1/-1;">Observation validation<input id="contextObservationValidationStatuses" value="' + escapeAttr((draft.observationValidationStatuses || draft.validationStatuses || []).join(", ")) + '" placeholder="accepted, proposed" style="' + inputStyle + '"></label>'
           + '<label style="font-size:10px;color:var(--muted);">Evidence status<input id="contextObservationEvidenceStatuses" value="' + escapeAttr((draft.observationEvidenceStatuses || []).filter((value) => value !== "measured").join(", ")) + '" placeholder="standalone, corroborated, contradicted" style="' + inputStyle + '"></label>'
           + '<label style="font-size:10px;color:var(--muted);">Measurement<select id="contextObservationMeasurement" style="' + inputStyle + '">' + ["any", "measured", "unmeasured"].map((value) => '<option value="' + value + '"' + (draft.observationMeasurement === value ? ' selected' : '') + '>' + value + '</option>').join("") + '</select></label>'
           + '</div>'
           + '<div class="metrics" id="contextScopeCounts" style="grid-template-columns:repeat(auto-fit,minmax(72px,1fr));margin-bottom:8px;">' + contextScopeCountsHtml() + '</div>'
-          + '<div style="font-size:11px;color:' + (estimated > budget ? "var(--danger)" : "var(--muted)") + ';margin-bottom:5px;">~' + estimated + ' / ' + budget + ' tokens</div>'
+          + '<div style="font-size:11px;color:' + (estimated > budget ? "var(--danger)" : "var(--muted)") + ';margin-bottom:5px;">~' + estimated + ' / ' + (budget || 'automatique') + ' tokens</div>'
           + '<div style="font-size:10px;color:var(--muted);margin-bottom:12px;">' + escapeHtml(previewLine) + '</div>'
           + '<div style="display:flex;gap:8px;"><button type="button" id="contextScopeActivate" style="' + primaryStyle + (count === 0 ? "opacity:0.5;" : "") + '"' + (count === 0 ? " disabled" : "") + '>Use as agent context</button><button type="button" id="contextScopeClear" style="' + actionStyle + '">Clear</button></div>'
           + '<div style="margin-top:10px;color:var(--muted);font-size:11px;">Agent searches are limited to this scope while active.</div>';
@@ -6241,7 +6242,7 @@ function renderCockpitHtml(payload, assets = {}) {
         body.querySelector("#contextRefreshPolicy")?.addEventListener("change", (event) => contextScopeUpdatePolicy("refreshPolicy", event.target.value));
         body.querySelector("#contextTimeFrom")?.addEventListener("change", (event) => contextScopeUpdateTimeRange("from", event.target.value));
         body.querySelector("#contextTimeTo")?.addEventListener("change", (event) => contextScopeUpdateTimeRange("to", event.target.value));
-        body.querySelector("#contextTokenBudget")?.addEventListener("change", (event) => contextScopeUpdatePolicy("tokenBudget", Math.max(1, Number(event.target.value) || defaultContextTokenBudget)));
+        body.querySelector("#contextTokenBudget")?.addEventListener("change", (event) => contextScopeUpdatePolicy("tokenBudget", Math.max(0, Number(event.target.value) || 0)));
         body.querySelector("#contextAllowedRelations")?.addEventListener("change", (event) => contextScopeUpdatePolicy("allowedRelationTypes", commaValues(event.target.value)));
         body.querySelector("#contextObservationValidationStatuses")?.addEventListener("change", (event) => contextScopeUpdatePolicy("observationValidationStatuses", commaValues(event.target.value)));
         body.querySelector("#contextObservationEvidenceStatuses")?.addEventListener("change", (event) => contextScopeUpdatePolicy("observationEvidenceStatuses", commaValues(event.target.value)));
@@ -6270,7 +6271,7 @@ function renderCockpitHtml(payload, assets = {}) {
         const preview = contextScopePreviewDetails || {};
         const counts = contextScopeCounts || {};
         const estimated = Number(preview.estimatedTokens || 0);
-        const budget = Number(preview.budget || draft.tokenBudget || defaultContextTokenBudget);
+        const budget = Number(preview.budget ?? draft.tokenBudget ?? defaultContextTokenBudget);
         const selections = (draft.nodeSelections || []).slice().sort((left, right) => left.role.localeCompare(right.role) || refLabel(left.entity.kind + ":" + left.entity.id).localeCompare(refLabel(right.entity.kind + ":" + right.entity.id)));
         const roleOptions = (selected) => ["pinned", "included", "proposed", "exploratory", "excluded"].map((role) => '<option value="' + role + '"' + (role === selected ? " selected" : "") + '>' + role + '</option>').join("");
         const roleRows = selections.length > 0
@@ -6284,7 +6285,7 @@ function renderCockpitHtml(payload, assets = {}) {
               return '<div class="context-role-row ' + escapeAttr(selection.role) + '"><div class="context-role-main"><span title="' + escapeAttr(ref) + '">' + escapeHtml(refLabel(ref)) + '</span>' + (detail ? '<small title="' + escapeAttr(detail) + '">' + escapeHtml(detail) + '</small>' : '') + '</div><select data-graph-context-role="' + escapeAttr(ref) + '" title="Review Context role">' + roleOptions(selection.role) + '</select><button type="button" data-graph-context-remove="' + escapeAttr(ref) + '" title="Reject or remove">×</button></div>';
             }).join("")
           : '<div class="context-pack-summary">No entity selected. Return to Navigate, prepare the graph, then reopen Context.</div>';
-        const modeButton = (mode) => '<button type="button" data-graph-context-mode="' + mode + '" class="' + (draft.mode === mode ? "active" : "") + '">' + mode + '</button>';
+        const modeButton = (mode) => '<button type="button" data-graph-context-mode="' + mode + '" class="' + (draft.mode === mode ? "active" : "") + '">' + (mode === 'strict' ? 'Limiter à cette sélection' : 'Toute la mémoire') + '</button>';
         const viewLabel = savedView
           ? savedView.name + " · v" + savedView.version + (viewDirty ? " · modified" : "")
           : "Unsaved ad-hoc view";
@@ -6295,12 +6296,12 @@ function renderCockpitHtml(payload, assets = {}) {
             : savedView
               ? "Activate view"
               : "Activate draft";
-        const previewWarning = estimated > budget
+        const previewWarning = budget > 0 && estimated > budget
           ? '<div class="context-pack-summary warning">Estimated context exceeds the token budget. The compiled pack will be truncated.</div>'
           : "";
         const pack = selectedContextPack;
         const packSummary = pack
-          ? '<div class="context-pack-summary' + (contextPackOutdated ? " warning" : "") + '"><strong>Pack v' + escapeHtml(pack.version) + '</strong> · ' + escapeHtml(pack.actualTokens || 0) + '/' + escapeHtml(pack.budget || 0) + ' tokens · ' + escapeHtml(pack.entryCount ?? (pack.entries || []).length) + ' entries' + (pack.truncated ? ' · truncated' : '') + '<br>' + escapeHtml(pack.request || "") + (contextPackOutdated ? '<br>This pack predates the current Context View draft.' : '') + '</div>'
+          ? '<div class="context-pack-summary' + (contextPackOutdated ? " warning" : "") + '"><strong>Pack v' + escapeHtml(pack.version) + '</strong> · ' + escapeHtml(pack.actualTokens || 0) + '/' + escapeHtml(pack.budget || 'automatique') + ' tokens · ' + escapeHtml(pack.entryCount ?? (pack.entries || []).length) + ' entries' + (pack.truncated ? ' · truncated' : '') + '<br>' + escapeHtml(pack.request || "") + (contextPackOutdated ? '<br>This pack predates the current Context View draft.' : '') + '</div>'
           : '<div class="context-pack-summary">No Context Pack compiled yet. Activate the view, describe the agent objective, then prepare the concrete pack.</div>';
         const packError = contextPackErrorMessage
           ? '<div class="context-pack-summary warning">' + escapeHtml(contextPackErrorMessage) + '</div>'
@@ -6314,15 +6315,15 @@ function renderCockpitHtml(payload, assets = {}) {
         const canCompile = activeCount > 0 && contextScopeActivated && contextPackObjective.trim().length > 0 && !contextPackBusy;
 
         panel.innerHTML =
-          '<div class="graph-context-panel-head"><div class="graph-context-panel-title"><strong>Context control plane</strong><small>' + escapeHtml(viewLabel) + '</small></div><div class="graph-context-panel-head-actions"><button type="button" class="graph-context-close" data-help-guide="context" title="Learn about agent context">?</button><span class="context-status ' + status + '">' + escapeHtml(statusLabel) + '</span><button type="button" class="graph-context-close" id="graphContextPanelClose" title="Close panel">×</button></div></div>'
+          '<div class="graph-context-panel-head"><div class="graph-context-panel-title"><strong>Contexte de la vue</strong><small>' + escapeHtml(viewLabel) + '</small></div><div class="graph-context-panel-head-actions"><button type="button" class="graph-context-close" data-help-guide="context" title="Learn about agent context">?</button><span class="context-status ' + status + '">' + escapeHtml(statusLabel) + '</span><button type="button" class="graph-context-close" id="graphContextPanelClose" title="Close panel">×</button></div></div>'
           + '<div class="graph-context-panel-body">'
-          + '<section class="context-panel-section"><div class="context-panel-section-head"><strong>Context View</strong><small>Reusable boundary</small></div>'
+          + '<section class="context-panel-section"><div class="context-panel-section-head"><strong>Context View</strong><small>Accès de l’agent</small></div>'
           + '<div class="context-panel-metrics"><div class="context-panel-metric"><span>Selected</span><strong>' + activeCount + '</strong></div><div class="context-panel-metric"><span>Resolved</span><strong>' + escapeHtml(counts.entities || 0) + '</strong></div><div class="context-panel-metric"><span>Sources</span><strong>' + escapeHtml(counts.sources || 0) + '</strong></div><div class="context-panel-metric"><span>Observations</span><strong>' + escapeHtml(counts.observations || 0) + '</strong></div></div>'
           + '<div class="context-panel-tabs">' + modeButton("guided") + modeButton("strict") + '</div>'
           + '<div class="context-role-list">' + roleRows + '</div>'
           + '<div class="context-panel-row"><label class="context-panel-field">Depth<select id="graphContextDepth">' + [0,1,2,3].map((value) => '<option value="' + value + '"' + (Number(draft.depth) === value ? " selected" : "") + '>' + value + ' level' + (value === 1 ? "" : "s") + '</option>').join("") + '</select></label><label class="context-panel-field">Source access<select id="graphContextSourceAccess">' + ["none", "metadata", "snippets", "full"].map((value) => '<option value="' + value + '"' + (draft.sourceAccess === value ? " selected" : "") + '>' + value + '</option>').join("") + '</select></label></div>'
-          + '<details class="context-advanced"><summary>Advanced settings</summary><div class="context-advanced-body"><div class="context-panel-row"><label class="context-panel-field">Refresh policy<select id="graphContextRefreshPolicy">' + ["frozen", "monitored", "dynamic"].map((value) => '<option value="' + value + '"' + (draft.refreshPolicy === value ? " selected" : "") + '>' + value + '</option>').join("") + '</select></label><label class="context-panel-field">Token budget<input id="graphContextTokenBudget" type="number" min="1" value="' + escapeAttr(draft.tokenBudget || defaultContextTokenBudget) + '"></label></div><div class="context-panel-row"><label class="context-panel-field">From<input id="graphContextTimeFrom" type="date" value="' + escapeAttr(draft.timeRange?.from?.slice(0,10) || "") + '"></label><label class="context-panel-field">To<input id="graphContextTimeTo" type="date" value="' + escapeAttr(draft.timeRange?.to?.slice(0,10) || "") + '"></label></div><label class="context-panel-field">Allowed relations<input id="graphContextAllowedRelations" value="' + escapeAttr((draft.allowedRelationTypes || []).join(", ")) + '" placeholder="all relation types"></label><label class="context-panel-field">Observation validation<input id="graphContextObservationValidationStatuses" value="' + escapeAttr((draft.observationValidationStatuses || draft.validationStatuses || []).join(", ")) + '" placeholder="accepted, proposed"></label><div class="context-panel-row"><label class="context-panel-field">Evidence status<input id="graphContextObservationEvidenceStatuses" value="' + escapeAttr((draft.observationEvidenceStatuses || []).filter((value) => value !== "measured").join(", ")) + '" placeholder="standalone, corroborated, contradicted"></label><label class="context-panel-field">Measurement<select id="graphContextObservationMeasurement">' + ["any", "measured", "unmeasured"].map((value) => '<option value="' + value + '"' + (draft.observationMeasurement === value ? ' selected' : '') + '>' + value + '</option>').join("") + '</select></label></div></div></details>'
-          + '<div class="context-pack-summary">Included ' + escapeHtml(preview.included?.length || activeCount) + ' · proposed ' + escapeHtml(preview.proposed?.length || 0) + ' · excluded ' + escapeHtml(preview.excluded?.length || 0) + ' · stale ' + escapeHtml(preview.stale?.length || 0) + '<br>~' + estimated + ' / ' + budget + ' tokens</div>' + previewWarning
+          + '<details class="context-advanced"><summary>Advanced settings</summary><div class="context-advanced-body"><div class="context-panel-row"><label class="context-panel-field">Refresh policy<select id="graphContextRefreshPolicy">' + ["frozen", "monitored", "dynamic"].map((value) => '<option value="' + value + '"' + (draft.refreshPolicy === value ? " selected" : "") + '>' + value + '</option>').join("") + '</select></label> ' + contextBudgetControl("graphContextTokenBudget", draft) + ' </div><div class="context-panel-row"><label class="context-panel-field">From<input id="graphContextTimeFrom" type="date" value="' + escapeAttr(draft.timeRange?.from?.slice(0,10) || "") + '"></label><label class="context-panel-field">To<input id="graphContextTimeTo" type="date" value="' + escapeAttr(draft.timeRange?.to?.slice(0,10) || "") + '"></label></div><label class="context-panel-field">Allowed relations<input id="graphContextAllowedRelations" value="' + escapeAttr((draft.allowedRelationTypes || []).join(", ")) + '" placeholder="all relation types"></label><label class="context-panel-field">Observation validation<input id="graphContextObservationValidationStatuses" value="' + escapeAttr((draft.observationValidationStatuses || draft.validationStatuses || []).join(", ")) + '" placeholder="accepted, proposed"></label><div class="context-panel-row"><label class="context-panel-field">Evidence status<input id="graphContextObservationEvidenceStatuses" value="' + escapeAttr((draft.observationEvidenceStatuses || []).filter((value) => value !== "measured").join(", ")) + '" placeholder="standalone, corroborated, contradicted"></label><label class="context-panel-field">Measurement<select id="graphContextObservationMeasurement">' + ["any", "measured", "unmeasured"].map((value) => '<option value="' + value + '"' + (draft.observationMeasurement === value ? ' selected' : '') + '>' + value + '</option>').join("") + '</select></label></div></div></details>'
+          + '<div class="context-pack-summary">Included ' + escapeHtml(preview.included?.length || activeCount) + ' · proposed ' + escapeHtml(preview.proposed?.length || 0) + ' · excluded ' + escapeHtml(preview.excluded?.length || 0) + ' · stale ' + escapeHtml(preview.stale?.length || 0) + '<br>~' + estimated + ' / ' + (budget || 'automatique') + ' tokens</div>' + previewWarning
           + '<div class="context-panel-actions"><button type="button" id="graphContextSync">Use visible nodes</button><button type="button" id="graphContextClear">Clear</button><button type="button" class="primary" id="graphContextActivate"' + (activeCount === 0 || contextActivationBusy ? " disabled" : "") + '>' + escapeHtml(activateLabel) + '</button></div></section>'
           + '<section class="context-panel-section"><div class="context-panel-section-head"><strong>Context Pack</strong><small>Concrete agent payload</small></div>'
           + '<label class="context-panel-field">Agent objective<textarea class="context-pack-objective" id="contextPackObjective" placeholder="What should the agent accomplish with this context?">' + escapeHtml(contextPackObjective) + '</textarea></label>'
@@ -6337,7 +6338,8 @@ function renderCockpitHtml(payload, assets = {}) {
         panel.querySelector("#graphContextDepth")?.addEventListener("change", (event) => contextScopeUpdatePolicy("depth", Number(event.target.value)));
         panel.querySelector("#graphContextSourceAccess")?.addEventListener("change", (event) => contextScopeUpdatePolicy("sourceAccess", event.target.value));
         panel.querySelector("#graphContextRefreshPolicy")?.addEventListener("change", (event) => contextScopeUpdatePolicy("refreshPolicy", event.target.value));
-        panel.querySelector("#graphContextTokenBudget")?.addEventListener("change", (event) => contextScopeUpdatePolicy("tokenBudget", Math.max(1, Number(event.target.value) || defaultContextTokenBudget)));
+        bindContextBudget("graphContextTokenBudget", panel);
+        panel.querySelector("#graphContextTokenBudget")?.addEventListener("change", (event) => contextScopeUpdatePolicy("tokenBudget", Math.max(0, Number(event.target.value) || 0)));
         panel.querySelector("#graphContextTimeFrom")?.addEventListener("change", (event) => contextScopeUpdateTimeRange("from", event.target.value));
         panel.querySelector("#graphContextTimeTo")?.addEventListener("change", (event) => contextScopeUpdateTimeRange("to", event.target.value));
         panel.querySelector("#graphContextAllowedRelations")?.addEventListener("change", (event) => contextScopeUpdatePolicy("allowedRelationTypes", commaValues(event.target.value)));
@@ -9507,6 +9509,8 @@ function renderCockpitHtml(payload, assets = {}) {
       memoryExplorer = (${createMemoryExplorer.toString()})({
         state: () => state, typeLabel, entityRef: entityRefForNode,
         refresh: () => document.querySelector("#refresh").click(),
+        reset: resetMemoryView,
+        newView: () => vscode?.postMessage({ type: "saveGraphView", payload: { ...serializeGraphView(), context: normalizeContextScopeDraft({ mode: "guided", selectedEntities: [], sourceAccess: "full" }) } }),
         views: () => ({ views: graphViews, activeId: activeGraphViewId, dirty: graphViewIsDirty() }),
         changed: () => { scheduleGraphFiltersSave(); renderGraph(); renderGraphViewControls(); },
         selectView: (id) => { const select = document.querySelector("#graphViewPreset"); select.value = id; select.dispatchEvent(new Event("change")); },

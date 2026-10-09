@@ -67,6 +67,7 @@ export function buildMemoryIndex(config: WorkMemoryConfig, db: WorkMemoryDatabas
       ...(content ? { description: [entity.description, ...(entity.aliases ?? [])].filter(Boolean).join(" · "), status: entity.status, updatedAt: entity.updatedAt,
         url: access === "full" ? webUrl(entity.metadata?.url) : undefined } : {}) });
   }
+  const entityEntries = new Map(entries.filter(entry => entry.category === "entity").map(entry => [entry.detailRef, entry]));
   // A path belongs to its most specific entity directory (a product directory
   // may also contain nested feature slices). This also supports legacy pages.
   const dirs = (access === "full" ? entities : []).filter(entity => contentRefs.has(key(entity))).map(entity => { const dir = entityWikiDir(config, entity.kind, entity.id, db); return { ref: key(entity), dir: fs.existsSync(dir) ? fs.realpathSync(dir) : dir }; }).sort((a, b) => b.dir.length - a.dir.length);
@@ -87,7 +88,7 @@ export function buildMemoryIndex(config: WorkMemoryConfig, db: WorkMemoryDatabas
       const refs = metadata ? [key(metadata.subject), key(metadata.home), ...(metadata.related ?? []).map(key)] : owner ? [owner.ref] : [];
       const title = header.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "").match(/^#\s+(.+)$/m)?.[1]?.trim() || path.basename(file);
       add({ id: `document:${page.relativePath}`, kind: "markdown", category: "document", title, description: page.relativePath, updatedAt: page.updatedAt, refs, file, detailRef: metadata ? key(metadata.subject) : owner?.ref });
-      const entity = entries.find(entry => entry.category === "entity" && entry.detailRef === (metadata ? key(metadata.subject) : owner?.ref));
+      const entity = entityEntries.get(metadata ? key(metadata.subject) : owner?.ref);
       if (entity && (!entity.file || /\/(index|page)\.md$/i.test(file))) entity.file = file;
     }
     for (const page of listRepositoryWikiPages(config, db, strict ? { repositoryIds: entities.filter(e => e.kind === "repository" && contentRefs.has(key(e))).map(e => e.id) } : {})) {

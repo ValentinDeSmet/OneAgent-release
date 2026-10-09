@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { readTextSection } from "../../shared/src/text-section.ts";
 import { buildMemoryIndex } from "../../graph/src/memory-index.ts";
 import path from "node:path";
 import { buildTodayModel } from "../../bmad/src/index.ts";
@@ -453,6 +454,21 @@ async function executeCommand(argv: string[]): Promise<void> {
 
   if (command === "graph") {
     graphCommand(rest);
+    return;
+  }
+
+  if (command === "memory-document") {
+    const runtime = createCliRuntime(rest);
+    try {
+      const id = positionalValues(rest)[0];
+      const entry = buildMemoryIndex(runtime.config, runtime.db, activeResolvedContextScope(runtime, rest)).entries.find(item => item.id === id);
+      if (!entry?.file) throw new Error("Document inaccessible dans le contexte actif, ou sans fichier local. Pour une source distante, utiliser sources show.");
+      if (!/\.(md|markdown|txt|json|csv)$/i.test(entry.file)) throw new Error("Ce document n’est pas un fichier texte pris en charge.");
+      const content = fs.readFileSync(entry.file, "utf8");
+      console.log(JSON.stringify({ id, title: entry.title, ...readTextSection(content, {
+        offset: Number(optionValue(rest, "--offset") ?? 0), maxChars: Number(optionValue(rest, "--max-chars") ?? 32000), revision: optionValue(rest, "--revision")
+      }) }));
+    } finally { runtime.close(); }
     return;
   }
 
@@ -2534,7 +2550,9 @@ function captureShowCommand(argv: string[]): void {
       ? parseCaptureFile(fs.readFileSync(capture.path, "utf8")).body
       : undefined;
     if (hasFlag(argv, "--json")) {
-      console.log(JSON.stringify({ ...scopedCapture, content }, null, 2));
+      console.log(JSON.stringify({ ...scopedCapture, ...(optionValue(argv, "--max-chars") !== undefined
+        ? readTextSection(content || "", { offset: Number(optionValue(argv, "--offset") ?? 0), maxChars: Number(optionValue(argv, "--max-chars")), revision: optionValue(argv, "--revision") })
+        : { content }) }, null, 2));
       return;
     }
     printCapture(capture);
@@ -4016,8 +4034,8 @@ function assertContextPolicyInsideStrictBoundary(
   if (boundary.observationMeasurement !== "any" && candidate.observationMeasurement !== boundary.observationMeasurement) {
     throw new Error(`${action} would broaden the active strict measurement filter from ${boundary.observationMeasurement} to ${candidate.observationMeasurement}.`);
   }
-  const boundaryBudget = boundary.tokenBudget ?? DEFAULT_CONTEXT_TOKEN_BUDGET;
-  const candidateBudget = candidate.tokenBudget ?? DEFAULT_CONTEXT_TOKEN_BUDGET;
+  const boundaryBudget = boundary.tokenBudget === 0 ? Infinity : boundary.tokenBudget ?? DEFAULT_CONTEXT_TOKEN_BUDGET;
+  const candidateBudget = candidate.tokenBudget === 0 ? Infinity : candidate.tokenBudget ?? DEFAULT_CONTEXT_TOKEN_BUDGET;
   if (candidateBudget > boundaryBudget) {
     throw new Error(`${action} would broaden the active strict token budget from ${boundaryBudget} to ${candidateBudget}.`);
   }
@@ -6846,17 +6864,10 @@ function conceptsCommand(argv: string[]): void {
   }
 }
 
-function clampMaxChars(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 8000;
-  }
-  return Math.max(500, Math.min(20000, Math.round(value)));
-}
-
 function sourceShowCommand(argv: string[]): void {
   const sourceId = positionalValues(argv)[1];
   if (!sourceId) {
-    throw new Error("Missing source id. Use: pnpm wm sources show <source-id> [--max-chars 8000] [--json].");
+    throw new Error("Missing source id. Use: pnpm wm sources show <source-id> [--max-chars 32000] [--offset 0] [--revision <sha256>] [--json].");
   }
   const runtime = createCliRuntime(argv);
   try {
@@ -6869,19 +6880,18 @@ function sourceShowCommand(argv: string[]): void {
     if (contextScope?.scope.mode === "strict" && !contextScope.sourceIds.includes(sourceId)) {
       throw new Error(`Source is outside the active strict context scope: ${sourceId}`);
     }
-    if (contextScope && contextScope.scope.sourceAccess !== "full") {
+    if (contextScope?.scope.mode === "strict" && contextScope.scope.sourceAccess !== "full") {
       throw new Error(`Full source access is disabled by the active context policy (${contextScope.scope.sourceAccess}).`);
     }
-    const maxChars = clampMaxChars(Number(optionValue(argv, "--max-chars") ?? 8000));
+    const maxChars = Number(optionValue(argv, "--max-chars") ?? 32000);
     const chunks = runtime.db.listChunksForSource(sourceId);
     const full = chunks.map((chunk) => String(chunk.content ?? "")).join("\n\n");
-    const truncated = full.length > maxChars;
-    const content = truncated ? full.slice(0, maxChars) : full;
+    const section = readTextSection(full, { maxChars, offset: Number(optionValue(argv, "--offset") ?? 0), revision: optionValue(argv, "--revision") });
+    const { content, truncated } = section;
     const payload = {
       ...source,
       chunkCount: chunks.length,
-      truncated,
-      content,
+      ...section,
       chunks: chunks.map((chunk) => ({ id: chunk.id, chunkIndex: chunk.chunkIndex, tokenCount: chunk.tokenCount }))
     };
     if (hasFlag(argv, "--json")) {
@@ -6913,7 +6923,7 @@ function sourceShowChunkCommand(argv: string[]): void {
     if (contextScope?.scope.mode === "strict" && !contextScope.sourceIds.includes(String(chunk.sourceId))) {
       throw new Error(`Chunk is outside the active strict context scope: ${chunkId}`);
     }
-    if (contextScope && contextScope.scope.sourceAccess !== "full") {
+    if (contextScope?.scope.mode === "strict" && contextScope.scope.sourceAccess !== "full") {
       throw new Error(`Full source access is disabled by the active context policy (${contextScope.scope.sourceAccess}).`);
     }
     if (hasFlag(argv, "--json")) {
@@ -7876,6 +7886,8 @@ function positionalValues(argv: string[]): string[] {
     "--key",
     "--label",
     "--max-chars",
+    "--offset",
+    "--revision",
     "--context-scope",
     "--contributors",
     "--depth",
@@ -8178,7 +8190,7 @@ Commands:
   pnpm wm repo add <product-id> <repo-id> --path <path> [--role specs] [--wiki-root docs/wiki] [--specs-root _specs/planning-artifacts]
   pnpm wm concepts [--scope product|dependencies|manual|portfolio] [--limit 25]
   pnpm wm sources [--scope product|dependencies|manual|portfolio] [--limit 80] [--json]
-  pnpm wm sources show <source-id> [--max-chars 8000] [--json]
+  pnpm wm sources show <source-id> [--max-chars 32000] [--offset 0] [--revision <sha256>] [--json]
   pnpm wm sources show-chunk <chunk-id> [--json]
   pnpm wm context-scope get [--json]
   pnpm wm context-scope set (--entity kind:id[,kind:id] [--depth 1] [--mode strict|guided|disabled] [--types kind,kind] | --stdin) [--allow-boundary-change] [--json]
@@ -8200,6 +8212,7 @@ Commands:
   pnpm wm graph-change list|get|preview|accept|reject [<id>] [--status pending] [--limit <count>] [--reason <why>] [--json]
   pnpm wm graph [--scope product|dependencies|manual|portfolio] [--limit 25]
   pnpm wm memory-index [--context-scope active] [--json]
+  pnpm wm memory-document <entry-id> [--offset 0] [--max-chars 32000] [--revision <sha256>] [--context-scope active]
   pnpm wm graph-view [--scope product|dependencies|manual|portfolio] [--include product-a,product-b] [--max-nodes 150] [--max-edges 300] [--entity-kind practice,mission] [--content-type insight,okr] [--ingestion-status indexed] [--relation-type requested_by] [--focus <kind:id>] [--context-scope active] [--refresh-graphify] [--json]
   pnpm wm context [path] [--scope product|dependencies|manual|portfolio] [--include product-a,product-b]
   pnpm wm ingest <file> --entity <kind:id> [--entities <kind:id,...>] [--source-type meeting_transcript|meeting_summary|raw_user_input|decision_note|markdown|plain_text] [--json]

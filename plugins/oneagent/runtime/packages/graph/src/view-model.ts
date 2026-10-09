@@ -69,8 +69,8 @@ interface ConceptProductEdgeRow {
 }
 
 export function buildGraphViewModel(input: BuildGraphViewModelInput): GraphViewModel {
-  const maxNodes = input.maxNodes ?? 150;
-  const maxEdges = input.maxEdges ?? 300;
+  const maxNodes = input.maxNodes === 0 ? Number.MAX_SAFE_INTEGER : input.maxNodes ?? 150;
+  const maxEdges = input.maxEdges === 0 ? Number.MAX_SAFE_INTEGER : input.maxEdges ?? 300;
   const scope = resolveScope(input.config, input.context, {
     productId: input.productId,
     scope: input.scope,
@@ -331,7 +331,7 @@ function addConcepts(db: WorkMemoryDatabase, productIds: string[], graph: GraphV
       GROUP BY c.id, se.entity_id
       LIMIT ?
     `)
-    .all(...productIds, limit * 4) as unknown as ConceptProductEdgeRow[];
+    .all(...productIds, Math.min(Number.MAX_SAFE_INTEGER, limit * 4)) as unknown as ConceptProductEdgeRow[];
 
   for (const row of rows) {
     graph.addEdge({

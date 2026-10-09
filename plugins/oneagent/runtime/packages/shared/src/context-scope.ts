@@ -47,6 +47,7 @@ export interface AgentContextScope {
   /** Measurement is orthogonal to evidence corroboration/contradiction. */
   observationMeasurement?: ContextObservationMeasurementFilter;
   sourceAccess?: ContextSourceAccessPolicy;
+  /** Zero means automatic; positive values are an explicit per-pack budget. */
   tokenBudget?: number;
   refreshPolicy?: ContextRefreshPolicy;
   viewId?: string;
@@ -322,8 +323,8 @@ export function normalizeContextScope(input: Partial<AgentContextScope> | undefi
     input?.refreshPolicy === "frozen" || input?.refreshPolicy === "dynamic" ? input.refreshPolicy : "monitored";
   const budgetRaw = Number(input?.tokenBudget);
   const tokenBudget = Number.isFinite(budgetRaw)
-    ? Math.max(1, Math.min(MAX_CONTEXT_TOKEN_BUDGET, Math.round(budgetRaw)))
-    : DEFAULT_CONTEXT_TOKEN_BUDGET;
+    ? Math.max(0, Math.min(MAX_CONTEXT_TOKEN_BUDGET, Math.round(budgetRaw)))
+    : 0;
   const timeRange = normalizeTimeRange(input?.timeRange);
   return {
     selectedEntities: activeEntities,

@@ -114,3 +114,7 @@
 }
 
 .memory-quick-layout { display:flex; gap:2px; }
+
+.memory-access-row { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:8px; color:var(--muted); font-size:11px; }
+#memoryAccessStatus { flex:1; min-width:0; overflow-wrap:anywhere; }
+#memoryAccessStatus[data-restricted="true"] { color:var(--accent); }

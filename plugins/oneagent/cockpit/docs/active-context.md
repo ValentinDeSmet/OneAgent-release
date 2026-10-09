@@ -15,9 +15,8 @@ If you change the draft after activation, activate it again. Until then, the pre
 
 ## Choose the right mode
 
-- **disabled**: the selection has no effect on agent work. Use this for unrestricted workspace memory.
-- **guided**: the agent prefers the selected area. It may use relevant information outside it, but must identify that information as outside the context.
-- **strict**: the selection is a hard boundary. Reads and changes outside it are blocked, and the agent must say when the permitted information is insufficient.
+- **Toute la mémoire** (`guided`): the agent prefers the selected area. It may use relevant information outside it, but must identify that information as outside the context.
+- **Limiter à cette sélection** (`strict`): the selection is a hard boundary. Reads and changes outside it are blocked, and the agent must say when the permitted information is insufficient.
 
 Start with **guided** for exploration. Use **strict** when isolation matters, such as work limited to one customer, product, confidential topic, or approval boundary.
 
@@ -38,7 +37,7 @@ Analysis and evidence review normally need **snippets** or **full**. If a strict
 - **Allowed relations** limits which links may expand the context.
 - **From / To** limits information by date.
 - **Observation validation** and **Evidence status** filter the quality of included knowledge.
-- **Token budget** limits how much can be prepared for the agent.
+- **Token budget** defaults to **Automatique** (0). A positive **Manuel** value limits a Context Pack, not which documents can be read. Existing positive budgets stay manual.
 - **Refresh policy** controls whether a view is frozen, monitored for suggestions, or dynamically recalculated.
 
 ## The important distinction
@@ -46,3 +45,12 @@ Analysis and evidence review normally need **snippets** or **full**. If a strict
 A [Graph View](graph-views.md) is a reusable visual preset. The **Active Context** is the live behavioral policy. A [Context Pack](context-packs.md) is a versioned selection of actual content prepared for one objective inside that policy.
 
 If strict mode hides an expected item, check the selected entity, depth, allowed relationships, date range, and source access before widening the boundary.
+
+## Reset and saved views
+
+**Tout** and **Réinitialiser** clear both display filters and the active context,
+without deleting saved views or restarting the chat. **+ Vue** starts with full
+memory access. Selecting a saved view applies its stored context; older strict
+views retain their explicit restriction. The access indicator shows the actual
+engine state, including while an activation is pending or has failed.
+The active context is shared by clients connected to the same memory.
