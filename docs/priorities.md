@@ -1,6 +1,6 @@
 # Priorités — sollicitations personnelles
 
-Mise à jour du 7 octobre 2026, Copilot 0.6.14 et VS Code 0.1.138. Le catalogue public
+Mise à jour du 9 octobre 2026, Copilot 0.6.19 et VS Code 0.1.142. Le catalogue public
 `ValentinDeSmet/OneAgent-release` distribue le front et le moteur dans un même
 plugin ; aucune installation séparée de l’interface n’est nécessaire.
 
@@ -10,6 +10,23 @@ Un tableau permet de comparer des demandes sans lien entre elles : une ligne
 par résultat attendu : sujet, description, type de travail, produit principal, autres produits ou
 équipes concernés, attendu par, priorité, deadline, documentation, source et
 avancement. L’entité rattachée figure sous le sujet. Une fiche d’édition conserve le contexte sans alourdir la lecture.
+
+Le tableau reprend les mêmes contrôles et le même design que **Mémoire**.
+**Colonnes** permet d’afficher ou masquer les propriétés, puis de les déplacer
+avec les flèches du menu ou en glissant leur en-tête. Le bord droit règle la
+largeur ; les flèches gauche/droite du clavier font le même réglage. Sujet et
+Rang restent accessibles. Chaque vue enregistre ses colonnes, leur ordre et leur
+largeur. Déplacer une colonne ne change jamais le classement des priorités.
+
+Cliquer sur l’icône de filtre d’un en-tête pour filtrer sa colonne : recherche et
+cases multiples pour les catégories, texte pour sujet/description/demandeur/liens,
+trimestre, année et dates dans **Échéance**. **Sujet** inclut aussi la nature et
+l’entité rattachée ; **Produit principal** propose le produit principal ou tout
+produit/équipe concerné, et **Autres produits / équipes** cible les partenaires.
+Les choix viennent des résultats avant pagination. Les colonnes filtrées restent
+visibles jusqu’au retrait de leur filtre, même si aucun résultat ne correspond.
+La recherche générale, le choix actifs/terminés/retirés et les alertes restent
+au-dessus du tableau. Le classement manuel et les accordéons de tâches sont conservés.
 
 La liste contient seulement les sollicitations créées dans Priorités et les tâches
 ajoutées explicitement. Créer une tâche dans Tâches ne l’inscrit jamais automatiquement,
@@ -63,9 +80,9 @@ lignes déjà classées. Chaque en-tête alterne croissant, décroissant puis re
 au classement manuel ; **Mon classement** permet aussi ce retour directement.
 Le glisser-déposer est disponible uniquement dans le classement manuel. Les filtres par sujet, description, entité, produit,
 demandeur, priorité, type de travail, trimestre, année, intervalle de dates, nature de la deadline, documentation,
-source et avancement sont combinables. Le filtre visible **Produit / équipe
-concerné** retrouve l’entité comme produit principal, rattachement produit/équipe
-ou partenaire ; les filtres avancés **Produit principal** et **Produit / équipe
+source et avancement sont combinables. Le filtre **Produit / équipe
+concerné**, dans la colonne Produit principal, retrouve l’entité comme produit principal, rattachement produit/équipe
+ou partenaire ; les filtres de colonnes **Produit principal** et **Produit / équipe
 partenaire** ciblent chaque rôle séparément. Tris et filtres s’appliquent avant la pagination. Il n’y a pas de score
 opaque qui requalifie automatiquement une demande. Les compteurs portent sur
 les lignes actives correspondant aux filtres de champ, à la recherche et à la
@@ -283,12 +300,11 @@ incertain ne rejoue aucune écriture et conserve le brouillon du formulaire.
 
 ## Vues enregistrées
 
-Une barre d’onglets au-dessus des filtres reprend le principe des vues de base
-de données de Notion : une même liste de priorités, plusieurs critères de lecture.
-[Référence UX](https://www.notion.com/help/views-filters-and-sorts). **+** enregistre
-les filtres multiples, la recherche, la vue active/terminée/retirée et le tri
-actuels sous un nom. Les critères restent dynamiques : une nouvelle priorité
-correspondante apparaît dans la vue sans réenregistrement.
+Les onglets et le sélecteur **Toutes les vues** reprennent la présentation de
+Mémoire. **+ Vue** crée une vue sans filtre, avec le classement manuel et les
+colonnes par défaut. **Enregistrer sous…** sauvegarde la recherche, les filtres,
+le tri et les colonnes actuels sous un autre nom. Les critères restent dynamiques :
+une nouvelle priorité correspondante apparaît sans réenregistrer la vue.
 
 Exemples à créer avec tes critères, sans ajouter de données de démonstration :
 
@@ -297,17 +313,19 @@ Exemples à créer avec tes critères, sans ajouter de données de démonstratio
 - **DKT FF** : Produit / équipe concerné DKT FF, tri par priorité ou classement.
 
 Cliquer sur un onglet réapplique ses critères. Les changements temporaires portent
-l’indicateur **Modifiée** : **Mettre à jour** les enregistre explicitement,
-**Réappliquer** retrouve les critères sauvegardés, et **+** enregistre une autre vue.
+l’indicateur **Modifiée** : **Enregistrer** les enregistre explicitement.
+**Rétablir la vue**, dans le menu **…**, retrouve les filtres, le tri et les colonnes sauvegardés.
 Le menu **⋯** de la vue permet de renommer, dupliquer, choisir la vue d’ouverture
 par défaut ou supprimer la vue. Une suppression ne retire aucune priorité et
 conserve les filtres courants en vue libre. L’étoile identifie la vue par défaut.
 
-Une vue enregistre le tri et son sens. **Mon classement** reste le classement
+Une vue enregistre le tri, son sens, les colonnes visibles, leur ordre et leur largeur. **Mon classement** reste le classement
 global partagé ; chaque vue peut utiliser un tri par colonne différent. Il ne
 s’agit pas d’un classement manuel indépendant par vue ni d’une photographie des
 éléments présents. La date locale des alertes est recalculée à chaque lecture ;
 les pages et accordéons ouverts ne font pas partie des critères sauvegardés.
+
+Les anciennes vues gardent leurs critères et reçoivent la présentation par défaut jusqu’à une sauvegarde explicite. Renommer ou modifier seulement les filtres via l’agent conserve les colonnes enregistrées.
 
 Les vues et leur défaut sont conservés sous `prioritySavedViews` dans la mémoire
 SQLite commune. Elles survivent au rechargement des plugins et à l’export/restauration
@@ -323,3 +341,5 @@ Les écritures portent la révision de collection issue de la dernière lecture 
 un enregistrement concurrent est refusé sous transaction. Pas de sauvegarde
 automatique des ajustements temporaires ni de répétition après une erreur
 incertaine. Les appels agent restent soumis au contexte strict actif.
+
+Le champ optionnel `presentation` de `oneagent_save_priority_view` contient `columns`, `columnOrder` et `widths`. Il est indépendant des critères et du classement global ; omis sur une mise à jour, il reste intact. Les exports privés conservent ces réglages.

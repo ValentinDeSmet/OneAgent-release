@@ -2,12 +2,12 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.18](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [GitHub Copilot 0.6.19](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 
-**Tableau Mémoire (Copilot 0.6.18 / VS Code 0.1.141).** Tableau pleine largeur avec tri et filtres recherchables à cases multiples dans chaque colonne. Colonnes visibles, ordre et largeur conservés par vue. Création de vues Tableau/Graphe et duplication entre affichages, sans panneau vide permanent. Toute la mémoire rétablit l’accès complet ; les anciennes vues sont conservées. Les représentations certaines d’un même fichier sont regroupées sans fusion par titre ni suppression de données. [Guide des vues](docs/memory-views.md).
+**Priorités et Mémoire harmonisées (Copilot 0.6.19 / VS Code 0.1.142).** Même présentation des vues et mêmes contrôles de colonnes : affichage ou masquage, déplacement, largeur et filtres dans les en-têtes. Chaque vue de priorités conserve ses filtres, son tri et sa présentation. Le classement manuel, les tâches en accordéon et les anciennes vues sont conservés. [Guide des priorités](docs/priorities.md) · [Guide Mémoire](docs/memory-views.md).
 
 Les mises à jour Copilot conservent le parcours du bouton introduit en 0.6.15 : installation native, rechargement des outils dans la même conversation, réouverture des onglets. [Guide et compatibilité](docs/copilot.md#recharger-sans-recommencer-le-chat).
 
