@@ -48,11 +48,35 @@ de retrouver la liste et ses filtres. Aucun bouton n’a besoin de se chevaucher
 
 ## Vue et contexte de l’agent (Active Context)
 
-Une vue filtre l’affichage humain. Changer de vue ou rechercher un document
-n’active, n’élargit ni ne supprime le contexte de l’agent. Les vues existantes
-peuvent conserver un brouillon de contexte ; son activation reste explicite
-via **Contexte**. Les Context Packs restent les informations effectivement
-préparées pour une demande de l’agent.
+**Tout** et **Réinitialiser** enlèvent les filtres, la recherche, le focus, les
+regroupements manuels et le contexte actif. L’agent retrouve toute la mémoire
+connectée dès ses prochains appels, dans la même conversation. Les documents
+ajoutés plus tard sont également accessibles ; aucune liste figée de nœuds n’est
+utilisée comme permission. Les vues sauvegardées restent intactes.
+
+**+ Vue** crée une vue avec accès à toute la mémoire. Une vue peut orienter le
+travail de l’agent sans interdire la consultation d’un document complémentaire.
+Dans **Contexte**, **Limiter à cette sélection** est un choix explicite : préparer
+la sélection puis l’activer/enregistrer. Les anciennes vues strictes conservent
+leur restriction. Choisir une vue applique son contexte enregistré ; une vue sans
+contexte ne conserve jamais la restriction de la vue précédente.
+
+L’indicateur **Accès agent : toute la mémoire / limité à…** décrit le contexte
+réel du moteur, indépendamment d’un brouillon en cours d’édition. Le Reset attend
+la confirmation du moteur ; en cas d’erreur, la restriction précédente reste
+indiquée. Le contexte est partagé par les hôtes branchés sur la même mémoire.
+Il ne retire pas les informations déjà présentes dans l’historique du chat.
+
+Le graphe humain charge tous les nœuds et liens, sans seuil de 500/1 000 éléments.
+Les filtres et regroupements explicites restent disponibles. Le moteur Canvas
+conserve les positions, adapte les libellés et regroupe les rafraîchissements.
+La liste et les menus de filtres affichent progressivement leurs résultats.
+Les requêtes de graphe destinées à l’agent peuvent toujours demander un extrait.
+
+Le budget **Automatique** remplace le plafond fixe par défaut. Un budget **Manuel**
+reste possible dans les réglages avancés de Contexte. Les budgets positifs des
+anciennes vues sont conservés. La capacité du modèle et les limites de transport
+de l’hôte s’appliquent toujours ; un document entier peut être lu par sections.
 
 Voir aussi : [entités et graphe](entities-and-graph.md),
 [contexte actif](active-context.md), [Context Packs](context-packs.md).
