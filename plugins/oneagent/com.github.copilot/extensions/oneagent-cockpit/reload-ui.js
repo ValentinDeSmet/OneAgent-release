@@ -7,6 +7,10 @@
     if (window.oneagentCanReload) return !window.oneagentCanReload();
     return roots().some(root => root.querySelector("dialog[open]") || root.querySelector('[data-manual-note-editor-dirty="true"]')
       || [...root.querySelectorAll("textarea:not([readonly]), .field input:not([readonly]), .field select")].some(el => {
+        // Priority/task dialogs keep their programmatically populated fields after
+        // save or cancel. A closed dialog no longer owns an editable draft.
+        // Do not ignore hidden panels in general: notes can still be unsaved there.
+        if (el.closest?.("dialog:not([open])")) return false;
         if (el.disabled || el.type === "password" || el.type === "hidden") return false;
         if (["checkbox", "radio"].includes(el.type)) return el.checked !== el.defaultChecked;
         if (el.tagName === "SELECT") return [...el.options].some(option => option.selected !== option.defaultSelected) && [...el.options].some(option => option.defaultSelected);

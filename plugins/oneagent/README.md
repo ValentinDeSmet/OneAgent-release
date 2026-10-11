@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.6.19 : Priorités reprend le tableau et les vues de Mémoire, avec colonnes masquables, déplaçables et redimensionnables, filtres dans les en-têtes et présentation enregistrée par vue ; tableau pleine largeur avec tri et filtres dans les colonnes, vues Tableau/Graphe créées explicitement et réglages de colonnes sauvegardés ; Reset et Toute la mémoire rétablissent l’accès à toute la mémoire dans le même chat ; contexte de vue explicite, graphe sans plafond de nœuds, budget automatique et lecture des documents par sections ; espace Mémoire avec liste recherchable, vues enregistrées par affichage et barre de graphe adaptée aux fenêtres étroites ; bouton de mise à jour avec installation native, rechargement dans la conversation courante et réouverture automatique des onglets ; Inbox avec documents Markdown proposés par l’agent, aperçu formaté, édition et acceptation humaine sans embeddings ; cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
+Version 0.6.20 : correction du faux blocage de mise à jour après fermeture d’une fiche de priorité ou de tâche ; Priorités reprend le tableau et les vues de Mémoire, avec colonnes masquables, déplaçables et redimensionnables, filtres dans les en-têtes et présentation enregistrée par vue ; tableau pleine largeur avec tri et filtres dans les colonnes, vues Tableau/Graphe créées explicitement et réglages de colonnes sauvegardés ; Reset et Toute la mémoire rétablissent l’accès à toute la mémoire dans le même chat ; contexte de vue explicite, graphe sans plafond de nœuds, budget automatique et lecture des documents par sections ; espace Mémoire avec liste recherchable, vues enregistrées par affichage et barre de graphe adaptée aux fenêtres étroites ; bouton de mise à jour avec installation native, rechargement dans la conversation courante et réouverture automatique des onglets ; Inbox avec documents Markdown proposés par l’agent, aperçu formaté, édition et acceptation humaine sans embeddings ; cockpit complet partagé avec VS Code, installation par catalogue GitHub, choix des mises à jour et
 configuration de la mémoire **après installation, dans la conversation Copilot**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
 réutilisent le même moteur et peuvent viser la même mémoire sur un même Mac.
@@ -66,12 +66,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.19.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.20.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.19/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.20/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -176,6 +176,14 @@ règles d’entreprise. Aucun CLI dans le Terminal, ZIP ou message à l’agent 
 Une progression reste visible pendant l’opération.
 
 ### Recharger sans recommencer le chat
+
+**Correctif 0.6.20.** Les formulaires de priorité et de tâche fermés après
+enregistrement ou annulation ne bloquent plus la mise à jour. Si une version
+antérieure affiche encore « Enregistre ou abandonne les brouillons » alors
+qu’aucune modification n’est en cours, fermer uniquement les onglets OneAgent
+permet à la mise à jour déjà demandée de reprendre. La conversation reste ouverte ;
+rouvrir ensuite OneAgent dans ce même chat. Un véritable brouillon dans un
+éditeur ouvert doit toujours être enregistré ou annulé avant le rechargement.
 
 Le bouton attend la fin du tour du chat et des opérations mémoire. Les éditeurs
 ouverts sont vérifiés avant l’installation : s’il reste un brouillon, l’enregistrer
@@ -353,7 +361,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.19.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.20.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.
