@@ -1,6 +1,6 @@
 # Priorités — sollicitations personnelles
 
-Mise à jour du 9 octobre 2026, Copilot 0.6.19 et VS Code 0.1.142. Le catalogue public
+Mise à jour du 11 octobre 2026, Copilot 0.6.19 et VS Code 0.1.142. Le catalogue public
 `ValentinDeSmet/OneAgent-release` distribue le front et le moteur dans un même
 plugin ; aucune installation séparée de l’interface n’est nécessaire.
 
@@ -19,11 +19,13 @@ Rang restent accessibles. Chaque vue enregistre ses colonnes, leur ordre et leur
 largeur. Déplacer une colonne ne change jamais le classement des priorités.
 
 Cliquer sur l’icône de filtre d’un en-tête pour filtrer sa colonne : recherche et
-cases multiples pour les catégories, texte pour sujet/description/demandeur/liens,
-trimestre, année et dates dans **Échéance**. **Sujet** inclut aussi la nature et
+cases multiples pour les catégories et les sujets, texte pour titre/description/demandeur/liens,
+trimestre, année et dates dans **Échéance**. **Sujet** propose les titres des priorités,
+recherchables et sélectionnables par cases à cocher, puis la nature et
 l’entité rattachée ; **Produit principal** propose le produit principal ou tout
 produit/équipe concerné, et **Autres produits / équipes** cible les partenaires.
-Les choix viennent des résultats avant pagination. Les colonnes filtrées restent
+**Réinitialiser** efface à la fois la sélection et la recherche du menu ; le bouton
+est désactivé lorsqu’il n’y a rien à effacer. Les choix viennent des résultats avant pagination. Les colonnes filtrées restent
 visibles jusqu’au retrait de leur filtre, même si aucun résultat ne correspond.
 La recherche générale, le choix actifs/terminés/retirés et les alertes restent
 au-dessus du tableau. Le classement manuel et les accordéons de tâches sont conservés.
@@ -76,8 +78,10 @@ Les sujets terminés conservent leur place pour une éventuelle réouverture.
 Avant le premier déplacement, l’ordre reprend priorité puis date pour garder
 les repères existants. Après classement, les nouvelles lignes arrivent en fin
 de liste. Une modification de priorité ou de deadline ne réordonne pas les
-lignes déjà classées. Chaque en-tête alterne croissant, décroissant puis retour
-au classement manuel ; **Mon classement** permet aussi ce retour directement.
+lignes déjà classées. Un clic sur un en-tête trie par ordre croissant ; un second
+clic retire ce tri et revient au classement manuel. Dans le menu de la colonne,
+**Croissant** et **Décroissant** choisissent le sens ; recliquer sur le sens actif
+retire le tri. **Mon classement** permet aussi ce retour directement.
 Le glisser-déposer est disponible uniquement dans le classement manuel. Les filtres par sujet, description, entité, produit,
 demandeur, priorité, type de travail, trimestre, année, intervalle de dates, nature de la deadline, documentation,
 source et avancement sont combinables. Le filtre **Produit / équipe
@@ -343,3 +347,8 @@ automatique des ajustements temporaires ni de répétition après une erreur
 incertaine. Les appels agent restent soumis au contexte strict actif.
 
 Le champ optionnel `presentation` de `oneagent_save_priority_view` contient `columns`, `columnOrder` et `widths`. Il est indépendant des critères et du classement global ; omis sur une mise à jour, il reste intact. Les exports privés conservent ces réglages.
+
+Le filtre `priorityId` accepte un identifiant de priorité ou plusieurs identifiants
+(OU entre eux), combinés aux autres critères (ET). `facets.priorityId` fournit
+leurs titres avant pagination. Les vues enregistrées conservent ces identifiants
+et continuent de fonctionner après renommage d’un sujet.
