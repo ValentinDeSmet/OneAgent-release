@@ -3,7 +3,7 @@
   "displayName": "OneAgent",
   "description": "Local-first product knowledge, curation, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.142",
+  "version": "0.1.143",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",
@@ -444,6 +444,26 @@
                 "asc",
                 "desc"
               ]
+            },
+            "priorityId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 256,
+                  "description": "Exact priority row IDs from items or facets.priorityId; titles are display labels. OR within the selection, stable across renames."
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Exact priority row IDs from items or facets.priorityId; titles are display labels. OR within the selection, stable across renames."
+                  },
+                  "maxItems": 40,
+                  "uniqueItems": true
+                }
+              ],
+              "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
             },
             "titleQuery": {
               "type": "string",
@@ -3021,6 +3041,26 @@
                     "asc",
                     "desc"
                   ]
+                },
+                "priorityId": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 256,
+                      "description": "Exact priority row IDs from items or facets.priorityId; titles are display labels. OR within the selection, stable across renames."
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "maxLength": 256,
+                        "description": "Exact priority row IDs from items or facets.priorityId; titles are display labels. OR within the selection, stable across renames."
+                      },
+                      "maxItems": 40,
+                      "uniqueItems": true
+                    }
+                  ],
+                  "description": "One value or several alternatives (OR); empty means all. Combined fields use AND."
                 },
                 "titleQuery": {
                   "type": "string",

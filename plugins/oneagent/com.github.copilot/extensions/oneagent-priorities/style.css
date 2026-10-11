@@ -27,3 +27,12 @@ header{align-items:center;margin-bottom:12px}header>div:first-child{display:flex
 .priority-column-menu{z-index:200;gap:12px}.priority-column-menu .filter-field{min-width:0;gap:7px}.priority-column-menu .multi-filter>summary{display:none}.priority-column-menu .filter-popover{position:static;width:auto;min-width:0;max-width:100%;padding:0;border:0;background:none;box-shadow:none}.priority-column-menu .filter-options{max-height:190px}.priority-column-menu .filter-option input{min-height:15px;padding:0}.priority-column-menu .filter-option{justify-content:flex-start;font-weight:400}.priority-column-menu .filter-option small{margin-left:auto}.priority-column-menu [data-column-filters]{display:grid;gap:16px}.priority-column-menu label{align-items:stretch;flex-direction:column}.priority-column-menu .filter-option{flex-direction:row;align-items:center}.priority-column-menu input[type=date]{width:100%}.priority-column-menu input[type=search]{padding:8px;border-radius:5px;min-height:32px}.priority-column-menu .sr-only{display:none}.priority-column-menu .filter-clear{font-size:11px}
 @media(max-width:900px){header>div:first-child{display:block}.intro{margin-top:4px}.view-picker{font-size:0}.priority-tools .search{flex-basis:100%}.columns-popover{position:fixed;top:auto;right:12px;margin-top:5px}.table-wrap{max-height:62vh}}
 @media(max-width:700px){.view-tabs{display:none}.view-picker{flex:1;min-width:0}.view-picker select{width:100%;min-width:0}.saved-views{flex-wrap:wrap}.metrics{grid-template-columns:repeat(2,1fr)}header{gap:10px}.rank-help{line-height:1.5}}
+
+/* The search and its adjacent controls share one height and baseline. */
+.priority-tools{align-items:center;gap:8px}
+.priority-tools label,.priority-tools .filter-field{gap:0}
+.priority-tools .search input,.priority-tools select,.priority-tools>button,.priority-tools>.memory-menu>summary,.priority-tools .multi-filter>summary{height:34px;min-height:34px;line-height:20px;padding:6px 10px;margin:0}
+.priority-tools>.memory-menu>summary,.priority-tools .multi-filter>summary{display:flex;align-items:center}
+.priority-tools select{appearance:none;padding-right:28px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='m3 4.5 3 3 3-3' fill='none' stroke='%23808080' stroke-width='1.4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center}
+.priority-tools #view-scope,.priority-tools #attention-filter{min-width:0;max-width:100%}
+.filter-clear:disabled{cursor:default;opacity:.45}

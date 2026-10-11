@@ -4,7 +4,7 @@ import { listPriorities } from "./priorities.ts";
 
 export const PRIORITY_VIEWS_UI_KEY = "prioritySavedViews";
 const texts = ["query", "titleQuery", "bodyQuery", "requesterQuery", "urlQuery", "sourceUrlQuery", "deadlineFrom", "deadlineTo"] as const;
-const facets = ["filter", "itemType", "workType", "deadlineQuarter", "deadlineYear", "involvedEntity", "relatedEntity", "entity", "productId", "priority", "status", "deadlineKind"] as const;
+const facets = ["priorityId", "filter", "itemType", "workType", "deadlineQuarter", "deadlineYear", "involvedEntity", "relatedEntity", "entity", "productId", "priority", "status", "deadlineKind"] as const;
 export const priorityViewFields = [...texts, ...facets, "view", "sortBy", "sortDirection"];
 type Criteria = Record<string, string | string[]>;
 export interface PrioritySavedView { id: string; name: string; criteria: Criteria; presentation?: PriorityViewPresentation; createdAt: string; updatedAt: string; }

@@ -12,6 +12,7 @@ export const priorityTools = [
     view: { type: "string", enum: ["active", "done", "all", "excluded"], description: "Default active. all/done still exclude removed priorities. excluded reads only removed rows for explicit restoration of the same task." }, filter: multiple({ type: "string", enum: ["all", "urgent", "overdue", "soon", "clarify", "waiting", "unlinked"] }),
     sortBy: { type: "string", enum: ["manual", "title", "body", "entity", "product", "relatedEntities", "requester", "priority", "deadline", "url", "sourceUrl", "status", "nextAction", "itemType", "workType"], description: "Default manual order shared by both hosts. Other sorts do not alter it." },
     sortDirection: { type: "string", enum: ["asc", "desc"] },
+    priorityId: multiple({ ...text(256), description: "Exact priority row IDs from items or facets.priorityId; titles are display labels. OR within the selection, stable across renames." }),
     titleQuery: text(500), bodyQuery: text(500), requesterQuery: text(300), urlQuery: text(500), sourceUrlQuery: text(500),
     itemType: multiple({ type: "string", enum: ["all", "subject", "task"] }),
     workType: multiple({ type: "string", enum: Object.keys(workTypeLabels) }),

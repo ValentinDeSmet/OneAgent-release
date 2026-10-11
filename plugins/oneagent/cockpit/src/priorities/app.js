@@ -34,7 +34,7 @@ function node(tag, text = "", className = "") {
   const result = document.createElement(tag); result.textContent = text; result.className = className; return result;
 }
 const filterFields = { sourceUrlQuery: "source-url-query", titleQuery: "title-query", bodyQuery: "body-query", requesterQuery: "requester-query", deadlineFrom: "deadline-from", deadlineTo: "deadline-to", urlQuery: "url-query" };
-const facetFields = { workType: ["work-type-filter", "Tous les types de travail"], deadlineQuarter: ["quarter-filter", "Tous les trimestres"], deadlineYear: ["year-filter", "Toutes les années"], itemType: ["item-type", "Sujets et tâches"], involvedEntity: ["involved-filter", "Tous les produits et équipes"], status: ["status-filter", "Tous les avancements"], filter: ["filter", "Toutes les priorités"],
+const facetFields = { priorityId: ["subject-filter", "Tous les sujets"], workType: ["work-type-filter", "Tous les types de travail"], deadlineQuarter: ["quarter-filter", "Tous les trimestres"], deadlineYear: ["year-filter", "Toutes les années"], itemType: ["item-type", "Sujets et tâches"], involvedEntity: ["involved-filter", "Tous les produits et équipes"], status: ["status-filter", "Tous les avancements"], filter: ["filter", "Toutes les priorités"],
   entity: ["entity-filter", "Toutes les entités"], productId: ["product-filter", "Tous les produits"], relatedEntity: ["related-filter", "Tous les partenaires"], priority: ["priority-filter", "Toutes les priorités"], deadlineKind: ["deadline-kind-filter", "Toutes les échéances"] };
 const selectedFilters = Object.fromEntries(Object.keys(facetFields).map(key => [key, new Set()]));
 let facets = {}, knownChoices = {};
@@ -44,7 +44,11 @@ function viewCriteria() {
   for (const key of Object.keys(value)) value[key] = Array.isArray(value[key]) ? [...value[key]].filter(item => item && item !== "all").sort() : value[key].trim();
   return value;
 }
-const sameCriteria = (a,b) => JSON.stringify(Object.keys(a).sort().map(key => [key,a[key]])) === JSON.stringify(Object.keys(b).sort().map(key => [key,b[key]]));
+const sameCriteria = (a,b) => {
+  // New optional criteria must not mark an older saved view as modified.
+  const canonical = value => JSON.stringify(Object.keys(value).sort().filter(key => Array.isArray(value[key]) ? value[key].length : value[key]).map(key => [key,value[key]]));
+  return canonical(a) === canonical(b);
+};
 const activeView = () => savedViews.find(view => view.id === activeViewId);
 function renderViewControls() {
   const focused = document.activeElement?.shadowRoot?.activeElement || document.activeElement;
@@ -170,7 +174,7 @@ $("#view-delete-submit").addEventListener("click", async () => {
 });
 const priorityColumns = {
   rank: {label:'Rang',width:76,minWidth:70,fields:[]},
-  title: {label:'Sujet',width:330,fields:['titleQuery','itemType','entity']},
+  title: {label:'Sujet',width:330,fields:['priorityId','titleQuery','itemType','entity']},
   body: {label:'Description',width:260,fields:['bodyQuery']},
   workType: {label:'Type de travail',width:195,fields:['workType']},
   product: {label:'Produit principal',width:185,fields:['productId','involvedEntity']},
@@ -263,11 +267,11 @@ function initializeColumns() {
     th.replaceChildren(heading,handle);
   });
   tableColumns.bind(table);renderColumns();
-  for(const direction of ['asc','desc'])$('#column-sort-'+direction).addEventListener('click',()=>{if(!activeColumn||saving||reordering)return;sortBy=activeColumn;sortDirection=direction;refresh();});
+  for(const direction of ['asc','desc'])$('#column-sort-'+direction).addEventListener('click',()=>{if(!activeColumn||saving||reordering)return;toggleSort(activeColumn,direction);});
   $('#column-clear').addEventListener('click',()=>{
     if(!activeColumn||saving||reordering)return;
     clearTimeout(searchTimer);
-    for(const field of priorityColumns[activeColumn].fields){if(selectedFilters[field])selectedFilters[field].clear();else $('#'+filterFields[field]).value='';}
+    for(const field of priorityColumns[activeColumn].fields){if(selectedFilters[field]){selectedFilters[field].clear();$('#'+facetFields[field][0]+'-search').value='';}else $('#'+filterFields[field]).value='';}
     renderFacets();refresh();
   });
   $('#columns-menu').addEventListener('toggle',()=>{if($('#columns-menu').open){closeColumnMenu();$('#view-actions').open=false;$('#filter').open=false;}});
@@ -291,6 +295,7 @@ function renderFacet(key) {
   $("#" + id + "-summary").textContent = chosen.size > 1 ? `${chosen.size} sélectionnés` : labels[0] || placeholder;
   $("#" + id).dataset.active = String(chosen.size > 0);
   const query = normalize($("#" + id + "-search").value), list = $("#" + id + "-choices");
+  $("#" + id + "-clear").disabled = reordering || saving || (!chosen.size && !query);
   const activeElement = document.activeElement?.shadowRoot?.activeElement || document.activeElement;
   const focused = list.contains(activeElement) ? activeElement?.value : undefined;
   let nextFocus;
@@ -791,12 +796,13 @@ for (const button of document.querySelectorAll("[data-filter]")) button.addEvent
 let searchTimer;
 for (const id of ["search", "title-query", "body-query", "requester-query", "url-query", "source-url-query"]) $("#" + id).addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => refresh(), 250); });
 for (const id of Object.values(filterFields).filter((id) => !id.endsWith("-query"))) $("#" + id).addEventListener("change", () => refresh());
-for (const button of document.querySelectorAll("[data-sort]")) button.addEventListener("click", () => {
-  if (reordering) return;
-  if (sortBy === button.dataset.sort && sortDirection === "desc") { sortBy = "manual"; sortDirection = "asc"; }
-  else { sortDirection = sortBy === button.dataset.sort ? "desc" : "asc"; sortBy = button.dataset.sort; }
+function toggleSort(column, direction) {
+  if (saving || reordering) return;
+  if (sortBy === column && (!direction || sortDirection === direction)) { sortBy = "manual"; sortDirection = "asc"; }
+  else { sortBy = column; sortDirection = direction || "asc"; }
   refresh();
-});
+}
+for (const button of document.querySelectorAll("[data-sort]")) button.addEventListener("click", () => toggleSort(button.dataset.sort));
 $("#manual-order").addEventListener("click", () => { if (reordering) return; sortBy = "manual"; sortDirection = "asc"; refresh(); });
 $("#reset-filters").addEventListener("click", () => {
   clearTimeout(searchTimer);
@@ -807,7 +813,7 @@ $("#reset-filters").addEventListener("click", () => {
 for (const [key, [id]] of Object.entries(facetFields)) {
 
   $("#" + id + "-search").addEventListener("input", () => renderFacet(key));
-  $("#" + id + "-clear").addEventListener("click", () => { if (reordering || saving) return; selectedFilters[key].clear(); renderFacet(key); refresh(); });
+  $("#" + id + "-clear").addEventListener("click", () => { if (reordering || saving) return; clearTimeout(searchTimer); selectedFilters[key].clear(); $("#" + id + "-search").value = ""; renderFacet(key); refresh(); });
   $("#" + id).addEventListener("keydown", event => { if (event.key === "Escape") { event.preventDefault(); closeColumnMenu(true); $("#" + id).open = false; } });
 }
 const autoRefresh = () => { if (!loading && !saving && !reordering && !draggedId && !activeColumn && !$("#columns-menu").open && !editor.open && !taskEditor.open && !deletion.open && !viewEditor.open && !viewDeletion.open && !$("#view-actions").open && rowMenu.hidden && !Object.values(facetFields).some(([id]) => $("#" + id).open) && !document.hidden) refresh(); };

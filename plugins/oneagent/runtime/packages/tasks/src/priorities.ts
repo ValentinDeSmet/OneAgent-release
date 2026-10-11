@@ -203,7 +203,7 @@ export function priorityItem(task: TaskRecord, today: string, links: TaskLinkRec
 
 /** Native, explicitly created tasks only: Inbox/concept proposals are not commitments. */
 export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
-  const input = fields(raw, ["scope", "today", "query", "view", "filter", "offset", "limit", "sortBy", "sortDirection", "titleQuery", "bodyQuery", "requesterQuery", "urlQuery", "entity", "productId", "priority", "status", "deadlineKind", "deadlineFrom", "deadlineTo", "sourceUrlQuery", "itemType", "involvedEntity", "relatedEntity", "workType", "deadlineQuarter", "deadlineYear"]);
+  const input = fields(raw, ["scope", "today", "query", "view", "filter", "offset", "limit", "sortBy", "sortDirection", "titleQuery", "bodyQuery", "requesterQuery", "urlQuery", "entity", "productId", "priority", "status", "deadlineKind", "deadlineFrom", "deadlineTo", "sourceUrlQuery", "priorityId", "itemType", "involvedEntity", "relatedEntity", "workType", "deadlineQuarter", "deadlineYear"]);
   const today = text(input.today, "today", 10, localDay());
   if (!validDay(today)) throw new Error("Date locale invalide (AAAA-MM-JJ).");
   const view = choice(input.view, "view", ["active", "done", "all", "excluded"], "active");
@@ -211,6 +211,7 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   const sortBy = choice(input.sortBy, "sortBy", ["manual", "title", "body", "entity", "product", "relatedEntities", "requester", "priority", "deadline", "url", "sourceUrl", "status", "nextAction", "itemType", "workType"], "manual");
   const direction = choice(input.sortDirection, "sortDirection", ["asc", "desc"], "asc") === "asc" ? 1 : -1;
   const query = text(input.query, "query", 500);
+  const priorityId = selections(input.priorityId, "priorityId", 256);
   const entity = selections(input.entity, "entity", 512), productId = selections(input.productId, "productId", 256);
   const involvedEntity = selections(input.involvedEntity, "involvedEntity", 512), relatedEntity = selections(input.relatedEntity, "relatedEntity", 512);
   const itemType = selections(input.itemType, "itemType", 32, ["all", "subject", "task"]);
@@ -241,7 +242,7 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   const matches = (value: string | undefined, search: string) => !search || normalize(value ?? "").includes(normalize(search));
   const values = (task: typeof all[number]): Record<string, string[]> => ({
     workType: [task.workType], deadlineQuarter: task.deadlineQuarter ? [task.deadlineQuarter] : [], deadlineYear: task.deadlineYear ? [String(task.deadlineYear)] : [],
-    itemType: [task.itemType], entity: task.entity ? [task.entity] : [], productId: task.productId ? [task.productId] : [],
+    priorityId: [task.id], itemType: [task.itemType], entity: task.entity ? [task.entity] : [], productId: task.productId ? [task.productId] : [],
     involvedEntity: [...new Set([...task.relatedEntityRefs, ...(task.productId ? [`product:${task.productId}`] : []),
       ...(["product", "team"].includes(task.entity.split(":")[0]) ? [task.entity] : [])])],
     relatedEntity: task.relatedEntityRefs, priority: [task.priority], status: [task.status], deadlineKind: [task.deadlineKind],
@@ -249,7 +250,7 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
       ...(task.overdue ? ["overdue"] : []), ...(task.dueSoon ? ["soon"] : []), ...(task.needsClarification ? ["clarify"] : []),
       ...(task.status === "blocked" ? ["waiting"] : []), ...(task.needsAttachment ? ["unlinked"] : [])]
   });
-  const selected: Record<string, string[]> = { itemType, entity, productId, involvedEntity, relatedEntity, priority, status, deadlineKind, deadlineQuarter, deadlineYear, workType, filter };
+  const selected: Record<string, string[]> = { priorityId, itemType, entity, productId, involvedEntity, relatedEntity, priority, status, deadlineKind, deadlineQuarter, deadlineYear, workType, filter };
   const valuesById = new Map(all.map(task => [task.id, values(task)]));
   const matchText = (task: typeof all[number]) =>
     (!query || [task.title, task.body, task.requester, task.nextAction, task.entityLabel, task.entity, task.productLabel, task.url, task.sourceUrl, task.deadline, task.deadlineLabel,
@@ -271,6 +272,7 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
   // Each menu sees every matching row before pagination, ignoring only its own
   // selection. This lets users add a second value without undoing the first.
   const labels: Record<string, Record<string, string>> = {
+    priorityId: Object.fromEntries(all.map(task => [task.id, task.title])),
     workType: workTypeLabels,
     itemType: { subject: "Sujets", task: "Tâches" }, priority: { critical: "Critique", high: "Haute", medium: "Normale", low: "Basse" },
     status: { open: "À faire", in_progress: "En cours", ready: "Prête à démarrer", pending: "À clarifier", candidate: "À valider", blocked: "En attente", done: "Terminée" },

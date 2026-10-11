@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.143
+
+- Le filtre Sujet liste les priorités par titre avec recherche et sélection multiple, distinctes des entités rattachées.
+- Réinitialiser efface la sélection et la recherche du menu. Un second clic retire le tri actif et retrouve le classement manuel.
+- Recherche, boutons et sélecteurs alignés sur une hauteur commune. Même interface dans Copilot 0.6.21.
+
 ## 0.1.142
 
 - Priorités adopte le tableau et les vues de Mémoire, avec les mêmes contrôles de colonnes et styles partagés avec Copilot 0.6.19.
