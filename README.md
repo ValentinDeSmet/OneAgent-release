@@ -2,10 +2,12 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.19](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [GitHub Copilot 0.6.20](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
+
+**Correctif Copilot 0.6.20.** Un ancien formulaire de priorité ou de tâche fermé après enregistrement ou annulation ne bloque plus la mise à jour. Les vrais brouillons ouverts restent protégés. Depuis une ancienne version déjà bloquée, fermer uniquement les onglets OneAgent permet de reprendre la mise à jour en gardant le chat. [Détails](docs/copilot.md#recharger-sans-recommencer-le-chat).
 
 **Priorités et Mémoire harmonisées (Copilot 0.6.19 / VS Code 0.1.142).** Même présentation des vues et mêmes contrôles de colonnes : affichage ou masquage, déplacement, largeur et filtres dans les en-têtes. Chaque vue de priorités conserve ses filtres, son tri et sa présentation. Le classement manuel, les tâches en accordéon et les anciennes vues sont conservés. [Guide des priorités](docs/priorities.md) · [Guide Mémoire](docs/memory-views.md).
 
