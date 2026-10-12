@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.144
+
+- Toutes les propositions en attente (Markdown, wiki, graphe et informations sourcées) rejoignent To review, les plus récentes en premier. Other proposals ne masque plus les documents à relire.
+- Inbox en pleine largeur, historique repliable et grande fenêtre de relecture au clic, commune à Copilot 0.6.22.
+- Édition Markdown et instructions de correction conservées pendant les actualisations ; fermeture protégée et abandon explicite des modifications locales.
+
 ## 0.1.143
 
 - Le filtre Sujet liste les priorités par titre avec recherche et sélection multiple, distinctes des entités rattachées.

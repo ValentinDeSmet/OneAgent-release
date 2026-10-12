@@ -82,7 +82,10 @@ function createDocumentReview({ postMessage, render, format, escape, schedule = 
     render();
     return false;
   }
-  return { render: markup, bind, receive, allowAction, revision: (item) => isDocument(item) ? draft(item).revision : undefined };
+  return { render: markup, bind, receive, allowAction,
+    state: (id) => ({ dirty: !!drafts.get(id)?.dirty, busy: !!drafts.get(id)?.busy }),
+    discard: (id) => { if (!drafts.get(id)?.busy) drafts.delete(id); },
+    revision: (item) => isDocument(item) ? draft(item).revision : undefined };
 }
 
 function documentReviewBootstrap() {

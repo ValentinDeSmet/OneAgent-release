@@ -4,6 +4,7 @@ const { createMemoryExplorer } = require("./memory-explorer.js");
 const memoryExplorerCss = ["memory-explorer.css", "table-view.css"].map(name => require("node:fs").readFileSync(require("node:path").join(__dirname, name), "utf8")).join("\n");
 const { prioritiesBootstrap } = require("./priorities-view.js");
 const { documentReviewBootstrap } = require("./inbox-documents.js");
+const { createInboxReviewWindow } = require("./inbox-review-window.js");
 
 function renderCockpitHtml(payload, assets = {}) {
   const data = JSON.stringify(payload).replace(/</g, "\\u003c");
@@ -645,6 +646,31 @@ function renderCockpitHtml(payload, assets = {}) {
       .inbox-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 18px 10px 7px; color: var(--muted); }
       .inbox-section-head strong { color: var(--text); font-size: 12px; text-transform: uppercase; }
       .inbox-section-head span { color: var(--dim); font-size: 11px; }
+      #inbox .proposal { grid-template-columns: minmax(0, 1fr) auto; cursor: pointer; }
+      #inbox .proposal > div { min-width: 0; overflow-wrap: anywhere; }
+      #inbox .proposal > div > span:not(.badge) { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .inbox-history { margin-top: 24px; border-top: 1px solid var(--border); padding-top: 16px; }
+      .inbox-history > summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+      .inbox-review-dialog { width: min(1040px, calc(100vw - 48px)); max-width: none; height: min(900px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); padding: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--overlay); color: var(--text); box-shadow: 0 24px 80px rgba(0,0,0,.3); overflow: hidden; }
+      .inbox-review-dialog[open] { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+      .inbox-review-dialog::backdrop { background: rgba(0,0,0,.4); }
+      .inbox-review-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--border); }
+      .inbox-review-header > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
+      .inbox-review-header h2 { font-size: 16px; margin: 0; }
+      .inbox-review-header button { flex-shrink: 0; }
+      .inbox-review-body { padding: 24px; min-width: 0; overflow: auto; overscroll-behavior: contain; }
+      .inbox-review-body .detail-title b { font-size: 21px; line-height: 1.4; overflow-wrap: anywhere; }
+      .inbox-review-body .help-doc { line-height: 1.65; overflow-wrap: anywhere; }
+      .inbox-review-body .help-doc pre, .inbox-review-body .help-doc table { max-width: 100%; overflow: auto; }
+      .inbox-review-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 12px 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+      .inbox-review-footer:has(#inboxCloseNotice:empty) { display: none; }
+      @media (max-width: 640px) {
+        .inbox-review-dialog { width: calc(100vw - 16px); height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); border-radius: 10px; }
+        .inbox-review-header, .inbox-review-footer { padding: 12px; }
+        .inbox-review-body { padding: 16px; }
+        .inbox-review-header > div { gap: 4px; }
+        .inbox-section-head { flex-wrap: wrap; }
+      }
       .inbox-history-empty { margin: 0 10px 10px; padding: 9px 10px; border: 1px dashed var(--border); border-radius: 7px; color: var(--dim); font-size: 11px; }
       .curation-package-card { cursor: pointer; }
       .curation-package-card.history { background: var(--surface); }
@@ -693,18 +719,17 @@ function renderCockpitHtml(payload, assets = {}) {
       .note-empty { padding: 18px; border: 1px dashed var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; text-align: center; }
       .note-body { min-height: 220px !important; }
       .side { display: grid; grid-auto-rows: max-content; align-content: start; gap: 12px; min-width: 0; min-height: 0; padding: 14px; background: var(--side-bg); overflow-y: auto; }
-      .side.tasks-mode, .side.notes-mode, .side.inbox-mode, .side.settings-mode { grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+      .side.tasks-mode, .side.notes-mode, .side.settings-mode { grid-template-rows: minmax(0, 1fr); overflow: hidden; }
       .side:not(.map-mode) .side-graph { display: none; }
       .side:not(.tasks-mode) .side-task { display: none; }
       .side:not(.notes-mode) .side-notes { display: none; }
-      .side:not(.inbox-mode) .side-inbox { display: none; }
       .side:not(.settings-mode) .side-settings { display: none; }
-      .side.tasks-mode .side-task, .side.notes-mode .side-notes, .side.inbox-mode .side-inbox, .side.settings-mode .side-settings { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
+      .side.tasks-mode .side-task, .side.notes-mode .side-notes, .side.settings-mode .side-settings { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
       .side-card { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); overflow: hidden; }
       .side-head { display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 11px; border-bottom: 1px solid var(--border); }
       .side-head h2 { margin: 0; color: var(--muted); font-size: 12px; text-transform: uppercase; }
       .side-body { padding: 12px; }
-      .side-task .side-body, .side-notes .side-body, .side-inbox .side-body, .side-settings .side-body { min-height: 0; overflow: auto; padding: 16px; }
+      .side-task .side-body, .side-notes .side-body, .side-settings .side-body { min-height: 0; overflow: auto; padding: 16px; }
       .detail-title { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
       .detail-title b { font-size: 16px; }
       .detail-title span, .summary { color: var(--muted); font-size: 12px; }
@@ -1229,7 +1254,6 @@ function renderCockpitHtml(payload, assets = {}) {
         .side,
         .side.tasks-mode,
         .side.notes-mode,
-        .side.inbox-mode,
         .side.settings-mode {
           grid-template-rows: auto;
           overflow: visible;
@@ -1238,13 +1262,11 @@ function renderCockpitHtml(payload, assets = {}) {
         }
         .side.tasks-mode .side-task,
         .side.notes-mode .side-notes,
-        .side.inbox-mode .side-inbox,
         .side.settings-mode .side-settings {
           grid-template-rows: auto;
         }
         .side-task .side-body,
         .side-notes .side-body,
-        .side-inbox .side-body,
         .side-settings .side-body {
           overflow: visible;
         }
@@ -1399,10 +1421,6 @@ function renderCockpitHtml(payload, assets = {}) {
               <div class="side-head"><h2>Note</h2><span class="chip" id="noteDetailStatus">none</span></div>
               <div class="side-body" id="noteDetail"></div>
             </section>
-            <section class="side-card side-inbox">
-              <div class="side-head"><h2>Inbox Detail</h2><span class="chip" id="inboxDetailStatus">none</span></div>
-              <div class="side-body" id="inboxDetail"></div>
-            </section>
             <section class="side-card side-settings">
               <div class="side-head"><h2>Runtime Actions</h2><span class="chip">local</span></div>
               <div class="side-body" id="settingsDetail"></div>
@@ -1410,6 +1428,11 @@ function renderCockpitHtml(payload, assets = {}) {
           </aside>
         </div>
       </section>
+      <dialog id="inboxReviewDialog" class="inbox-review-dialog" aria-labelledby="inboxReviewTitle">
+        <header class="inbox-review-header"><div><h2 id="inboxReviewTitle">Relecture de la proposition</h2><span class="chip" id="inboxDetailStatus">none</span></div><button type="button" class="action" id="inboxCloseReview" aria-label="Fermer la relecture">Fermer ×</button></header>
+        <div id="inboxDetail" class="inbox-review-body"></div>
+        <footer class="inbox-review-footer"><span id="inboxCloseNotice" role="status"></span><button type="button" class="action" id="inboxDiscardClose" hidden>Abandonner les modifications et fermer</button></footer>
+      </dialog>
       <div class="live-toast" id="liveToast" role="status" aria-live="polite"></div>
     </main>
     ${assets.hostBridgeScript ? `<script nonce="${escapeHtmlAttribute(nonce)}" src="${escapeHtmlAttribute(assets.hostBridgeScript)}"></script>` : ""}
@@ -1469,6 +1492,7 @@ function renderCockpitHtml(payload, assets = {}) {
       const noteDetailCache = {};
       const manualNoteDetailFailures = {};
       const pendingManualNoteDetailIds = new Set();
+      let inboxHistoryExpanded = false;
       let selectedInboxId = undefined;
       let selectedCurationPackageId = undefined;
       let selectedObservationReviewIds = new Set();
@@ -2195,6 +2219,13 @@ function renderCockpitHtml(payload, assets = {}) {
 
       ${prioritiesBootstrap()}
       ${documentReviewBootstrap()}
+      let reviewWindowItemId;
+      const inboxReviewWindow = (${createInboxReviewWindow.toString()})({
+        document,
+        draftState: () => documentReview.state(reviewWindowItemId),
+        discardDraft: () => documentReview.discard(reviewWindowItemId),
+        onClose: () => { selectedInboxId = undefined; selectedCurationPackageId = undefined; reviewWindowItemId = undefined; selectedObservationReviewIds.clear(); renderInbox(); }
+      });
 
       function setActiveView(view) {
         activeCockpitView = view;
@@ -2216,9 +2247,8 @@ function renderCockpitHtml(payload, assets = {}) {
         side.classList.toggle("map-mode", view === "map");
         side.classList.toggle("tasks-mode", view === "tasks");
         side.classList.toggle("notes-mode", view === "notes");
-        side.classList.toggle("inbox-mode", view === "inbox");
         side.classList.toggle("settings-mode", view === "settings");
-        document.querySelector(".content").classList.toggle("side-hidden", !["map", "tasks", "notes", "inbox", "settings"].includes(view));
+        document.querySelector(".content").classList.toggle("side-hidden", !["map", "tasks", "notes", "settings"].includes(view));
         if (view === "notes") {
           renderNotes();
           renderNoteDetail();
@@ -7455,16 +7485,14 @@ function renderCockpitHtml(payload, assets = {}) {
         const packages = state.curationPackages || [];
         const history = state.curationPackageHistory || [];
         const historyState = state.curationPackageHistoryState || {};
-        if (!selectedInboxId && !selectedCurationPackageId) {
-          if (packages.length) selectedCurationPackageId = packages[0].package.id;
-          else if (history.length) selectedCurationPackageId = history[0].package.id;
-          else if (inbox.length) selectedInboxId = inbox[0].id;
-          else if (graphHistory.length) selectedInboxId = graphHistory[0].id;
-        }
-        const observationCount = packages.reduce((total, detail) => total + Number(detail.counts?.proposed || 0) + Number(detail.counts?.captured || 0), 0);
-        const packageHtml = packages.length
-          ? '<div class="inbox-section-head"><strong>To review</strong><span>Grouped by source · ' + observationCount + ' information item(s) pending</span></div>' + packages.map((detail) => renderCurationPackageCard(detail, false)).join("")
-          : '<div class="inbox-section-head"><strong>To review</strong><span>Nothing pending</span></div><div class="inbox-history-empty">No sourced information currently requires a decision.</div>';
+        // Review status, not the storage pipeline, determines the human queue.
+        const pendingItems = inbox.filter(item => item.status === "pending");
+        const queue = [
+          ...packages.map(detail => ({ id: 'package:' + detail.package.id, createdAt: detail.package.createdAt, html: renderCurationPackageCard(detail, false) })),
+          ...pendingItems.map(item => ({ id: 'item:' + item.id, createdAt: item.createdAt, html: renderInboxCard(item, false) }))
+        ].sort((left, right) => (Date.parse(right.createdAt) || 0) - (Date.parse(left.createdAt) || 0) || left.id.localeCompare(right.id));
+        const packageHtml = '<section id="inboxToReview" aria-labelledby="inboxQueueTitle"><div class="inbox-section-head"><strong id="inboxQueueTitle">To review</strong><span>' + queue.length + ' proposition(s) en attente</span></div>' +
+          (queue.length ? queue.map(entry => entry.html).join("") : '<div class="inbox-history-empty">Aucune proposition en attente de relecture.</div>') + '</section>';
         const historyNotice = historyState.available === false
           ? '<div class="inbox-problems"><strong>Review history unavailable</strong><span>' + escapeHtml(historyState.error || "The installed runtime cannot load accepted and rejected packages. Cached details remain read-only; no action is available until the backend is updated.") + '</span></div>'
           : historyState.partial === true
@@ -7474,9 +7502,6 @@ function renderCockpitHtml(payload, assets = {}) {
           (history.length
             ? history.map((detail) => renderCurationPackageCard(detail, true)).join("")
             : '<div class="inbox-history-empty">No reviewed sourced-information package yet.</div>') + historyNotice;
-        const legacyHtml = inbox.length
-          ? '<div class="inbox-section-head"><strong>Other proposals</strong><span>' + inbox.length + ' graph, wiki or operational proposal(s)</span></div>' + inbox.map((item) => renderInboxCard(item, false)).join("")
-          : '';
         const graphHistoryHtml = graphHistory.length
           ? '<div class="inbox-section-head"><strong>Graph transaction history</strong><span>' + graphHistory.length + ' accepted or rejected transaction(s)</span></div>' + graphHistory.map((item) => renderInboxCard(item, true)).join("")
           : '';
@@ -7485,8 +7510,9 @@ function renderCockpitHtml(payload, assets = {}) {
           : graphHistoryState.partial === true
             ? '<div class="inbox-problems"><strong>Recent graph history only</strong><span>At least one decision list reached its 50-transaction safety cap.</span></div>'
             : '';
-        document.querySelector("#inbox").innerHTML = '<div class="title-row"><div><h1>Inbox</h1><p>Review sourced information before attaching it to an existing entity. Accepting information never creates a new graph entity.</p></div><span class="chip">' + (packages.length + history.length + inbox.length + graphHistory.length) + ' item(s)</span></div>' +
-          packageHtml + historyHtml + legacyHtml + graphHistoryHtml + graphHistoryNotice;
+        document.querySelector("#inbox").innerHTML = '<div class="title-row"><div><h1>Inbox</h1><p>Relisez les documents et les changements proposés avant de les valider.</p></div><span class="chip">' + queue.length + ' à revoir</span></div>' +
+          packageHtml + '<details class="inbox-history" id="inboxHistory"' + (inboxHistoryExpanded ? ' open' : '') + '><summary>Historique des informations et du graphe · ' + (history.length + graphHistory.length) + '</summary>' + historyHtml + graphHistoryHtml + graphHistoryNotice + '</details>';
+        document.querySelector("#inboxHistory").addEventListener("toggle", event => { if (event.currentTarget.isConnected) inboxHistoryExpanded = event.currentTarget.open; });
         document.querySelectorAll("[data-curation-package-card]").forEach((card) => card.addEventListener("click", () => {
           selectCurationPackage(card.dataset.curationPackageCard);
         }));
@@ -7557,36 +7583,31 @@ function renderCockpitHtml(payload, assets = {}) {
           (captureLabel ? '<span class="badge">Capture: ' + escapeHtml(captureLabel) + '</span>' : '') +
           (item.productId ? '<span class="badge">' + escapeHtml(item.productId) + '</span>' : '') +
           '</div></div>' +
-          '<div class="proposal-actions"><button class="action" data-inspect="' + escapeAttr(item.id) + '">Inspect</button>' + (hasPreviewPatch(item) ? '<button class="action" data-preview="' + escapeAttr(item.id) + '">' + escapeHtml(item.payload?.proposalKind === "graph_change" ? "Preview graph" : "Preview patch") + '</button>' : '') + (historical ? '' : '<button class="action" data-accept="' + escapeAttr(item.id) + '">Accept</button><button class="action" data-reject="' + escapeAttr(item.id) + '">Reject</button>') + '</div></article>';
+          '<div class="proposal-actions"><button class="action" data-inspect="' + escapeAttr(item.id) + '">' + (historical ? 'Consulter' : 'Relire') + '</button></div></article>';
       }
 
-      function selectInboxItem(id) {
-        selectedCurationPackageId = undefined;
-        selectedObservationReviewIds.clear();
-        selectedInboxId = id;
-        renderInbox();
-        renderInboxDetail();
-        document.querySelector(".side-inbox")?.scrollIntoView({ block: "start", behavior: "smooth" });
-      }
+      function selectInboxItem(id) { inspectInboxItem(id); }
 
       function selectCurationPackage(id) {
+        if (!inboxReviewWindow.open('package:' + id, { kind: 'package', id })) return;
         if (selectedCurationPackageId !== id) selectedObservationReviewIds.clear();
         selectedInboxId = undefined;
+        reviewWindowItemId = undefined;
         selectedCurationPackageId = id;
         renderInbox();
         renderInboxDetail();
-        document.querySelector(".side-inbox")?.scrollIntoView({ block: "start", behavior: "smooth" });
       }
 
       function inspectInboxItem(id) {
+        if (!inboxReviewWindow.open('item:' + id, { kind: 'item', id })) return;
         selectedCurationPackageId = undefined;
         selectedObservationReviewIds.clear();
         selectedInboxId = id;
+        reviewWindowItemId = id;
         pendingInboxDetailId = id;
         renderInbox();
         renderInboxDetail();
         vscode?.postMessage({ type: "inspectInbox", id });
-        document.querySelector(".side-inbox")?.scrollIntoView({ block: "start", behavior: "smooth" });
       }
 
       function runInboxAction(type, id) {
@@ -7621,6 +7642,10 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function renderInboxDetail() {
+        inboxReviewWindow.render(renderInboxDetailContent);
+      }
+
+      function renderInboxDetailContent() {
         const packageDetail = findCurationPackage(selectedCurationPackageId);
         if (packageDetail) {
           renderCurationPackageDetail(packageDetail);
@@ -7629,7 +7654,7 @@ function renderCockpitHtml(payload, assets = {}) {
         const item = findInboxItem(selectedInboxId);
         document.querySelector("#inboxDetailStatus").textContent = item ? item.type : "none";
         if (!item) {
-          document.querySelector("#inboxDetail").innerHTML = '<p class="summary">Select an inbox item to inspect its source, payload and available actions.</p>';
+          document.querySelector("#inboxDetail").innerHTML = '<p class="summary">Cette proposition n’est plus en attente. Vous pouvez fermer cette fenêtre pour revenir à la liste.</p>';
           return;
         }
         const payload = item.payload || {};

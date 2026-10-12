@@ -16,6 +16,14 @@ Each item should include an exact source excerpt. Analysis does not rewrite the 
 
 Regular captures may be analyzed automatically when automatic curation is enabled. Notes are only analyzed when you select **Analyze note**.
 
+## Find what needs review
+
+**To review** contains all pending proposals: Markdown documents, wiki and graph changes, operational suggestions, and source-backed information packages. It is ordered by arrival, newest first. A proposal’s storage pipeline no longer sends it to a separate “Other proposals” section.
+
+The queue uses the full page width. Select a row or **Relire** to open a large review window; no permanent detail sidebar is reserved. Reviewed source packages and graph transactions remain under the expandable history below the queue.
+
+Close the window with **Fermer** or Escape to return to the same list. Unsaved changes prevent accidental closure: save them or explicitly abandon the local edits. Closing never accepts or rejects a proposal. Background refreshes preserve the Markdown draft and correction instructions.
+
 ## Review sourced information
 
 1. Open **Inbox**.
@@ -44,7 +52,7 @@ A wiki page is optional. OneAgent should suggest one only when a durable synthes
 You can also ask the agent directly: **« Propose un document dans l’Inbox pour cette entité ; je veux le relire avant publication. »** Resolve an existing entity first. This explicit drafting request does not require an accepted curation package.
 
 1. The agent submits a complete Markdown draft to **Inbox**. The entity document remains unchanged.
-2. Select **Document à valider** to read its formatted preview and verify its private wiki target.
+2. Select **Relire** on the **Document à valider** proposal to read its formatted preview and verify its private wiki target.
 3. Select **Modifier**, edit the Markdown, then **Enregistrer les modifications**. Saving changes only the proposal. You can also ask the agent to revise it.
 4. Select **Accept** and confirm **Publier** to write the reviewed document into your private memory. Rejecting leaves the existing document intact.
 
