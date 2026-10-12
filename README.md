@@ -2,12 +2,14 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.21](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [GitHub Copilot 0.6.22](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 
-**Filtres et tri des priorités corrigés (Copilot 0.6.21 / VS Code 0.1.143).** Le menu Sujet liste les titres des priorités, avec recherche et cases à cocher ; les entités rattachées restent un critère distinct. Réinitialiser vide aussi la recherche du menu. Un second clic retire le tri actif et retrouve Mon classement. Les contrôles de recherche, boutons et sélecteurs sont alignés. Les vues conservent les sujets sélectionnés même après renommage, ainsi que leurs réglages de colonnes. [Guide des priorités](docs/priorities.md) · [Guide Mémoire](docs/memory-views.md).
+**Inbox corrigée (Copilot 0.6.22 / VS Code 0.1.144).** Toutes les propositions en attente rejoignent To review, y compris les documents Markdown, les propositions wiki et les changements du graphe. La liste occupe toute la largeur ; un clic ouvre une grande fenêtre de relecture et d’édition. L’historique reste repliable sous la liste. Les actualisations préservent les brouillons et la fermeture protège les modifications non enregistrées. [Guide Inbox](docs/inbox.md).
+
+Les filtres des priorités, le tri désactivable et les contrôles de colonnes partagés avec Mémoire restent disponibles. [Guide des priorités](docs/priorities.md) · [Guide Mémoire](docs/memory-views.md).
 
 Le faux blocage de mise à jour par un ancien formulaire fermé, corrigé en 0.6.20, reste corrigé.
 
