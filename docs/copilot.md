@@ -1,6 +1,6 @@
 # OneAgent pour l’application GitHub Copilot
 
-Version 0.6.22 : toutes les propositions en attente rejoignent **To review**, y compris les documents Markdown. L’Inbox utilise toute la largeur ; le détail s’ouvre dans une grande fenêtre au clic et l’historique reste repliable. La fermeture protège les modifications non enregistrées et les actualisations conservent le brouillon.
+Version 0.6.23 : Tâches, Notes et Mémoire utilisent toute la largeur. Un clic ouvre une grande fenêtre de détail, comme dans l’Inbox ; les actions des Réglages s’ouvrent via **Actions et diagnostics**. Les brouillons sont conservés pendant les actualisations, la fermeture protège les modifications non enregistrées et la fenêtre se ferme après confirmation de la sauvegarde. Les descriptions longues ne débordent plus des cartes de tâches.
 
 Le cockpit complet est partagé avec VS Code : mémoire, graphe, priorités, tâches, notes et Inbox. Installation par catalogue GitHub, mise à jour dans la conversation courante et configuration de la mémoire **après installation, dans le plugin**.
 L’extension VS Code reste disponible en parallèle. Les deux adaptateurs
@@ -67,12 +67,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.22.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.23.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.22/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.23/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -362,7 +362,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.22.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.23.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.

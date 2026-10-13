@@ -2,12 +2,14 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.22](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [GitHub Copilot 0.6.23](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 
-**Inbox corrigée (Copilot 0.6.22 / VS Code 0.1.144).** Toutes les propositions en attente rejoignent To review, y compris les documents Markdown, les propositions wiki et les changements du graphe. La liste occupe toute la largeur ; un clic ouvre une grande fenêtre de relecture et d’édition. L’historique reste repliable sous la liste. Les actualisations préservent les brouillons et la fermeture protège les modifications non enregistrées. [Guide Inbox](docs/inbox.md).
+**Pages en pleine largeur (Copilot 0.6.23 / VS Code 0.1.145).** Tâches, Notes et Mémoire n’ont plus de panneau de détail permanent à droite. Un clic ouvre une grande fenêtre de consultation ou d’édition, comme dans l’Inbox. Les réglages proposent **Actions et diagnostics**. Les actualisations préservent les brouillons ; la fermeture protège les modifications non enregistrées et la fenêtre se ferme après confirmation de la sauvegarde. Les longues descriptions sont limitées à trois lignes dans les cartes de tâches, avec le contenu complet dans la fiche.
+
+**Inbox corrigée.** Toutes les propositions en attente rejoignent To review, y compris les documents Markdown, wiki et les changements du graphe. L’historique reste repliable sous la liste. [Guide Inbox](docs/inbox.md).
 
 Les filtres des priorités, le tri désactivable et les contrôles de colonnes partagés avec Mémoire restent disponibles. [Guide des priorités](docs/priorities.md) · [Guide Mémoire](docs/memory-views.md).
 
