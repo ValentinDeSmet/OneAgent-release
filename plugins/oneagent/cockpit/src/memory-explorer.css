@@ -51,7 +51,7 @@
 #memoryDirty:empty { display:none; }
 .memory-context-slot { margin-left:auto; }
 .memory-context-slot .scope-tabs { display:flex; }
-.memory-active { position:relative; grid-template-columns:minmax(0,1fr) 10px minmax(280px,var(--side-width)); }
+.memory-active { position:relative; grid-template-columns:minmax(0,1fr); }
 .graph-stage.memory-list-active > :not(#memoryList):not(#graphContextPanel) { display:none!important; }
 #memoryList { height:100%; overflow:auto; padding:0 20px 16px; box-sizing:border-box; background:var(--surface); }
 .memory-results-heading { display:flex; justify-content:space-between; gap:12px; padding:14px 0; color:var(--muted); font-size:11px; }
@@ -68,7 +68,6 @@
 .memory-pagination { display:flex; align-items:center; justify-content:center; gap:12px; padding-top:18px; font-size:12px; color:var(--muted); }
 .memory-empty { text-align:center; padding:50px 10px; color:var(--muted); }
 .memory-group-heading { margin:20px 0 4px; color:var(--muted); font-size:12px; }
-#memoryCloseDetail { display:none; }
 .memory-head [hidden], #memoryList[hidden] { display:none!important; }
 .sr-only { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
 @media (max-width:1180px) {
@@ -77,13 +76,6 @@
  .memory-active { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); overflow:hidden; }
  .memory-active .stage { overflow:hidden; }
  .memory-active .panel[data-panel="map"].active { height:100%; min-height:0; }
- .memory-active .side-resizer { display:none; }
- .memory-active .side { display:none; }
- .memory-active.memory-detail-open .side { display:grid; position:absolute; inset:0 0 0 auto; z-index:45; width:min(480px,100%); height:100%; min-height:0; border-left:1px solid var(--border); border-top:0; background:var(--panel); box-shadow:-12px 0 35px #0002; overflow:hidden; }
- .memory-active .side .side-body { overflow:auto; min-height:0; }
- .memory-active #memoryCloseDetail { display:inline-flex; }
- .memory-active .side-head { flex-wrap:wrap; }
- .memory-active .side-head h2 { display:none; }
  .memory-view-picker { font-size:0; }
  .memory-heading span { display:none; }
 }
@@ -115,9 +107,6 @@
 
 /* Table views use the entire panel. A detail sheet is opened only by Fiche. */
 .content.memory-active.memory-table-active { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); overflow:hidden; }
-.memory-active.memory-table-active .side, .memory-active.memory-table-active .side-resizer { display:none; }
-.memory-active.memory-table-active.memory-detail-open .side { display:grid; position:absolute; inset:0 0 0 auto; z-index:45; width:min(520px,100%); border-left:1px solid var(--border); background:var(--panel); box-shadow:-12px 0 35px #0002; overflow:auto; }
-.memory-active.memory-table-active #memoryCloseDetail { display:inline-flex; }
 .memory-active.memory-table-active .stage { min-width:0; min-height:0; overflow:hidden; }
 .memory-active.memory-table-active .panel[data-panel="map"].active { height:100%; min-height:0; }
 #memoryList { display:flex; flex-direction:column; min-height:0; overflow:hidden; padding:0 18px 12px; background:var(--bg); }

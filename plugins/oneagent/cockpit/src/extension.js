@@ -2426,6 +2426,11 @@ async function cancelContextBoundaryChange(webview) {
 }
 
 async function handleCockpitMessage(cli, webview, message) {
+  let editorWriteConfirmed = false;
+  const confirmEditorWrite = async () => {
+    editorWriteConfirmed = true;
+    if (message.editorRequestId) await webview.postMessage({ type: "editorResult", requestId: message.editorRequestId });
+  };
   try {
     if (message.type === "priorityRequest") {
       try {
@@ -2693,8 +2698,9 @@ async function handleCockpitMessage(cli, webview, message) {
     }
     if (message.type === "updateGraphEntity") {
       const updatedRef = await updateGraphEntity(cli, webview, message);
+      await confirmEditorWrite();
       await postCockpitState(cli, webview);
-      await webview.postMessage({ type: "focusEntity", ref: updatedRef });
+      if (!message.editorRequestId) await webview.postMessage({ type: "focusEntity", ref: updatedRef });
     }
     if (message.type === "upsertEntityLink") {
       await upsertEntityLink(cli);
@@ -2713,6 +2719,7 @@ async function handleCockpitMessage(cli, webview, message) {
     }
     if (message.type === "updateGraphRelation") {
       await updateGraphRelation(cli, webview, message);
+      await confirmEditorWrite();
       await postCockpitState(cli, webview);
     }
     if (message.type === "taxonomyAction") {
@@ -2788,6 +2795,7 @@ async function handleCockpitMessage(cli, webview, message) {
       await postOperation(webview, "running", `Saving "${String(message.title || "note")}"...`);
       const payload = await createManualNote(cli, message);
       await webview.postMessage({ type: "manualNoteSaved", id: payload.id, payload });
+      await confirmEditorWrite();
       await postOperation(webview, "success", "Note saved locally. Updating search and views...");
       const indexingWarning = await indexManualNote(cli, payload.id);
       await postOperation(webview, indexingWarning ? "warning" : "success", indexingWarning
@@ -2800,6 +2808,7 @@ async function handleCockpitMessage(cli, webview, message) {
       await postOperation(webview, "running", `Saving changes to "${String(message.title || "note")}"...`);
       const payload = await updateManualNote(cli, message);
       await webview.postMessage({ type: "manualNoteSaved", id: payload.id, payload });
+      await confirmEditorWrite();
       const indexingWarning = payload?.reingest?.status === "failed" ? String(payload.reingest.error || "indexing failed") : "";
       await postOperation(webview, indexingWarning ? "warning" : "success", indexingWarning ? `Note updated locally, but search indexing needs attention: ${indexingWarning}` : "Note updated.");
       if (indexingWarning) {
@@ -2829,6 +2838,7 @@ async function handleCockpitMessage(cli, webview, message) {
     if (message.type === "captureGeneric") {
       await postOperation(webview, "running", `Capturing "${String(message.title || "capture")}"...`);
       const result = await saveGenericCapture(cli, message);
+      await confirmEditorWrite();
       await postOperation(
         webview,
         "success",
@@ -2928,6 +2938,7 @@ async function handleCockpitMessage(cli, webview, message) {
           args.push("--description", description);
         }
         await cli.run(args);
+        await confirmEditorWrite();
         await postOperation(webview, "success", `Linked ${source} —${relationType}→ ${target}.`);
         for (const ref of [source, target]) {
           await postEntityContext(cli, webview, ref);
@@ -3205,14 +3216,17 @@ async function handleCockpitMessage(cli, webview, message) {
     }
     if (message.type === "updateTask") {
       await updateTaskFromCockpit(cli, message);
+      await confirmEditorWrite();
       await postCockpitState(cli, webview);
     }
     if (message.type === "deleteTask") {
       await deleteTaskFromCockpit(cli, message);
+      await confirmEditorWrite();
       await postCockpitState(cli, webview);
     }
     if (message.type === "createTask") {
       await createTaskFromCockpit(cli, message);
+      await confirmEditorWrite();
       await postCockpitState(cli, webview);
     }
     if (message.type === "createOkr") {
@@ -3247,6 +3261,7 @@ async function handleCockpitMessage(cli, webview, message) {
       if (linked) await postCockpitState(cli, webview);
     }
   } catch (error) {
+    if (message.editorRequestId && !editorWriteConfirmed) await webview.postMessage({ type: "editorResult", requestId: message.editorRequestId, error: error instanceof Error ? error.message : String(error) });
     if (message.type === "createManualNote" || message.type === "updateManualNote") {
       await webview.postMessage({ type: "manualNoteSaveFailed" });
     }

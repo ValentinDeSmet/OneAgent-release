@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.145
+
+- Tâches, Notes et Mémoire utilisent toute la largeur : les fiches s’ouvrent dans une grande fenêtre au clic, comme l’Inbox. Réglages propose un bouton Actions et diagnostics. Même interface dans Copilot 0.6.23.
+- Fermeture par bouton ou Échap, avec protection des brouillons ; les actualisations conservent les modifications et la fenêtre se ferme après confirmation de l’enregistrement.
+- Cartes de tâches plus compactes : descriptions limitées à trois lignes, contenu complet dans la fiche.
+- Capture corrigée : les champs sont transmis avant la fermeture du formulaire.
+
 ## 0.1.144
 
 - Toutes les propositions en attente (Markdown, wiki, graphe et informations sourcées) rejoignent To review, les plus récentes en premier. Other proposals ne masque plus les documents à relire.

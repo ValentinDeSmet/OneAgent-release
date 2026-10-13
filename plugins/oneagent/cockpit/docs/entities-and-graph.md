@@ -36,12 +36,14 @@ Voir les [vues enregistrées de la mémoire](graph-views.md).
 1. Open **Memory graph**.
 2. Use **Overview** for the wider map, **Focus** around one entity, or **Dependencies** around related products.
 3. Keep **Navigate** selected and click a node.
-4. Read its summary, linked information, tasks, sources, and relationships in the detail panel.
+4. Read its summary, linked information, tasks, sources, and relationships in the detail window.
 5. Use the search field or filters when the graph is busy.
 
 When the selected entity has a Markdown page, **Open Markdown** opens its main page directly in the VS Code editor. Use the **Content** tab to open a specific page when the entity has several. The button is hidden when there is no page available or the active context does not allow access to its file.
 
-You can add or edit entities and relationships from **Settings → Runtime actions → Knowledge**. Deleting or merging can affect several linked items, so read the confirmation carefully.
+You can add or edit entities and relationships from **Settings → Actions et diagnostics → Knowledge**. Deleting or merging can affect several linked items, so read the confirmation carefully.
+
+The graph and memory table use the full page width. A node click in Navigate mode, or **Fiche** in the table, opens a large detail window. Close it with **Fermer** or Escape to return to the same view. Unsaved edits are protected. Context selection stays directly on the graph without opening a detail window.
 
 ## Keep the graph useful
 

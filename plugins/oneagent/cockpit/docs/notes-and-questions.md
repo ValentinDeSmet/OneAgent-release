@@ -15,6 +15,8 @@ The note is stored locally and indexed for search. Saving it does not start AI a
 
 In VS Code Chat, use `@memory /note Your note text` to save a note immediately under **General**. In Agent mode, ask to save a note in OneAgent Notes; the **Create OneAgent Note** tool can attach it to an existing entity when you specify one. Both paths make the note visible in **Notes** without starting analysis. You can classify it later. A strict context requires full source access; with several selected entities, specify the note's primary entity.
 
+Notes use the full page width. Selecting a note or **+ Note** opens a large editing window. Refreshes preserve the draft; **Close** or Escape protects unsaved changes. The window closes after a confirmed save; errors leave the draft available.
+
 ## Bring it back at the right time
 
 - Select **Show in Today** for a note that needs follow-up.

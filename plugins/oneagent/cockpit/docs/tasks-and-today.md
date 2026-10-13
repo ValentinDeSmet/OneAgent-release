@@ -14,6 +14,8 @@ Tasks record actions. Today brings the most relevant actions, questions, reviews
 
 Entity links make the task visible in the right entity workspace and allow focused filtering. Use a precise relationship such as **blocked by**, **needed for**, or **supports** when it adds meaning.
 
+The task board uses the full page width. Click a card (or press Enter on a focused card) to open its full detail window. Long descriptions are shortened on the board and remain complete in the editor. Background refreshes preserve edits; closing or pressing Escape asks you to save or explicitly discard unsaved changes. A successful save closes the window and returns focus to the board.
+
 ## Organize the task board
 
 Use the linked-entity filter to focus on one or more subjects. You can also group tasks by their linked entities and move their status as work progresses.
@@ -27,7 +29,7 @@ Use the linked-entity filter to focus on one or more subjects. You can also grou
 
 Ordinary tasks stay outside **Priorités**, even with a high urgency or a deadline.
 The list contains only requests created there and tasks explicitly added to it.
-To follow an existing personal task, save any edits in its Tasks detail panel,
+To follow an existing personal task, save any edits in its Tasks detail window,
 then choose **Ajouter aux priorités**. Its existing entity is reused when unambiguous;
 otherwise choose an existing entity. This keeps the same task, all its fields and
 links. **Retirer des priorités** leaves the underlying task available in Tasks.

@@ -27,7 +27,7 @@ function createMemoryExplorer(api, createMemoryTable) {
     if (clean.sort !== "title" && !clean.columns.includes(clean.sort)) clean.columns.push(clean.sort);
     return clean;
   };
-  let config = defaults(), lastFocus, facetCount = 100, newViewMode;
+  let config = defaults(), facetCount = 100, newViewMode;
   let cachedIndex, cachedGraph, cachedEntries, entryById = new Map();
   const names = { markdown: 'Markdown', google_sheet: 'Google Sheets', google_doc: 'Google Docs', linked_document: 'Document lié', source: 'Source', note: 'Note', task: 'Tâche', product: 'Produit', team: 'Équipe', person: 'Personne', feature: 'Fonctionnalité', feature_request: 'Demande', project: 'Projet', repository: 'Dépôt', decision: 'Décision', question: 'Question', risk: 'Risque' };
   const label = kind => names[kind] || api.typeLabel(kind) || kind.replace(/_/g, ' ');
@@ -50,14 +50,10 @@ function createMemoryExplorer(api, createMemoryTable) {
   $('.memory-graph-options', head).append(oldToolbar);
   $('.memory-graph-options', head).append($('#graphHiddenModeToggle'));
   const list = document.createElement('section'); list.id = 'memoryList'; list.setAttribute('aria-label', 'Tableau de la mémoire'); stage.append(list);
-  const close = document.createElement('button'); close.type = 'button'; close.id = 'memoryCloseDetail'; close.className = 'memory-button'; close.textContent = '← Retour aux résultats'; $('.side-graph .side-head').prepend(close);
-  const restoreFocus = () => { if (lastFocus?.isConnected) lastFocus.focus(); else $('.memory-title', list)?.focus(); };
-  close.addEventListener('click', () => { content.classList.remove('memory-detail-open'); restoreFocus(); });
-  function openDetail() { lastFocus = document.activeElement; content.classList.add('memory-detail-open'); if (config.layout === 'list' || window.matchMedia('(max-width: 1180px)').matches) close.focus(); }
   function closeMenus() { head.querySelectorAll('details[open]').forEach(menu => { menu.open = false; }); }
   head.querySelectorAll('details').forEach(menu => menu.addEventListener('toggle', () => { if (menu.open) head.querySelectorAll('details[open]').forEach(other => { if (other !== menu) other.open = false; }); }));
   document.addEventListener('click', event => { if (!head.contains(event.target)) closeMenus(); });
-  document.addEventListener('keydown', event => { if (event.key !== 'Escape') return; const menu = $('details[open]', head); if (menu) { menu.open = false; $('summary', menu).focus(); } else if (content.classList.contains('memory-detail-open')) { content.classList.remove('memory-detail-open'); restoreFocus(); } });
+  document.addEventListener('keydown', event => { if (event.key !== 'Escape') return; const menu = $('details[open]', head); if (menu) { menu.open = false; $('summary', menu).focus(); } });
   $('#memoryNewView').addEventListener('click', () => createView());
   $('#memoryResetAll').addEventListener('click', api.reset);
   $('#memoryResetFilters').addEventListener('click', () => {
@@ -74,7 +70,7 @@ function createMemoryExplorer(api, createMemoryTable) {
     if (action === 'file' || action === 'url') return api.open({ ...entry, id: action === 'file' ? entry.fileEntryId || entry.id : entry.urlEntryId || entry.id }, action);
     if (entry.taskId) return api.task(entry.taskId);
     if (entry.noteId && api.note(entry.noteId) !== false) return;
-    openDetail(); api.inspect(entry);
+    api.inspect(entry);
   }
   const dialog = document.createElement('dialog'); dialog.className = 'memory-view-dialog'; dialog.setAttribute('aria-labelledby', 'memoryViewDialogTitle');
   dialog.innerHTML = '<form id="memoryViewForm"><h2 id="memoryViewDialogTitle">Nouvelle vue</h2><label>Nom<input class="control" id="memoryViewName" required maxlength="120" placeholder="Ex. Documents DKT FF"></label><fieldset><legend>Affichage de la vue</legend><label><input type="radio" name="memoryViewLayout" value="list" checked><span><strong>☷ Tableau</strong><small>Rechercher, filtrer et ouvrir les documents</small></span></label><label><input type="radio" name="memoryViewLayout" value="graph"><span><strong>⌘ Graphe</strong><small>Explorer les relations entre les éléments</small></span></label></fieldset><p class="memory-muted" id="memoryViewDialogHint"></p><div class="memory-dialog-actions"><button type="button" class="memory-button" id="memoryViewCancel">Annuler</button><button type="submit" class="memory-button primary">Créer la vue</button></div></form>';
@@ -216,8 +212,8 @@ function createMemoryExplorer(api, createMemoryTable) {
   const resize = () => topbar.style.setProperty('--memory-header-bottom', topbar.getBoundingClientRect().bottom+'px');
   if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resize).observe(topbar);
   window.addEventListener('resize', resize); resize();
-  return { render, refreshViews, sanitize, createView, defaults, snapshot: () => sanitize(config), apply(value) { config=sanitize(value);table.reset();content.classList.remove('memory-detail-open'); },
-    openDetail, setActive(active) { content.classList.toggle('memory-active',active); if (!active) { content.classList.remove('memory-detail-open'); table.closeMenu(); } },
+  return { render, refreshViews, sanitize, createView, defaults, snapshot: () => sanitize(config), apply(value) { config=sanitize(value);table.reset(); },
+    setActive(active) { content.classList.toggle('memory-active',active); if (!active) {  table.closeMenu(); } },
     isList: () => config.layout === 'list',
     matchesNode(node) { const ref=api.entityRef(node); entries(); const entry=entryById.get(ref ? 'entity:'+ref : node.id) || { kind: node.type, refs: [], title: node.label }; return matches(entry); }
   };

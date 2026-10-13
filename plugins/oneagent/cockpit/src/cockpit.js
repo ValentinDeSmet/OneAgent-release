@@ -5,6 +5,7 @@ const memoryExplorerCss = ["memory-explorer.css", "table-view.css"].map(name => 
 const { prioritiesBootstrap } = require("./priorities-view.js");
 const { documentReviewBootstrap } = require("./inbox-documents.js");
 const { createInboxReviewWindow } = require("./inbox-review-window.js");
+const { createDetailWindows } = require("./detail-windows.js");
 
 function renderCockpitHtml(payload, assets = {}) {
   const data = JSON.stringify(payload).replace(/</g, "\\u003c");
@@ -370,46 +371,13 @@ function renderCockpitHtml(payload, assets = {}) {
       .operation.warning { border-color: rgba(226,200,111,0.45); color: var(--yellow); }
       .operation.error { border-color: rgba(237,106,115,0.45); color: var(--red); }
       .content {
-        --side-width: 352px;
         display: grid;
-        grid-template-columns: minmax(420px, 1fr) 10px minmax(300px, var(--side-width));
+        grid-template-columns: minmax(0, 1fr);
         grid-template-rows: minmax(0, 1fr);
         min-height: 0;
       }
       .content.side-hidden { grid-template-columns: minmax(0, 1fr); }
-      .content.side-hidden .side-resizer,
-      .content.side-hidden .side { display: none; }
       .stage { position: relative; overflow: hidden; min-width: 0; min-height: 0; }
-      .side-resizer {
-        position: relative;
-        z-index: 15;
-        min-width: 10px;
-        border-left: 1px solid var(--border);
-        border-right: 1px solid transparent;
-        background: linear-gradient(90deg, transparent, var(--surface), transparent);
-        cursor: col-resize;
-        touch-action: none;
-      }
-      .side-resizer::after {
-        content: "";
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 3px;
-        height: 42px;
-        border-left: 1px solid var(--dim);
-        border-right: 1px solid var(--dim);
-        opacity: 0.42;
-        transform: translate(-50%, -50%);
-      }
-      .side-resizer:hover,
-      .side-resizer.dragging {
-        background: var(--accent-soft-bg);
-        border-left-color: var(--accent-soft-border);
-        border-right-color: var(--accent-soft-border);
-      }
-      .side-resizer:hover::after,
-      .side-resizer.dragging::after { opacity: 0.82; }
       .panel { display: none; height: 100%; }
       .panel.active { display: block; }
       .graph-stage { position: relative; width: 100%; height: 100%; min-height: 100%; }
@@ -718,18 +686,21 @@ function renderCockpitHtml(payload, assets = {}) {
       .note-toolbar .control { width: 100%; background: var(--overlay); }
       .note-empty { padding: 18px; border: 1px dashed var(--border); border-radius: 8px; color: var(--muted); font-size: 12px; text-align: center; }
       .note-body { min-height: 220px !important; }
-      .side { display: grid; grid-auto-rows: max-content; align-content: start; gap: 12px; min-width: 0; min-height: 0; padding: 14px; background: var(--side-bg); overflow-y: auto; }
-      .side.tasks-mode, .side.notes-mode, .side.settings-mode { grid-template-rows: minmax(0, 1fr); overflow: hidden; }
-      .side:not(.map-mode) .side-graph { display: none; }
-      .side:not(.tasks-mode) .side-task { display: none; }
-      .side:not(.notes-mode) .side-notes { display: none; }
-      .side:not(.settings-mode) .side-settings { display: none; }
-      .side.tasks-mode .side-task, .side.notes-mode .side-notes, .side.settings-mode .side-settings { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
       .side-card { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); overflow: hidden; }
       .side-head { display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 11px; border-bottom: 1px solid var(--border); }
       .side-head h2 { margin: 0; color: var(--muted); font-size: 12px; text-transform: uppercase; }
       .side-body { padding: 12px; }
-      .side-task .side-body, .side-notes .side-body, .side-settings .side-body { min-height: 0; overflow: auto; padding: 16px; }
+      .detail-window .side-card { border: 0; background: transparent; }
+      .detail-window .side-head { padding: 0 0 12px; }
+      .detail-window .side-body { padding: 16px 0 0; }
+      .detail-window [data-detail-pane] > .side-head h2 { display: none; }
+      .detail-window .metrics { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+      .inbox-review-footer:has(#detailWindowNotice:empty) { display: none; }
+      #tasks .task { min-width: 0; overflow-wrap: anywhere; }
+      #tasks .task > span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+      #tasks .task strong { overflow-wrap: anywhere; }
+      #tasks .title-row { flex-wrap: wrap; align-items: center; }
+      #tasks .task-view-controls { flex-wrap: wrap; }
       .detail-title { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
       .detail-title b { font-size: 16px; }
       .detail-title span, .summary { color: var(--muted); font-size: 12px; }
@@ -1212,7 +1183,6 @@ function renderCockpitHtml(payload, assets = {}) {
           overflow-x: auto;
         }
         .content { grid-template-columns: 1fr; grid-template-rows: none; }
-        .side-resizer { display: none; }
         .stage {
           overflow: visible;
         }
@@ -1250,25 +1220,6 @@ function renderCockpitHtml(payload, assets = {}) {
         }
         .proposal-actions {
           justify-content: flex-start;
-        }
-        .side,
-        .side.tasks-mode,
-        .side.notes-mode,
-        .side.settings-mode {
-          grid-template-rows: auto;
-          overflow: visible;
-          border-left: 0;
-          border-top: 1px solid var(--border);
-        }
-        .side.tasks-mode .side-task,
-        .side.notes-mode .side-notes,
-        .side.settings-mode .side-settings {
-          grid-template-rows: auto;
-        }
-        .side-task .side-body,
-        .side-notes .side-body,
-        .side-settings .side-body {
-          overflow: visible;
         }
         .note-toolbar {
           grid-template-columns: 1fr;
@@ -1400,9 +1351,13 @@ function renderCockpitHtml(payload, assets = {}) {
             <section class="panel list-panel" data-panel="workspace"><div id="workspace"></div></section>
             <section class="panel list-panel" data-panel="today"><div id="today"></div></section>
           </section>
-          <div class="side-resizer" id="sideResizer" role="separator" aria-orientation="vertical" title="Resize detail panel"></div>
-          <aside class="side">
-            <section class="side-card side-graph">
+
+        </div>
+      </section>
+      <dialog id="detailWindow" class="inbox-review-dialog detail-window" aria-labelledby="detailWindowTitle">
+        <header class="inbox-review-header"><h2 id="detailWindowTitle">Détail</h2><button type="button" class="action" id="detailWindowClose">Fermer ×</button></header>
+        <div class="inbox-review-body"><div class="detail-panes">
+            <section class="side-card side-graph" data-detail-pane="map" hidden>
               <div class="side-head"><h2>Selection</h2><span class="chip"><i class="dot" id="detailDot"></i><span id="detailType">none</span></span></div>
               <div class="side-body">
                 <div id="detailLegacy">
@@ -1413,21 +1368,21 @@ function renderCockpitHtml(payload, assets = {}) {
                 <div id="detailExtra"></div>
               </div>
             </section>
-            <section class="side-card side-task">
+            <section class="side-card side-task" data-detail-pane="tasks" hidden>
               <div class="side-head"><h2>Task Detail</h2><span class="chip" id="taskDetailStatus">none</span></div>
               <div class="side-body" id="taskDetail"></div>
             </section>
-            <section class="side-card side-notes">
+            <section class="side-card side-notes" data-detail-pane="notes" hidden>
               <div class="side-head"><h2>Note</h2><span class="chip" id="noteDetailStatus">none</span></div>
               <div class="side-body" id="noteDetail"></div>
             </section>
-            <section class="side-card side-settings">
+            <section class="side-card side-settings" data-detail-pane="settings" hidden>
               <div class="side-head"><h2>Runtime Actions</h2><span class="chip">local</span></div>
               <div class="side-body" id="settingsDetail"></div>
             </section>
-          </aside>
-        </div>
-      </section>
+          </div></div>
+        <footer class="inbox-review-footer"><span id="detailWindowNotice" role="status"></span><button type="button" class="action" id="detailWindowDiscard" hidden>Abandonner les modifications et fermer</button></footer>
+      </dialog>
       <dialog id="inboxReviewDialog" class="inbox-review-dialog" aria-labelledby="inboxReviewTitle">
         <header class="inbox-review-header"><div><h2 id="inboxReviewTitle">Relecture de la proposition</h2><span class="chip" id="inboxDetailStatus">none</span></div><button type="button" class="action" id="inboxCloseReview" aria-label="Fermer la relecture">Fermer ×</button></header>
         <div id="inboxDetail" class="inbox-review-body"></div>
@@ -1501,7 +1456,6 @@ function renderCockpitHtml(payload, assets = {}) {
       const curationPackageDetailCache = {};
       let draggingTaskId = undefined;
       let taskPointerDrag = undefined;
-      let sideResizeDrag = undefined;
       let graphResizeFrame = undefined;
       let suppressTaskClick = false;
       let taskGroupMode = "status";
@@ -1758,6 +1712,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       window.addEventListener("message", (event) => {
+        if (detailWindows.receive(event.data)) return;
         if (event.data?.type === "state") {
           const previousNodeId = selectedNodeId;
           const previousGraph = state?.graph;
@@ -1779,9 +1734,9 @@ function renderCockpitHtml(payload, assets = {}) {
           cockpitTheme = (typeof state.cockpitTheme === "string" && state.cockpitTheme) ? state.cockpitTheme : "dark";
           applyCockpitTheme();
           if (!contextScopeDraftDirty) initContextScopeFromState();
-          selectedNodeId = undefined;
-          if (!findTask(selectedTaskId)) selectedTaskId = undefined;
-          if (selectedNoteId !== "__new__" && !findManualNote(selectedNoteId)) selectedNoteId = undefined;
+          if (!detailWindows.dirty("map") && !detailWindows.busy("map")) selectedNodeId = undefined;
+          if (!detailWindows.isOpen("tasks") && !findTask(selectedTaskId)) selectedTaskId = undefined;
+          if (!detailWindows.isOpen("notes") && selectedNoteId !== "__new__" && !findManualNote(selectedNoteId)) selectedNoteId = undefined;
           if (!findInboxItem(selectedInboxId)) selectedInboxId = undefined;
           if (!findCurationPackage(selectedCurationPackageId)) selectedCurationPackageId = undefined;
           const graphDelta = computeGraphDelta(previousGraph, state.graph);
@@ -1791,7 +1746,7 @@ function renderCockpitHtml(payload, assets = {}) {
           }
           render();
           renderContextScopePanel();
-          if (previousNodeId) {
+          if (previousNodeId && detailWindows.isOpen("map") && !detailWindows.dirty("map") && !detailWindows.busy("map")) {
             const stillThere = (state.graph?.nodes || []).find((node) => node.id === previousNodeId);
             if (stillThere) selectNode(stillThere, { restore: true });
           }
@@ -2215,7 +2170,6 @@ function renderCockpitHtml(payload, assets = {}) {
       document.addEventListener("mouseup", (event) => {
         finishTaskPointerDrag(event);
       });
-      initSideResize();
 
       ${prioritiesBootstrap()}
       ${documentReviewBootstrap()}
@@ -2226,6 +2180,22 @@ function renderCockpitHtml(payload, assets = {}) {
         discardDraft: () => documentReview.discard(reviewWindowItemId),
         onClose: () => { selectedInboxId = undefined; selectedCurationPackageId = undefined; reviewWindowItemId = undefined; selectedObservationReviewIds.clear(); renderInbox(); }
       });
+
+      const detailWindows = (${createDetailWindows.toString()})({ document, onClose: kind => {
+        if (kind === "tasks") { selectedTaskId = undefined; document.querySelector("#taskDetail").replaceChildren(); renderTasks(); }
+        if (kind === "notes") { selectedNoteId = undefined; const root = document.querySelector("#noteDetail"); root.replaceChildren(); delete root.dataset.manualNoteEditorId; delete root.dataset.manualNoteEditorVersion; root.dataset.manualNoteEditorDirty = "false"; renderNotes(); }
+        if (kind === "map") { selectedNodeId = undefined; selectedRelationId = undefined; entityPanelUi.editing = false; entityPanelUi.composerOpen = false; document.querySelector("#detailExtra").replaceChildren(); }
+        if (kind === "settings") document.querySelector("#settingsDetail").replaceChildren();
+      }});
+      const submitDetail = message => detailWindows.submit(message, value => vscode?.postMessage(value));
+      function openTaskDetail(id) {
+        if (!detailWindows.open("tasks", id, id === "__new__" ? "Nouvelle tâche" : "Tâche")) return;
+        selectedTaskId = id; renderTasks(); renderTaskDetail();
+      }
+      function openSettingsDetail() {
+        if (!detailWindows.open("settings", "actions", "Actions et diagnostics")) return;
+        renderSettingsDetail(); renderDiagnostics();
+      }
 
       function setActiveView(view) {
         activeCockpitView = view;
@@ -2243,12 +2213,7 @@ function renderCockpitHtml(payload, assets = {}) {
               ? state.graph.includedProductIds.join(" · ")
               : "No product configured";
         }
-        const side = document.querySelector(".side");
-        side.classList.toggle("map-mode", view === "map");
-        side.classList.toggle("tasks-mode", view === "tasks");
-        side.classList.toggle("notes-mode", view === "notes");
-        side.classList.toggle("settings-mode", view === "settings");
-        document.querySelector(".content").classList.toggle("side-hidden", !["map", "tasks", "notes", "settings"].includes(view));
+        document.querySelector(".content").classList.add("side-hidden");
         if (view === "notes") {
           renderNotes();
           renderNoteDetail();
@@ -2257,64 +2222,6 @@ function renderCockpitHtml(payload, assets = {}) {
           renderDocumentation();
           acknowledgeDocumentation();
         }
-      }
-
-      function initSideResize() {
-        const content = document.querySelector(".content");
-        const handle = document.querySelector("#sideResizer");
-        if (!content || !handle) return;
-        const saved = Number(localStorage.getItem("oneagent.sideWidth") || "");
-        if (Number.isFinite(saved) && saved > 0) {
-          setSideWidth(saved);
-        }
-        handle.addEventListener("pointerdown", (event) => {
-          if (event.button !== undefined && event.button !== 0) return;
-          event.preventDefault();
-          const rect = content.getBoundingClientRect();
-          sideResizeDrag = {
-            pointerId: event.pointerId,
-            contentRight: rect.right
-          };
-          handle.classList.add("dragging");
-          handle.setPointerCapture?.(event.pointerId);
-        });
-        handle.addEventListener("pointermove", (event) => {
-          if (!sideResizeDrag || sideResizeDrag.pointerId !== event.pointerId) return;
-          setSideWidth(sideResizeDrag.contentRight - event.clientX);
-        });
-        const finish = (event) => {
-          if (!sideResizeDrag || sideResizeDrag.pointerId !== event.pointerId) return;
-          handle.releasePointerCapture?.(event.pointerId);
-          handle.classList.remove("dragging");
-          sideResizeDrag = undefined;
-          const width = currentSideWidth();
-          if (width) localStorage.setItem("oneagent.sideWidth", String(width));
-        };
-        handle.addEventListener("pointerup", finish);
-        handle.addEventListener("pointercancel", finish);
-        window.addEventListener("resize", () => {
-          const width = currentSideWidth();
-          if (width) setSideWidth(width);
-        });
-      }
-
-      function currentSideWidth() {
-        const content = document.querySelector(".content");
-        if (!content) return undefined;
-        const raw = getComputedStyle(content).getPropertyValue("--side-width");
-        const value = Number(String(raw).replace("px", "").trim());
-        return Number.isFinite(value) ? value : undefined;
-      }
-
-      function setSideWidth(width) {
-        const content = document.querySelector(".content");
-        if (!content) return;
-        const rect = content.getBoundingClientRect();
-        const min = Math.min(300, Math.max(240, rect.width - 440));
-        const max = Math.max(min, rect.width - 440);
-        const next = Math.round(Math.max(min, Math.min(max, width)));
-        content.style.setProperty("--side-width", next + "px");
-        scheduleGraphResize();
       }
 
       function scheduleGraphResize() {
@@ -3823,7 +3730,6 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function selectNode(node, options) {
-        memoryExplorer?.openDetail();
         const opts = options || {};
         if (!opts.restore && graphSelectionMode === "context") {
           if (isVirtualTypeGroup(node)) {
@@ -3835,6 +3741,8 @@ function renderCockpitHtml(payload, assets = {}) {
             }
           }
         }
+        if (!opts.restore && graphSelectionMode === "context") { renderGraph(); return; }
+        if (!detailWindows.open("map", node.id, "Fiche de la mémoire")) return;
         selectedRelationId = undefined;
         selectedNodeId = node.id;
         document.querySelector("#detailType").textContent = graphViewType(node);
@@ -3857,14 +3765,14 @@ function renderCockpitHtml(payload, assets = {}) {
           document.querySelector("#detailExtra").innerHTML = renderNodeExtra(node);
           document.querySelectorAll("[data-detail-open]").forEach((button) => button.addEventListener("click", () => vscode?.postMessage({ type: "openFile", path: button.dataset.detailOpen })));
           bindGraphGroupDetailActions();
+          detailWindows.markClean("map");
         }
         renderFocusSelector();
         renderGraph();
       }
 
       function selectRelation(edge) {
-        memoryExplorer?.openDetail();
-        if (!edge) return;
+        if (!edge || !detailWindows.open("map", String(edge.id || graphRelationMenuTitle(edge)), "Relation")) return;
         selectedNodeId = undefined;
         selectedRelationId = String(edge.id || graphRelationMenuTitle(edge));
         setDetailLegacyVisible(true);
@@ -3878,6 +3786,7 @@ function renderCockpitHtml(payload, assets = {}) {
         document.querySelector("#detailDot").style.background = "var(--edge-default)";
         document.querySelector("#detailExtra").innerHTML = renderRelationExtra(edge);
         bindRelationDetailActions(edge);
+        detailWindows.markClean("map");
         renderFocusSelector();
         renderGraph();
       }
@@ -4815,7 +4724,8 @@ function renderCockpitHtml(payload, assets = {}) {
           '</div>';
       }
 
-      function renderEntityContext(ref) {
+      function renderEntityContext(ref, force = false) { detailWindows.render("map", () => renderEntityContextContent(ref), force); }
+      function renderEntityContextContent(ref) {
         const ctx = entityContextCache[ref];
         if (!ctx) {
           const extra = document.querySelector("#detailExtra");
@@ -4874,14 +4784,13 @@ function renderCockpitHtml(payload, assets = {}) {
             const discoveryTargetEndAt = document.querySelector("#ecDiscoveryTarget")?.value;
             const discoveryConcludedAt = document.querySelector("#ecDiscoveryConcluded")?.value;
             const discoveryConclusionCriteria = String(document.querySelector("#ecDiscoveryCriteria")?.value || "").split(/\\n/).map((value) => value.trim()).filter(Boolean);
-            vscode?.postMessage({ type: "updateGraphEntity", ref, label, kind, status, focusLevel, ownerIds, contributorIds, description, discoveryPhase, discoveryOutcome, discoveryStartedAt, discoveryTargetEndAt, discoveryConcludedAt, discoveryConclusionCriteria });
-            entityPanelUi.editing = false;
+            submitDetail({ type: "updateGraphEntity", ref, label, kind, status, focusLevel, ownerIds, contributorIds, description, discoveryPhase, discoveryOutcome, discoveryStartedAt, discoveryTargetEndAt, discoveryConcludedAt, discoveryConclusionCriteria });
           } else if (button.dataset.ec === "edit") {
             entityPanelUi.editing = true;
             renderEntityContext(ref);
           } else if (button.dataset.ec === "cancelEdit") {
             entityPanelUi.editing = false;
-            renderEntityContext(ref);
+            renderEntityContext(ref, true);
           } else if (button.dataset.ec === "toggleDesc") {
             entityPanelUi.descExpanded = !entityPanelUi.descExpanded;
             renderEntityContext(ref);
@@ -4915,14 +4824,13 @@ function renderCockpitHtml(payload, assets = {}) {
             const relationType = typeSelect ? typeSelect.value : "";
             if (!picked || !relationType) return;
             const inbound = dirSelect && dirSelect.value === "in";
-            vscode?.postMessage({
+            submitDetail({
               type: "createRelation",
               source: inbound ? picked : ref,
               target: inbound ? ref : picked,
               relationType,
               description: descriptionField ? descriptionField.value : ""
             });
-            entityPanelUi.composerOpen = false;
           } else if (button.dataset.ec === "deleteRelation") {
             vscode?.postMessage({ type: "deleteGraphRelation", relationId: button.dataset.relationId, label: button.dataset.label, ref });
           }
@@ -4945,6 +4853,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function openEntityWorkspace(ref) {
+        if (detailWindows.isOpen("map") && !detailWindows.requestClose()) return;
         workspaceRef = ref;
         if (!entityContextCache[ref] && !entityContextFailures[ref]) requestEntityContext(ref);
         setActiveView("workspace");
@@ -4952,6 +4861,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function focusGraphOnEntity(ref) {
+        if (detailWindows.isOpen("map") && !detailWindows.requestClose()) return;
         const target = findGraphNodeForEntityRef(ref);
         const filterInput = document.querySelector("#filter");
         if (filterInput) filterInput.value = "";
@@ -4964,7 +4874,9 @@ function renderCockpitHtml(payload, assets = {}) {
           focusedNodeId = target.id;
           renderLegend();
           renderGraphFilterPanel();
-          selectNode(target);
+          selectedNodeId = target.id;
+          renderFocusSelector();
+          renderGraph();
           window.setTimeout(() => graphViewer?.focusSelected?.(), 80);
           return;
         }
@@ -5149,7 +5061,7 @@ function renderCockpitHtml(payload, assets = {}) {
           const target = document.querySelector("#relationEditTarget")?.value || "";
           const relationType = document.querySelector("#relationEditType")?.value || "";
           if (!payload?.relationId || !source || !target || !relationType || source === target) return;
-          vscode?.postMessage({
+          submitDetail({
             type: "updateGraphRelation",
             relationId: payload.relationId,
             originalSource,
@@ -6702,10 +6614,6 @@ function renderCockpitHtml(payload, assets = {}) {
         const entityOptions = taskEntityOptions(allTasks);
         pruneTaskEntityFilters(entityOptions);
         const tasks = allTasks.filter(matchesTaskEntityFilter);
-        if (selectedTaskId && selectedTaskId !== "__new__" && !tasks.some((task) => task.id === selectedTaskId)) {
-          selectedTaskId = tasks[0]?.id;
-        }
-        if (!selectedTaskId && tasks.length) selectedTaskId = tasks[0].id;
         const controls = '<div class="task-view-controls">' +
           '<select class="control" id="taskGroupMode" title="Group tasks"><option value="status"' + (taskGroupMode === "status" ? " selected" : "") + '>Group: Status</option><option value="product"' + (taskGroupMode === "product" ? " selected" : "") + '>Group: Product</option><option value="entity"' + (taskGroupMode === "entity" ? " selected" : "") + '>Group: Linked entity</option><option value="entityType"' + (taskGroupMode === "entityType" ? " selected" : "") + '>Group: Entity type</option></select>' +
           renderTaskEntityFilter(entityOptions) +
@@ -6717,9 +6625,7 @@ function renderCockpitHtml(payload, assets = {}) {
         });
         bindTaskEntityFilter(entityOptions);
         document.querySelector("#addTask").addEventListener("click", () => {
-          selectedTaskId = "__new__";
-          renderTasks();
-          renderTaskDetail();
+          openTaskDetail("__new__");
         });
         bindTaskBoardInteractions();
       }
@@ -6758,17 +6664,13 @@ function renderCockpitHtml(payload, assets = {}) {
             event.stopPropagation();
             return;
           }
-          selectedTaskId = card.dataset.task;
-          renderTasks();
-          renderTaskDetail();
+          openTaskDetail(card.dataset.task);
         }));
         document.querySelectorAll("[data-task]").forEach((card) => {
           card.addEventListener("keydown", (event) => {
             if (event.key !== "Enter" && event.key !== " ") return;
             event.preventDefault();
-            selectedTaskId = card.dataset.task;
-            renderTasks();
-            renderTaskDetail();
+            openTaskDetail(card.dataset.task);
           });
           card.addEventListener("pointerdown", (event) => {
             if (event.button !== 0) return;
@@ -6891,7 +6793,8 @@ function renderCockpitHtml(payload, assets = {}) {
         return '<article class="task' + selected + '" data-task="' + escapeAttr(task.id) + '" role="button" tabindex="0"><strong>' + escapeHtml(task.title) + '</strong><span>' + escapeHtml(task.body || task.source || task.status || "") + '</span><div class="task-meta"><span class="badge priority-' + escapeAttr(priority) + '">' + escapeHtml(priority) + '</span><span class="badge assignee-' + escapeAttr(assignee) + '">' + escapeHtml(assignee === "agent" ? "agent" : "me") + '</span><span class="badge">' + escapeHtml(deadline) + '</span>' + (linkCount ? '<span class="badge">' + linkCount + ' links</span>' : '') + (task.inPriorities ? '<span class="badge">Dans les priorités</span>' : '') + '</div></article>';
       }
 
-      function renderTaskDetail() {
+      function renderTaskDetail() { detailWindows.render("tasks", renderTaskDetailContent); }
+      function renderTaskDetailContent() {
         if (selectedTaskId === "__new__") {
           renderNewTaskDetail();
           return;
@@ -6945,7 +6848,7 @@ function renderCockpitHtml(payload, assets = {}) {
           vscode?.postMessage({ type: "setTaskPriorityMembership", id: task.id, revision: task.priorityRevision, inPriorities: !task.inPriorities });
         });
         document.querySelector("#saveTask").addEventListener("click", () => {
-          vscode?.postMessage({
+          submitDetail({
             type: "updateTask",
             id: task.id,
             title: document.querySelector("#taskTitle").value || "none",
@@ -6959,7 +6862,7 @@ function renderCockpitHtml(payload, assets = {}) {
           });
         });
         document.querySelector("#archiveTask").addEventListener("click", () => {
-          vscode?.postMessage({ type: "deleteTask", id: task.id });
+          submitDetail({ type: "deleteTask", id: task.id });
         });
       }
 
@@ -6981,9 +6884,7 @@ function renderCockpitHtml(payload, assets = {}) {
         bindMenus(document.querySelector("#taskDetail"));
         bindTaskLinkSelector("new");
         document.querySelector("#cancelNewTask").addEventListener("click", () => {
-          selectedTaskId = undefined;
-          renderTasks();
-          renderTaskDetail();
+          detailWindows.requestClose();
         });
         document.querySelector("#createTask").addEventListener("click", () => {
           const title = document.querySelector("#newTaskTitle").value.trim();
@@ -6991,7 +6892,7 @@ function renderCockpitHtml(payload, assets = {}) {
             document.querySelector("#newTaskTitle").focus();
             return;
           }
-          vscode?.postMessage({
+          submitDetail({
             type: "createTask",
             title,
             body: document.querySelector("#newTaskBody").value || "",
@@ -7223,9 +7124,6 @@ function renderCockpitHtml(payload, assets = {}) {
           noteEntityFilter = "all";
         }
         const notes = allNotes.filter(manualNoteMatchesFilters);
-        if (selectedNoteId && selectedNoteId !== "__new__" && !notes.some((note) => note.id === selectedNoteId)) {
-          selectedNoteId = notes[0]?.id;
-        }
         const entityFilterHtml = '<select class="control" id="noteEntityFilter" aria-label="Filter notes by entity"><option value="all">All entities</option>' +
           entityOptions.map((entry) => '<option value="' + escapeAttr(entry.ref) + '"' + (noteEntityFilter === entry.ref ? " selected" : "") + '>' + escapeHtml(entry.label) + '</option>').join("") +
           '</select>';
@@ -7270,6 +7168,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function openNewManualNote(primary) {
+        if (!detailWindows.open("notes", "__new__", "Nouvelle note")) return;
         const entities = manualNoteWritableEntities();
         const available = new Set(entities.map((entity) => entity.kind + ":" + entity.id));
         noteDraftEntityRef = primary && available.has(primary)
@@ -7285,6 +7184,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function selectManualNote(id) {
+        if (!detailWindows.open("notes", id, "Note")) return;
         selectedNoteId = id;
         renderNotes();
         renderNoteDetail();
@@ -7337,7 +7237,8 @@ function renderCockpitHtml(payload, assets = {}) {
           '</div></div>';
       }
 
-      function renderNoteDetail() {
+      function renderNoteDetail() { detailWindows.render("notes", renderNoteDetailContent); }
+      function renderNoteDetailContent() {
         const root = document.querySelector("#noteDetail");
         const statusChip = document.querySelector("#noteDetailStatus");
         if (!root || !statusChip) return;
@@ -7443,9 +7344,7 @@ function renderCockpitHtml(payload, assets = {}) {
         });
         syncTodayControl();
         document.querySelector("#cancelManualNote")?.addEventListener("click", () => {
-          selectedNoteId = creating ? undefined : note.id;
-          renderNotes();
-          renderNoteDetail();
+          detailWindows.requestClose();
         });
         document.querySelector("#saveManualNote")?.addEventListener("click", (event) => {
           const content = document.querySelector("#" + prefix + "Content")?.value || "";
@@ -7458,9 +7357,7 @@ function renderCockpitHtml(payload, assets = {}) {
           const contentType = document.querySelector("#" + prefix + "Type")?.value === "question" ? "question" : "note";
           const attention = Boolean(document.querySelector("#" + prefix + "Attention")?.checked);
           const tags = manualNoteEditorTags(note, attention, contentType);
-          event.currentTarget.disabled = true;
-          event.currentTarget.textContent = "Saving...";
-          vscode?.postMessage({
+          submitDetail({
             type: creating ? "createManualNote" : "updateManualNote",
             id: note?.id,
             expectedUpdatedAt: note?.updatedAt,
@@ -8662,7 +8559,7 @@ function renderCockpitHtml(payload, assets = {}) {
         const counts = diagnostics.counts || {};
         const version = state.extensionVersion || "unknown";
         document.querySelector("#settings").innerHTML =
-          '<div class="title-row"><div><h1>Settings</h1><p>Runtime health and cockpit configuration.</p></div><span class="chip">local-first</span></div>' +
+          '<div class="title-row"><div><h1>Settings</h1><p>Runtime health and cockpit configuration.</p></div><button class="action" id="openRuntimeActions">Actions et diagnostics</button></div>' +
           '<div class="list-grid">' +
           '<article class="settings-card"><strong>Version</strong><span>OneAgent ' + escapeHtml(version) + '</span><span>Installed extension package</span><div class="proposal-actions"><button class="action" data-setting-action="checkForUpdates">Check for updates</button></div></article>' +
           '<article class="settings-card"><strong>Help & guides</strong><span>Built-in, searchable documentation</span><span>Ingestion, Graph, views, agent context, Context Packs, notes and local search.</span><div class="proposal-actions"><button class="action" data-help-guide="start">Open help</button><button class="action" data-help-guide="local-ai">Local search</button></div></article>' +
@@ -8670,11 +8567,12 @@ function renderCockpitHtml(payload, assets = {}) {
           '<article class="settings-card"><strong>Storage</strong><span>' + escapeHtml((counts.sources || 0) + " sources · " + (counts.chunks || 0) + " chunks") + '</span><span>' + escapeHtml(diagnostics.databasePath || "No database path") + '</span></article>' +
           '<article class="settings-card"><strong>Scope</strong><span>' + escapeHtml(graph.scope || "portfolio") + '</span><span>' + escapeHtml((graph.includedProductIds || []).join(" · ") || "No product configured") + '</span></article>' +
           '<article class="settings-card"><strong>Graph</strong><span>' + escapeHtml((graph.nodes || []).length + " nodes · " + (graph.edges || []).length + " edges") + '</span><span>Graphify diagnostics: ' + escapeHtml((graph.diagnostics || []).length) + '</span></article>' +
-          '<article class="settings-card"><strong>Quick actions</strong><span>Common actions — the full grouped set is in Runtime actions →</span><div class="proposal-actions"><button class="action" data-setting-action="upsertEntity">Add entity</button><button class="action" data-setting-action="showCaptureForm">Capture memory</button><button class="action" data-setting-action="refresh">Refresh</button></div></article>' +
+          '<article class="settings-card"><strong>Quick actions</strong><span>Common actions — use Actions et diagnostics for the complete set</span><div class="proposal-actions"><button class="action" data-setting-action="upsertEntity">Add entity</button><button class="action" data-setting-action="showCaptureForm">Capture memory</button><button class="action" data-setting-action="refresh">Refresh</button></div></article>' +
           '</div>' +
           '<section class="settings-section"><div class="side-head"><h2>Taxonomy</h2><span class="chip">workspace</span></div><div class="side-body" id="taxonomyBody"></div></section>' +
           '<section class="settings-section"><div class="side-head"><h2>Agent context</h2><span class="chip" id="contextScopeStatus">off</span></div><div class="side-body" id="contextScopeBody"></div></section>';
         bindSettingsActions(document.querySelector("#settings"));
+        document.querySelector("#openRuntimeActions").addEventListener("click", openSettingsDetail);
         renderTaxonomy();
       }
 
@@ -8964,6 +8862,10 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function renderSettingsDetail() {
+        if (document.querySelector("#captureContent")) return;
+        detailWindows.render("settings", renderSettingsDetailContent);
+      }
+      function renderSettingsDetailContent() {
         const version = state.extensionVersion || "unknown";
         const diagnostics = state.diagnostics || {};
         const counts = diagnostics.counts || {};
@@ -9013,6 +8915,7 @@ function renderCockpitHtml(payload, assets = {}) {
               renderCaptureForm();
               return;
             }
+            if (detailWindows.isOpen("settings") && !detailWindows.requestClose()) return;
             vscode?.postMessage({ type: button.dataset.settingAction });
           });
         });
@@ -9046,6 +8949,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function renderCaptureForm(prefillPrimary) {
+        if (!detailWindows.open("settings", "capture", "Capturer une information")) return;
         const entities = captureEntities();
         const related = [];
         const primaryDefault = prefillPrimary || "oneagent:oneagent";
@@ -9059,16 +8963,17 @@ function renderCockpitHtml(payload, assets = {}) {
           entityMenuHtml("captureRelEntity", "Entity", entities, (entities[0] ? entities[0].kind + ":" + entities[0].id : "oneagent:oneagent")) +
           customMenuHtml("captureRelType", "Relation", CAPTURE_RELATION_TYPES, "related_to") +
           '<div class="detail-actions"><button class="action" id="addRelated">Add related entity</button></div>' +
-          '<div class="chips" id="relatedChips"></div>' +
+          '<input type="hidden" id="captureRelated" value="[]"><div class="chips" id="relatedChips"></div>' +
           '<div class="field"><label>Title optional</label><input id="captureTitle" maxlength="180" placeholder="Auto-generated from the pasted content if empty"></div>' +
           '<div class="field"><label>Tags comma-separated</label><input id="captureTags" placeholder="fulfillment, routing"></div>' +
           '<div class="field"><label>Content</label><textarea id="captureContent" maxlength="250000" placeholder="Paste a transcript, Confluence page, Slack thread, flow description, idea, note or research here."></textarea></div>' +
-          '<div class="detail-actions"><button class="action" data-setting-action="refresh">Cancel</button><button class="action" id="saveCapture">Save and ingest</button></div>' +
+          '<div class="detail-actions"><button class="action" id="cancelCapture">Cancel</button><button class="action" id="saveCapture">Save and ingest</button></div>' +
           '</div>';
         bindMenus(document.querySelector("#settingsDetail"));
         bindSettingsActions(document.querySelector("#settingsDetail"));
 
         function renderRelatedChips() {
+          document.querySelector("#captureRelated").value = JSON.stringify(related);
           document.querySelector("#relatedChips").innerHTML = related.map((item, index) =>
             '<span class="chip">' + escapeHtml(item.ref) + ' · ' + escapeHtml(item.relation) + ' <button type="button" class="chip-x" data-rmrel="' + index + '" aria-label="remove">×</button></span>'
           ).join("");
@@ -9094,12 +8999,7 @@ function renderCockpitHtml(payload, assets = {}) {
             document.querySelector("#captureContent").focus();
             return;
           }
-          document.querySelector("#settingsDetail").innerHTML =
-            '<div class="task-detail">' +
-            '<div class="detail-title"><b>Capture queued</b><span>ingesting</span></div>' +
-            '<p class="summary">OneAgent is saving and ingesting this capture. The Sources and graph panels will update when ingestion finishes.</p>' +
-            '</div>';
-          vscode?.postMessage({
+          submitDetail({
             type: "captureGeneric",
             contentType: document.querySelector("#captureType").value,
             primary: document.querySelector("#capturePrimary").value,
@@ -9109,6 +9009,8 @@ function renderCockpitHtml(payload, assets = {}) {
             content
           });
         });
+        document.querySelector("#cancelCapture").addEventListener("click", () => detailWindows.requestClose());
+        detailWindows.markClean("settings");
       }
 
       function deriveCaptureTitle(content) {
@@ -9560,7 +9462,7 @@ function renderCockpitHtml(payload, assets = {}) {
           };
           selectNode(node, { restore: true });
         },
-        task: (id) => { setActiveView("tasks"); selectedTaskId = id; renderTasks(); renderTaskDetail(); },
+        task: (id) => { setActiveView("tasks"); openTaskDetail(id); },
         note: (id) => { if (!findManualNote(id)) return false; setActiveView("notes"); selectManualNote(id); return true; }
       }, (api) => (${createMemoryTable.toString()})(api, ${createTableColumns.toString()}));
       memoryExplorer.apply({ ...state.graphFilters?.memory, layout: activeGraphViewId ? state.graphFilters?.memory?.layout || "graph" : "list" });
