@@ -2,12 +2,14 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.24](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [GitHub Copilot 0.6.25](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 
-**Interface plus réactive (Copilot 0.6.24 / VS Code 0.1.146).** Les sauvegardes actualisent la page concernée sans recharger tout le cockpit. Les autres pages se remettent à jour à leur ouverture. Les déplacements de priorités apparaissent immédiatement ; les écritures sont confirmées dans l’ordre, sans reconstruire le tableau, avec conservation des accordéons. Un conflit remet l’affichage au dernier classement confirmé et annule les gestes encore en attente, sans réessai automatique.
+**Ma mission, entretiens et bilan (Copilot 0.6.25 / VS Code 0.1.147).** Une page commune pour les objectifs et résultats clés/KPIs, les changements de périmètre par versions datées, la préparation des EI et le bilan annuel. Les contributions hors mission conservent leur impact, leur date et leurs preuves ; elles sont reprises dans le bilan même sans objectif initial. Les champs sont enregistrés automatiquement avec protection des brouillons et révisions. Les propositions de rédaction Copilot restent à relire avant application, sans bloquer les sauvegardes. [Guide Mission et EI](docs/mission-and-interviews.md).
+
+Les sauvegardes actualisent la page concernée, et le classement des priorités réagit immédiatement.
 
 Les pages gardent toute leur largeur et ouvrent les fiches dans une grande fenêtre au clic. Les brouillons restent protégés.
 
