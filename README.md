@@ -2,8 +2,10 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.25](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [GitHub Copilot 0.6.26](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
+
+**Création d’entités depuis le chat (Copilot 0.6.26).** L’agent peut créer une étude avec sa propre page Markdown et la relier au produit demandé. Les types d’entités et de relations du workspace sont consultables ; les IDs existants et le contexte strict restent protégés. Une création explicitement demandée ne nécessite plus de remplacement par une note ni de création manuelle. [Guide Copilot](docs/copilot.md).
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 

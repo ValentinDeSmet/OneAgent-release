@@ -83,6 +83,8 @@ Voir le [guide de mise à jour et de transition](../apps/copilot-plugin/README.m
 
 ## Validation de l’hôte encore nécessaire
 
+Copilot 0.6.26 ajoute les outils MCP `oneagent_get_taxonomy`, `oneagent_create_entity`, `oneagent_list_relations` et `oneagent_upsert_relation`. Une demande explicite peut ainsi créer une étude avec sa page Markdown et la rattacher à un produit, sans création manuelle dans le cockpit. Le moteur est celui de VS Code ; il refuse les IDs existants, les relations vers des entités inexistantes et les écritures hors contexte strict. Les consignes du skill et du protocole décrivent ce parcours au lieu de limiter l’agent aux notes. Les tests reproduisent le scénario sur une mémoire temporaire et avec un paquet déplacé hors du checkout.
+
 Les tests locaux couvrent le serveur MCP, les paramètres JSONC, les conflits,
 la séquence de commandes natives, les échecs partiels, le build autonome et la
 publication via une API GitHub simulée. Ils n’installent aucun plugin personnel
