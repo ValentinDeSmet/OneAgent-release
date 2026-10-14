@@ -1,3 +1,4 @@
+import { careerTools, callCareerTool } from './career.ts';
 import type { Readable, Writable } from "node:stream";
 import { callMemoryTool, mcpTools } from "./tools.ts";
 import { MemoryConnection, setupTools, callSetupTool } from "./onboarding.ts";
@@ -15,7 +16,7 @@ const result = (id: unknown, value: unknown) => ({ jsonrpc: "2.0", id, result: v
 /** Tools-only MCP subset. No remote transport, roots discovery, sampling or global context. */
 export function createProtocolHandler(binding: string | MemoryConnection, updates = new PluginUpdates()) {
   const connection = typeof binding === "string" ? new MemoryConnection({ configPath: binding }) : binding;
-  const tools = [...setupTools, ...mcpTools, ...priorityTools, ...documentTools, ...updateTools];
+  const tools = [...setupTools, ...mcpTools, ...priorityTools, ...careerTools, ...documentTools, ...updateTools];
   let state: "new" | "initializing" | "ready" = "new";
   return async (line: string): Promise<unknown | undefined> => {
     let message: unknown;
@@ -63,6 +64,8 @@ export function createProtocolHandler(binding: string | MemoryConnection, update
         const data = await updates.run(async () => {
           return setupTools.some((tool) => tool.name === name)
             ? await callSetupTool(connection, name, params.arguments ?? {})
+            : careerTools.some((tool) => tool.name === name)
+              ? await callCareerTool(connection.requireConfig(), name, params.arguments ?? {})
             : priorityTools.some((tool) => tool.name === name)
               ? await callPriorityTool(connection.requireConfig(), name, params.arguments ?? {})
               : documentTools.some((tool) => tool.name === name)

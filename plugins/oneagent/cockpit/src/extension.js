@@ -17,6 +17,7 @@ const pageLoads = {
   today: ["today", "manualNotes", "entities", "contextScope"],
   settings: ["graph", "diagnostics", "taxonomy", "entities", "cockpitTheme", "contextScope"],
   help: ["documentation", "documentationState"],
+  career: [],
   priorities: []
 };
 
@@ -2459,6 +2460,22 @@ async function handleCockpitMessage(cli, webview, message) {
     if (message.editorRequestId) await webview.postMessage({ type: "editorResult", requestId: message.editorRequestId });
   };
   try {
+    if (message.type === "careerRequest") {
+      try {
+        const allowed = ["list","mission-save","mission-version","interview-save","interview-create","interview-refresh","interview-reopen","measure","contribution-save","context","bilan","bilan-save","decision-task"];
+        if (!allowed.includes(message.operation)) throw new Error("Opération de mission inconnue.");
+        const payload = JSON.parse(await cli.run(["career", message.operation, "--stdin", "--json"], {input:JSON.stringify({...message.input,scope:"portfolio"}),logOutput:false}));
+        await webview.postMessage({type:"careerResult",requestId:message.requestId,payload});
+        if (!["list","context","bilan"].includes(message.operation)) await webview.postMessage({type:"cockpitInvalidated",except:["career"]});
+      } catch (error) { await webview.postMessage({type:"careerResult",requestId:message.requestId,error:error.message}); }
+      return;
+    }
+    if (message.type === "careerAi") {
+      try { const payload = await require("./career-ai.js").createCareerAi(vscode)(cli, message.input || {});
+        await webview.postMessage({type:"careerAiResult",requestId:message.requestId,payload});
+      } catch (error) { await webview.postMessage({type:"careerAiResult",requestId:message.requestId,error:error.message}); }
+      return;
+    }
     if (message.type === "priorityRequest") {
       try {
         if (!["list", "save", "reorder", "delete", "promote", "tasks", "task-attach", "task-detach", "task-save", "views", "view-save", "view-delete"].includes(message.operation)) throw new Error("Unknown priorities action.");

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.147
+
+- Nouvelle page Ma mission : objectifs et résultats clés/KPIs, missions par versions de périmètre, entretiens individuels et bilan annuel. Interface identique dans Copilot 0.6.25.
+- EI avec rubriques de ressenti, décisions, apprentissages, performance par objectif et retours du manager ; point daté des objectifs et indicateurs, correction explicite des entretiens réalisés.
+- Contributions hors mission conservées avec date, impact et preuves, depuis un EI, la mission ou une note/tâche/priorité ; valorisation dans le bilan sans double comptage.
+- Enregistrement automatique avec protection des brouillons et révisions ; décisions transformables en tâches ordinaires sur demande. Documents Markdown privés indexés dans Mémoire.
+- Propositions de rédaction Copilot à relire avant application ; le passage IA reste en lecture seule et ne bloque pas la file des sauvegardes.
+
 ## 0.1.146
 
 - Sauvegardes suivies d’une actualisation ciblée de la page active, sans chargement global ni reconstruction des pages masquées. Les pages concernées sont actualisées à leur prochaine ouverture, y compris après les changements détectés par VS Code.

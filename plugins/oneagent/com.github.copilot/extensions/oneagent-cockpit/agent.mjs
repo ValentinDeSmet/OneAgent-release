@@ -49,3 +49,16 @@ export async function runAgentLoop(request, createClient = async () => {
     await client.stop();
   }
 }
+
+/** A separate read-only draft pass; it cannot call tools or mutate the user's memory. */
+export async function runCareerDraft(prompt, model, createClient=async()=>{
+  const {CopilotClient}=await import('@github/copilot-sdk');return new CopilotClient();
+}) {
+  const client=await createClient();let session;
+  try {
+    session=await client.createSession({...(model?{model}:{}),availableTools:[],tools:[],onPermissionRequest:async()=>({kind:'reject',feedback:'Read-only drafting: no tools or external actions.'})});
+    const response=await session.sendAndWait({prompt},180000);
+    const content=response?.data?.content;
+    if(typeof content!=='string'||!content.trim())throw new Error('Le modèle n’a pas renvoyé de proposition.');return content;
+  } finally{if(session){await session.abort().catch(()=>{});await session.disconnect().catch(()=>{});}await client.stop();}
+}

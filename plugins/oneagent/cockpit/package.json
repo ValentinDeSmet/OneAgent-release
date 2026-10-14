@@ -3,7 +3,7 @@
   "displayName": "OneAgent",
   "description": "Local-first product knowledge, curation, tasks, and graph context for VS Code.",
   "publisher": "oneagent",
-  "version": "0.1.146",
+  "version": "0.1.147",
   "private": true,
   "license": "UNLICENSED",
   "icon": "media/marketplace-icon.png",
@@ -3543,6 +3543,57 @@
           "priorities",
           "views"
         ]
+      },
+      {
+        "name": "workMemory_career",
+        "displayName": "Mission, EI et bilan OneAgent",
+        "toolReferenceName": "oneagentCareer",
+        "canBeReferencedInPrompt": true,
+        "tags": [
+          "oneagent",
+          "mission",
+          "interview"
+        ],
+        "modelDescription": "Manage private annual missions, dated mission versions, EI interviews, KPI measures and annual bilan. Preserve contributions outside the mission, their impact and evidence. list returns records and revisions; writes require a current revision. context provides evidence for drafting. Propose AI content for user review. Realized interviews have frozen snapshots; reopen explicitly for corrections. Never invent feelings, KPI values or manager feedback. Create tasks from decisions only explicitly. No sharing or HR submission.",
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scope": {
+              "type": "string",
+              "enum": [
+                "portfolio"
+              ]
+            },
+            "operation": {
+              "type": "string",
+              "enum": [
+                "list",
+                "mission-save",
+                "mission-version",
+                "interview-save",
+                "interview-create",
+                "interview-refresh",
+                "interview-reopen",
+                "measure",
+                "contribution-save",
+                "context",
+                "bilan",
+                "bilan-save",
+                "decision-task"
+              ]
+            },
+            "input": {
+              "type": "object",
+              "description": "Operation payload. mission-save: mission fields/goals/results plus revision. interview-save: missionId, interviewId, revision, interview. contribution-save: missionId, revision, contribution with title,description,impact,date,origin,ref,links. Retain stable IDs. Reads context/bilan accept missionId, year, from/to."
+            }
+          },
+          "required": [
+            "scope",
+            "operation",
+            "input"
+          ]
+        }
       }
     ],
     "chatParticipants": [

@@ -5,7 +5,7 @@
   const roots = () => [document, document.getElementById("priorities")?.shadowRoot].filter(Boolean);
   const blocked = () => {
     if (window.oneagentCanReload) return !window.oneagentCanReload();
-    return roots().some(root => root.querySelector("dialog[open]") || root.querySelector('[data-manual-note-editor-dirty="true"]')
+    return roots().some(root => root.querySelector("dialog[open]") || root.querySelector('[data-manual-note-editor-dirty="true"]') || root.querySelector('[data-career-dirty="true"]')
       || [...root.querySelectorAll("textarea:not([readonly]), .field input:not([readonly]), .field select")].some(el => {
         // Priority/task dialogs keep their programmatically populated fields after
         // save or cancel. A closed dialog no longer owns an editable draft.

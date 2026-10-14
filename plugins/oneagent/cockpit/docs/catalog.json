@@ -107,6 +107,15 @@
       "order": 120,
       "keywords": ["update", "mise à jour", "nouvelle version", "version", "release", "reload", "changelog", "what's new"],
       "file": "updates-and-whats-new.md"
+    },
+    {
+      "id": "mission",
+      "title": "Ma mission, entretiens et bilan",
+      "summary": "Définir la mission, préparer les EI et valoriser les réalisations prévues et hors mission dans le bilan annuel.",
+      "category": "Daily work",
+      "order": 75,
+      "keywords": ["mission", "EI", "EID", "EIDD", "entretien", "objectifs", "KPI", "bilan", "hors mission", "performance"],
+      "file": "mission-and-interviews.md"
     }
   ]
 }

@@ -300,3 +300,8 @@ view metadata using oneagent_delete_priority_view with the current revision.
 Never add example views or save temporary criteria automatically. Read fresh
 revisions after conflicts or uncertain writes; do not replay creates/removals.
 The active strict portfolio boundary still applies to all these tools.
+
+
+## Mission, entretiens et bilan annuel
+
+Use `oneagent_career` with explicit portfolio scope. Start with `operation:list` and preserve IDs/revisions. Prepare a mission and goals/results/KPIs together with the EI workflow. Each EI records feelings, previous decisions and learning, performance, next decisions, and manager feedback. Capture contributions **outside the initial mission** explicitly, including achievements, dates, impact and evidence; they belong in annual valorisation even when no objective matches. Never classify a role change or transferred goal as personal failure. `mission-version` preserves dated scopes; realized interviews retain snapshots and require explicit reopening to revise. `context` provides dated source material for a proposal. Never invent KPI measures, feelings, or manager agreement. Show proposals before saving them as the person's words. `bilan` includes realized interviews and deduplicates contributions; includeDrafts is explicit. `decision-task` creates a normal task only at user request; it does not enroll it in Priorities. No HR submission or external sharing.

@@ -1,3 +1,4 @@
+const { createCareerPage } = require("./career-page.js");
 const { createTableColumns } = require("./table-columns.js");
 const { createMemoryTable } = require("./memory-table.js");
 const { createMemoryExplorer } = require("./memory-explorer.js");
@@ -1269,6 +1270,7 @@ function renderCockpitHtml(payload, assets = {}) {
         .help-banner { grid-template-columns: 1fr; }
       }
       ${memoryExplorerCss}
+      ${require("node:fs").readFileSync(require("node:path").join(__dirname,"career-page.css"),"utf8")}
     </style>
   </head>
   <body>
@@ -1279,6 +1281,7 @@ function renderCockpitHtml(payload, assets = {}) {
           <button data-view="today" title="Today">★</button>
           <button class="active" data-view="map" title="Mémoire · graphe et liste">⌘</button>
           <button data-view="priorities" title="Priorités" aria-label="Priorités">!</button>
+          <button data-view="career" title="Ma mission · entretiens et bilan" aria-label="Ma mission">◎</button>
           <button data-view="tasks" title="Tasks">✓</button>
           <button data-view="notes" title="Notes">✎</button>
           <button data-view="inbox" title="Inbox">↧</button>
@@ -1342,6 +1345,7 @@ function renderCockpitHtml(payload, assets = {}) {
               <div class="graph-visibility-breakdown" id="graphVisibilityBreakdown" hidden></div>
             </section>
             <section class="panel list-panel" data-panel="priorities"><div id="priorities"></div></section>
+            <section class="panel list-panel" data-panel="career"><div id="career"></div></section>
             <section class="panel list-panel" data-panel="tasks"><div id="tasks"></div></section>
             <section class="panel list-panel" data-panel="notes"><div id="notes"></div></section>
             <section class="panel list-panel" data-panel="inbox"><div id="inbox"></div></section>
@@ -1443,7 +1447,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
       function refreshStalePage() {
         const page = activeCockpitView;
-        if (page === "priorities" || !staleCockpitPages.has(page) || pendingPageRefreshes.has(page)) return;
+        if ((page === "priorities" || page === "career") || !staleCockpitPages.has(page) || pendingPageRefreshes.has(page)) return;
         pendingPageRefreshes.add(page);
         vscode?.postMessage({ type: "refresh" });
       }
@@ -1727,6 +1731,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       window.addEventListener("message", (event) => {
+        if (typeof careerPage !== "undefined" && careerPage.receive(event.data)) return;
         if (detailWindows.receive(event.data)) return;
         if (event.data?.type === "cockpitInvalidated") { invalidateCockpitPages(event.data.except); refreshStalePage(); return; }
         if (event.data?.type === "pageRefreshFailed") {
@@ -2213,6 +2218,17 @@ function renderCockpitHtml(payload, assets = {}) {
         if (kind === "map") { selectedNodeId = undefined; selectedRelationId = undefined; entityPanelUi.editing = false; entityPanelUi.composerOpen = false; document.querySelector("#detailExtra").replaceChildren(); }
         if (kind === "settings") document.querySelector("#settingsDetail").replaceChildren();
       }});
+      const careerPage = (${createCareerPage.toString()})({ document,
+        postMessage: message => vscode?.postMessage(message), openFile: file => vscode?.postMessage({type:"openFile",path:file}),
+        openTask: id => { setActiveView("tasks"); if (activeCockpitView === "tasks") openTaskDetail(id); },
+        openNote: id => { setActiveView("notes"); if (activeCockpitView === "notes") selectManualNote(id); }, openUrl: url => vscode?.postMessage({type:"openExternal",url}), onActivate: () => setActiveView("career") });
+      document.addEventListener("click", event => {
+        const button = event.target.closest?.("[data-career-ref]"); if (!button) return;
+        const ref = button.dataset.careerRef, note = ref.startsWith("capture:") ? findManualNote(ref.slice(8)) : undefined;
+        const task = ref.startsWith("task:") ? findTask(ref.slice(5)) : undefined;
+        window.dispatchEvent(new CustomEvent("oneagent-career-collect", { detail: { ref, title: note?.title || task?.title || "", description: note?.content || task?.body || "" } }));
+      });
+      window.addEventListener("oneagent-career-collect", event => { if (!detailWindows.requestClose()) return; void careerPage.collect(event.detail || {}); });
       const submitDetail = message => detailWindows.submit(message, value => vscode?.postMessage(value));
       function openTaskDetail(id) {
         if (!detailWindows.open("tasks", id, id === "__new__" ? "Nouvelle tâche" : "Tâche")) return;
@@ -2224,6 +2240,7 @@ function renderCockpitHtml(payload, assets = {}) {
       }
 
       function setActiveView(view) {
+        if (activeCockpitView === "career" && view !== "career" && !careerPage.canLeave()) return;
         activeCockpitView = view;
         memoryExplorer?.setActive(view === "map");
         document.querySelectorAll("[data-view]").forEach((item) => item.classList.toggle("active", item.dataset.view === view));
@@ -2239,6 +2256,7 @@ function renderCockpitHtml(payload, assets = {}) {
               : "No product configured";
         }
         document.querySelector(".content").classList.add("side-hidden");
+        if (view === "career") careerPage.mount();
         if (view === "priorities") mountPriorities();
         vscode?.postMessage({ type: "cockpitPageChanged" });
         if (cockpitRendered) render();
@@ -6841,7 +6859,7 @@ function renderCockpitHtml(payload, assets = {}) {
           taskLinkSelectorHtml("edit", taskEditableLinks(task)) +
           (task.priorityIds?.length ? '<p class="summary">Pour les priorités : ' + task.priorityIds.map(id => escapeHtml(findTask(id)?.title || id)).join(', ') + '</p>' : '') +
           (task.priorityRevision && task.status !== "archived" ? '<div class="detail-actions"><button class="action" id="taskLinkPriority" type="button">Gérer les priorités liées</button></div>' : '') +
-          '<div class="detail-actions">' + (task.priorityRevision && task.assignee === "me" && task.status !== "archived" ? '<button class="action" id="taskPriorityMembership" type="button">' + (task.inPriorities ? 'Retirer des priorités' : 'Ajouter aux priorités') + '</button>' : '') + '<button class="action" id="archiveTask">Archive</button><button class="action" id="saveTask">Save</button></div><p class="summary" id="taskPriorityNotice" role="status">' + (task.priorityRevision && task.assignee === "me" ? 'Le suivi dans Priorités est un choix explicite, indépendant du niveau d’urgence de la tâche.' : '') + '</p>' +
+          '<div class="detail-actions">' + (task.priorityRevision && task.assignee === "me" && task.status !== "archived" ? '<button class="action" id="taskPriorityMembership" type="button">' + (task.inPriorities ? 'Retirer des priorités' : 'Ajouter aux priorités') + '</button>' : '') + '<button class="action" data-career-ref="task:' + escapeAttr(task.id) + '">À valoriser dans un EI</button><button class="action" id="archiveTask">Archive</button><button class="action" id="saveTask">Save</button></div><p class="summary" id="taskPriorityNotice" role="status">' + (task.priorityRevision && task.assignee === "me" ? 'Le suivi dans Priorités est un choix explicite, indépendant du niveau d’urgence de la tâche.' : '') + '</p>' +
           '</div>';
         bindMenus(document.querySelector("#taskDetail"));
         bindTaskLinkSelector("edit");
@@ -7229,7 +7247,8 @@ function renderCockpitHtml(payload, assets = {}) {
         const statusActions = creating || historical ? "" :
           status === "active"
             ? (type === "question" ? '<button class="action" id="resolveManualNote">Mark resolved</button>' : "") +
-              '<button class="action" id="archiveManualNote">Archive</button>'
+              '<button class="action" data-career-ref="capture:' + escapeAttr(note.id) + '">À valoriser dans un EI</button>' +
+          '<button class="action" id="archiveManualNote">Archive</button>'
             : '<button class="action" id="restoreManualNote">Restore</button>';
         return '<div class="task-detail">' +
           '<div class="detail-title"><b>' + (creating ? "New note" : historical ? "Historical note" : "Edit note") + '</b><span>' + escapeHtml(status) + '</span></div>' +

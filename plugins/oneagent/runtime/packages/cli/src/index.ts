@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { careerCommand } from '../../impact/src/career.ts';
 import fs from "node:fs";
 import { readTextSection } from "../../shared/src/text-section.ts";
 import { buildMemoryIndex } from "../../graph/src/memory-index.ts";
@@ -336,6 +337,18 @@ async function executeCommand(argv: string[]): Promise<void> {
 
   if (command === "ui-state") {
     await uiStateCommand(rest);
+    return;
+  }
+
+  if (command === "career") {
+    if (!hasFlag(rest, "--stdin")) throw new Error("Career requires JSON on stdin.");
+    const input = await readJsonStdin<Record<string, unknown>>();
+    const runtime = createCliRuntime(rest);
+    try {
+      const scope = activeResolvedContextScope(runtime, rest);
+      if (scope?.scope.mode === "strict") throw new Error("Mission et entretiens utilisent le portfolio. Quitte explicitement le contexte strict pour y accéder.");
+      console.log(JSON.stringify(careerCommand(runtime.config, runtime.db, positionalValues(rest)[0], input)));
+    } finally { runtime.close(); }
     return;
   }
 
@@ -8120,6 +8133,7 @@ Commands:
   pnpm wm kpi measure <id> --value <number> [--measured-at <ISO>] [--source <id>] [--observation <accepted-id>] [--note <text>] [--json]
   pnpm wm kpi compare <id> --delivery-date <ISO> [--json]
   pnpm wm kpi archive|restore <id> [--context-scope active] [--json]
+  pnpm wm career list|mission-save|mission-version|interview-create|interview-save|interview-refresh|interview-reopen|measure|contribution-save|context|bilan|bilan-save|decision-task --stdin --json
   pnpm wm outcome dashboard|gaps [--entity <kind:id>] [--json]
   pnpm wm outcome link --work project|feature|task:<id> --okr <id> --expected-impact <text> [--hypothesis <text>] [--key-results <ids>] [--confidence <0..1>] [--json]
   pnpm wm product add <id> [--label <label>] [--description <text>] [--parent <entity-id>] [--dependencies a,b]

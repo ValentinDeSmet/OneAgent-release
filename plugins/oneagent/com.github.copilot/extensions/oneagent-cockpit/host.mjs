@@ -1,3 +1,4 @@
+import { runCareerDraft } from './agent.mjs';
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
@@ -15,9 +16,9 @@ const { runMemoryTextCommand } = await import(pathToFileURL(path.join(pluginRoot
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 
 /** One UI instance, one injected host. No VS Code module or real workspace activation. */
-export function createCockpitHost({ connection, updates, emit, runAgentLoop, openFile, manageUpdate, runCommand = runMemoryTextCommand }) {
+export function createCockpitHost({ connection, updates, emit, runAgentLoop, openFile, manageUpdate, draftCareer = runCareerDraft, runCommand = runMemoryTextCommand }) {
   const tracked = (operation) => updates.run ? updates.run(operation) : operation();
-  const pending = new Map(), tools = new Map();
+  const pending = new Map(), tools = new Map(), draftRequests = new Set();
   let closed = false, cli, controller;
   let operationQueue = Promise.resolve();
   const log = [];
@@ -139,6 +140,7 @@ export function createCockpitHost({ connection, updates, emit, runAgentLoop, ope
     LanguageModelTextPart: class { constructor(value) { this.value = value; } },
     LanguageModelToolResult: class { constructor(content) { this.content = content; } },
     MarkdownString: class { constructor(value) { this.value = value; } },
+    oneagentCareerDraft: prompt => draftCareer(prompt, state["setting.agentModel"]),
     oneagentAgentLoop: (request) => runAgentLoop({ ...request, model: state["setting.agentModel"], invoke: async (name, args) => {
       updates.assertSessionCurrent(); connection.requireConfig();
       const registered = tools.get(name);
@@ -176,6 +178,12 @@ export function createCockpitHost({ connection, updates, emit, runAgentLoop, ope
     async state() { return tracked(async () => { updates.assertSessionCurrent(); connection.requireConfig(); return controller.loadCockpitState(ensureCli(), { silent: true, includeDocumentation: true }); }); },
     fallback(error) { output.appendLine(`Cockpit: ${error.message}`); const local = ensureCli(); return Promise.all([local.documentationPayload(), local.documentationState()]).then(([documentation]) => controller.createDocumentationOnlyCockpitState({ documentation, extensionVersion: updates.currentVersion })); },
     dispatch(message) {
+      // Drafting releases the command queue after its read-only evidence query.
+      // Keep writes responsive while the isolated model pass is running.
+      if (message.type === "careerAi") {
+        const work = tracked(async () => {if (closed) throw new Error("Cockpit fermé.");updates.assertSessionCurrent();connection.requireConfig();await controller.handleCockpitMessage(ensureCli(),webview,message);});
+        draftRequests.add(work);work.then(()=>draftRequests.delete(work),()=>draftRequests.delete(work));return work;
+      }
       const next = operationQueue.then(() => tracked(async () => { if (closed) throw new Error("Cockpit fermé."); updates.assertSessionCurrent(); connection.requireConfig(); await controller.handleCockpitMessage(ensureCli(), webview, message); }));
       operationQueue = next.catch((error) => emitHost({ kind: "notice", level: "error", message: error.message }));
       return next;
@@ -194,6 +202,6 @@ export function createCockpitHost({ connection, updates, emit, runAgentLoop, ope
     async saveDocument({ file, revision, content }) {
       return documents.save({ file, revision, content });
     },
-    async close() { closed = true; for (const entry of pending.values()) entry.resolve(undefined); pending.clear(); await operationQueue; if (cli) await cli.commandQueue; }
+    async close() { closed = true; for (const entry of pending.values()) entry.resolve(undefined); pending.clear(); await operationQueue; await Promise.allSettled([...draftRequests]); if (cli) await cli.commandQueue; }
   };
 }

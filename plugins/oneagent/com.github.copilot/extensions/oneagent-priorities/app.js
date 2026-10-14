@@ -3,6 +3,7 @@ const priorityRoot = document;
 const $ = (selector) => document.querySelector(selector);
 const token = $('meta[name="oneagent-token"]').content;
 const openExternal = null;
+const collectCareer = null;
 const form = $("#form"), editor = $("#editor");
 let selectedRelatedRefs = new Set();
 let entities = [], sortBy = "manual", sortDirection = "asc";
@@ -896,3 +897,6 @@ setInterval(autoRefresh, 60000);
 initializeColumns();
 $("#add").disabled = true; $("#empty-add").disabled = true;
 refresh();
+
+$("#row-career").hidden = !collectCareer;
+$("#row-career").addEventListener("click", () => { if (!menuItem || saving || reordering) return; const item = menuItem; closeRowMenu(); collectCareer?.({ref:"task:"+item.id,title:item.title,description:item.body||"",url:item.sourceUrl||item.url||""}); });

@@ -1,0 +1,12 @@
+import { runMemoryCommand } from './cli-bridge.ts';
+import { careerOperations } from '../../impact/src/career.ts';
+export const careerToolSchema = { type: 'object', additionalProperties: false, properties: { scope: { type: 'string', enum: ['portfolio'] }, operation: { type: 'string', enum: [...careerOperations] }, input: { type: 'object', description: 'Operation payload. Writes require revision from list. mission-save: mission fields and goals/results. interview-save: missionId, interviewId, revision, interview fields. contribution-save: missionId, revision and contribution {title,description,impact,date,origin:outside,ref,links}. Dates YYYY-MM-DD. New IDs are generated; retain existing IDs on edits. Never invent current KPI values or feelings.' } }, required: ['scope', 'operation', 'input'] };
+export const careerTools = [{ name: 'oneagent_career', description: 'Read and edit the private annual mission, dated mission versions, EI interviews, decisions, KPI measures and annual bilan. Explicitly preserve contributions OUTSIDE the initial mission, including their impact and evidence. list returns documents and revisions. Realized interviews hold immutable mission/metric snapshots; reopen explicitly for corrections. context returns evidence for drafting; propose text to the user before saving generated content. Ordinary decisions become tasks only via decision-task at user request and never become priorities automatically. mission-version preserves the previous scope; do not overwrite history after a role change. Require portfolio and respect strict active scope. No sharing or HR submission.', inputSchema: careerToolSchema, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false } }];
+export async function callCareerTool(configPath: string, name: string, raw: unknown) {
+    if (name !== 'oneagent_career' || !raw || typeof raw !== 'object' || Array.isArray(raw))
+        throw new Error('Outil de mission invalide.');
+    const v = raw as Record<string, unknown>;
+    if (v.scope !== 'portfolio' || typeof v.operation !== 'string' || !careerOperations.includes(v.operation as any) || !v.input || typeof v.input !== 'object' || Array.isArray(v.input))
+        throw new Error('Périmètre, opération et input obligatoires.');
+    return runMemoryCommand(configPath, ['career', v.operation, '--stdin', '--json', '--context-scope', 'active'], JSON.stringify({ ...v.input, scope: 'portfolio' }));
+}

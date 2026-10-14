@@ -14,6 +14,7 @@ function prioritiesBootstrap() {
   const script = read("app.js")
     .replace('const $ = (selector) => document.querySelector(selector);', 'const $ = (selector) => root.querySelector(selector);')
     .replace('const priorityRoot = document;', 'const priorityRoot = root;')
+    .replace('const collectCareer = null;', 'const collectCareer = (detail) => window.dispatchEvent(new CustomEvent("oneagent-career-collect",{detail}));')
     .replace('const openExternal = null;', 'const openExternal = (url) => vscode?.postMessage({type:"openExternal",url});')
     .replace('const token = $(\'meta[name="oneagent-token"]\').content;', '')
     .replaceAll('document.querySelectorAll(', 'root.querySelectorAll(')

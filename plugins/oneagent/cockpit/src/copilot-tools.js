@@ -44,6 +44,7 @@ const TOOL_IDS = {
   organization: "workMemory_organization",
   wiki: "workMemory_wiki",
   today: "workMemory_today",
+  career: "workMemory_career",
   outcomes: "workMemory_outcomes",
   expand: "workMemory_expand",
   contextView: "workMemory_contextView"
@@ -98,6 +99,13 @@ function registerLanguageModelTools(cli) {
       "Reading OneAgent tasks",
       (input) => readTasks(cli, input),
       () => "Read the task read model for the selected scope."
+    )),
+    vscode.lm.registerTool(TOOL_IDS.career, new WorkMemoryTool(
+      "Mission, EI et bilan OneAgent", "Mission, EI et bilan",
+      input => {
+        if(input.scope !== "portfolio" || !input.operation || !input.input) throw new Error("Périmètre, opération et input obligatoires.");
+        return cli.run(["career",input.operation,"--stdin","--json","--context-scope","active"],{input:JSON.stringify({...input.input,scope:"portfolio"}),logOutput:false}).then(JSON.parse);
+      }, input => `Mission/EI : ${input.operation}.`, {compileContextPack:false}
     )),
     vscode.lm.registerTool(TOOL_IDS.listPriorities, new WorkMemoryTool(
       "Read OneAgent Priorities", "Reading personal priorities",
