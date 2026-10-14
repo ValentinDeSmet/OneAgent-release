@@ -1,6 +1,6 @@
 ---
 name: oneagent-memory
-description: Configure OneAgent after installation, manage plugin updates, create or connect a private memory, then retrieve professional context and keep notes alongside the company BMAD plugin. Use for "Configurer OneAgent", "Mettre à jour OneAgent", first use, onboarding, memory searches, private note capture, and priority/request tracking.
+description: Configure OneAgent after installation, manage plugin updates, create or connect a private memory, then retrieve professional context, create entities with Markdown and graph relations, and keep notes alongside the company BMAD plugin. Use for "Configurer OneAgent", "Mettre à jour OneAgent", first use, onboarding, memory searches, entity creation, private note capture, and priority/request tracking.
 ---
 
 Use the `oneagent` MCP tools for the user's private professional memory. The same
@@ -124,12 +124,41 @@ result and must not be retried automatically. Preserve the existing memory bindi
    OneAgent supplies context and personal notes; BMAD supplies the team's workflow.
    Keep using the host's company Google/GitHub tools for their authoritative data.
 
-Do not introduce another assistant persona. This
-increment does not expose editing entities, changing relations, activating strict
-contexts, curation, Git publication, or a graph canvas through MCP. Explicit search
+Do not introduce another assistant persona. Activating strict contexts, automatic
+curation acceptance and Git publication are not available through the memory MCP tools. Explicit search
 filters are not strict session access controls. Respect the host's tool approvals.
 Use local Copilot sessions; the Mac's memory is not automatically available in cloud
 sessions. If binding fails, explain the error and refer to the plugin setup guide.
+
+## Explicit entity creation and graph relationships
+
+When the user asks to create an entity, store its content and connect it to a product,
+perform that workflow with the MCP tools. Do not replace it with a note on the product
+or ask the user to create the entity manually merely because earlier plugin versions
+lacked this capability. Call `oneagent_get_taxonomy` for the available kinds and
+relation types (including workspace custom vocabulary), and paginate `oneagent_list_entities`
+to resolve the product and avoid duplicating an existing subject.
+
+For a functional study/research subject, `discovery` is usually appropriate; use
+`feature_request` for a requested capability or `feature` for the capability itself.
+Choose the kind from the user's intent and the workspace vocabulary. When the subject
+is new, call `oneagent_create_entity` with its stable `id`, `kind`, `label`, description
+and complete Markdown in `content`. This writes its own private Markdown entity page,
+not a product note. Then call `oneagent_upsert_relation` with the new entity as `source`,
+the resolved product as `target`, and `type: scoped_to` for its product attachment.
+Use `oneagent_list_relations` and `oneagent_get_entity_context` to verify the final
+attachment and document. Report the exact created entity and relation; do not claim
+both succeeded if only the creation did. After an uncertain failure, inspect those
+tools before any retry. The creation refuses existing IDs and never overwrites their
+documents; use a reviewable document proposal for a requested revision of an existing page.
+
+The user's explicit creation request authorizes these scoped private writes; no extra
+manual cockpit step is required. In contrast, discovering a possible new entity in
+retrieved evidence is not authorization to create it automatically. Keep that suggestion
+reviewable through the existing curation workflow. The active strict context still
+applies: new entities broaden it and are refused until the user changes the context
+(for example Tout/Reset). Never bypass that boundary, invent endpoints, create a second
+memory, write to BMAD's repository, or publish this private content implicitly.
 
 
 ## Reviewable Markdown documents

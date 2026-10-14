@@ -43,6 +43,12 @@ When the selected entity has a Markdown page, **Open Markdown** opens its main p
 
 You can add or edit entities and relationships from **Settings → Actions et diagnostics → Knowledge**. Deleting or merging can affect several linked items, so read the confirmation carefully.
 
+## Créer une entité depuis le chat Copilot
+
+Depuis Copilot 0.6.26, une demande comme « Crée une entité pour cette étude avec son contenu et relie-la à OneFF » peut être exécutée directement par l’agent. Il consulte les types disponibles et les entités existantes, crée le sujet avec sa propre page Markdown, puis ajoute sa relation au produit. Une étude fonctionnelle peut être classée comme `discovery`, avec une relation `scoped_to` vers le produit. Il ne faut pas remplacer cette demande par une simple note sur OneFF.
+
+Les outils sont `oneagent_get_taxonomy`, `oneagent_create_entity`, `oneagent_list_relations` et `oneagent_upsert_relation`. La création refuse un ID déjà utilisé. Pour réviser le document d’une entité existante, l’agent peut proposer un document dans l’Inbox, à relire avant acceptation. Une suggestion issue d’une source ne déclenche pas une création automatique. Le contexte strict reste respecté : si la création est refusée pour ce motif, choisir Tout/Reset ou adapter le contexte, puis reprendre dans le même chat.
+
 The graph and memory table use the full page width. A node click in Navigate mode, or **Fiche** in the table, opens a large detail window. Close it with **Fermer** or Escape to return to the same view. Unsaved edits are protected. Context selection stays directly on the graph without opening a detail window.
 
 ## Keep the graph useful

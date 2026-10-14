@@ -1054,7 +1054,7 @@ async function entityCommand(argv: string[]): Promise<void> {
       });
     }
 
-    console.log(`Upserted entity: ${entity.kind}:${entityId}`);
+    console.log(hasFlag(argv, "--json") ? JSON.stringify(entity, null, 2) : `Upserted entity: ${entity.kind}:${entityId}`);
   } finally {
     runtime.close();
   }
@@ -1238,6 +1238,9 @@ function relationCommand(argv: string[]): void {
       assertWritableEntityInStrictScope(contextScope, targetRef);
       assertRelationInStrictScope(contextScope, relationType);
     }
+    for (const ref of [sourceRef, targetRef]) {
+      if (!runtime.db.getEntity(ref.kind, ref.id)) throw new Error(`Entity does not exist: ${ref.kind}:${ref.id}`);
+    }
     // Provenance: --capture records which capture justified the relation. Upserts merge
     // the capturedFrom list with the existing relation's so re-curations accumulate sources.
     const captureId = optionValue(argv, "--capture");
@@ -1277,8 +1280,11 @@ function relationCommand(argv: string[]): void {
       description: optionValue(argv, "--description") ?? existing?.description ?? null,
       metadata: Object.keys(mergedMetadata).length > 0 ? mergedMetadata : null
     });
-    console.log(`Upserted relation: ${relation.id}`);
-    console.log(`${sourceRef.kind}:${sourceRef.id} --${relationType}--> ${targetRef.kind}:${targetRef.id}`);
+    if (hasFlag(argv, "--json")) console.log(JSON.stringify(relation, null, 2));
+    else {
+      console.log(`Upserted relation: ${relation.id}`);
+      console.log(`${sourceRef.kind}:${sourceRef.id} --${relationType}--> ${targetRef.kind}:${targetRef.id}`);
+    }
   } finally {
     runtime.close();
   }

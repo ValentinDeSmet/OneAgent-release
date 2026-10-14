@@ -1,5 +1,7 @@
 # OneAgent pour l’application GitHub Copilot
 
+Version 0.6.26 : l’agent peut maintenant créer une entité avec son Markdown et la relier à un produit via MCP. Les types disponibles dans la mémoire sont consultables ; les IDs existants et le contexte strict restent protégés.
+
 Version 0.6.25 : nouvelle page **Ma mission** avec Mission, Entretiens et Bilan. Objectifs et résultats clés/KPIs, versions de périmètre datées, EI avec enregistrement automatique et propositions de rédaction Copilot à relire. Les contributions hors mission sont conservées avec leur impact et leurs preuves, puis valorisées dans le bilan annuel. Le suivi partage le même front et le même moteur que VS Code 0.1.147. [Guide](cockpit/docs/mission-and-interviews.md).
 
 Le cockpit complet est partagé avec VS Code : mémoire, graphe, priorités, tâches, notes et Inbox. Installation par catalogue GitHub, mise à jour dans la conversation courante et configuration de la mémoire **après installation, dans le plugin**.
@@ -67,12 +69,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.25.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.26.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.25/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.26/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -362,7 +364,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.25.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.26.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.
@@ -370,8 +372,8 @@ du dépôt de développement.
 ## Périmètre et validation
 
 Trois outils d’onboarding permettent de consulter l’état, préparer le choix et le
-finaliser. Neuf outils métier couvrent entités, recherche, contexte, sources,
-notes privées et sollicitations. Quatre outils gèrent l’état, la vérification, le choix et l’application
+finaliser. Les outils métier couvrent entités, relations, recherche, contexte, sources,
+notes privées, priorités et suivi de mission. Des outils gèrent l’état, la vérification, le choix et l’application
 des mises à jour. L’onboarding vérifie les destinations et les modifications
 concurrentes ; une création ne réutilise jamais un dossier existant, même vide,
 et refuse les repos Git, le dossier du plugin et les mémoires imbriquées.

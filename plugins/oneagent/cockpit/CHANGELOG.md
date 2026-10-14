@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.148
+
+- Copilot 0.6.26 expose la création d’entités avec leur contenu Markdown, la lecture du vocabulaire du workspace et la création/lecture des relations. Le skill ne demande plus de remplacer une entité par une note ou de la créer manuellement.
+- Les écritures du moteur renvoient leur résultat JSON aux outils ; une relation vers une entité inexistante est refusée. IDs existants, Markdown complet et contexte strict couverts par les tests.
+
 ## 0.1.147
 
 - Nouvelle page Ma mission : objectifs et résultats clés/KPIs, missions par versions de périmètre, entretiens individuels et bilan annuel. Interface identique dans Copilot 0.6.25.
