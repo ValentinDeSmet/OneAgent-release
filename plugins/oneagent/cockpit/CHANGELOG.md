@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.146
+
+- Sauvegardes suivies d’une actualisation ciblée de la page active, sans chargement global ni reconstruction des pages masquées. Les pages concernées sont actualisées à leur prochaine ouverture, y compris après les changements détectés par VS Code.
+- Classement des priorités immédiat dans le tableau : déplacements successifs enregistrés dans l’ordre, sans relecture de la liste ; conservation du focus et des accordéons.
+- Révisions des lignes mises à jour dès la confirmation du classement. En cas d’échec, retour au dernier classement confirmé et annulation des déplacements suivants, sans réessai automatique.
+- Même interface partagée avec Copilot 0.6.24 ; confirmations de sauvegarde et protection des brouillons conservées.
+
 ## 0.1.145
 
 - Tâches, Notes et Mémoire utilisent toute la largeur : les fiches s’ouvrent dans une grande fenêtre au clic, comme l’Inbox. Réglages propose un bouton Actions et diagnostics. Même interface dans Copilot 0.6.23.

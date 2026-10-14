@@ -1393,7 +1393,8 @@ function renderCockpitHtml(payload, assets = {}) {
     ${assets.hostBridgeScript ? `<script nonce="${escapeHtmlAttribute(nonce)}" src="${escapeHtmlAttribute(assets.hostBridgeScript)}"></script>` : ""}
     ${graphViewerTag}
     <script nonce="${escapeHtmlAttribute(nonce)}">
-      const vscode = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : undefined;
+      const hostApi = typeof acquireVsCodeApi === "function" ? acquireVsCodeApi() : undefined;
+      const vscode = hostApi ? { postMessage: message => hostApi.postMessage({ ...message, cockpitPage: activeCockpitView }) } : undefined;
       let state = ${data};
       let memoryExplorer;
       let memoryViewRequest = 0, memoryViewPending;
@@ -1432,6 +1433,20 @@ function renderCockpitHtml(payload, assets = {}) {
       let selectedTaskId = undefined;
       let selectedNoteId = undefined;
       let activeCockpitView = "today";
+      let cockpitRendered = false;
+      const staleCockpitPages = new Set();
+      const pendingPageRefreshes = new Set();
+      function invalidateCockpitPages(except = []) {
+        for (const element of document.querySelectorAll("[data-panel]")) {
+          if (!except.includes(element.dataset.panel)) staleCockpitPages.add(element.dataset.panel);
+        }
+      }
+      function refreshStalePage() {
+        const page = activeCockpitView;
+        if (page === "priorities" || !staleCockpitPages.has(page) || pendingPageRefreshes.has(page)) return;
+        pendingPageRefreshes.add(page);
+        vscode?.postMessage({ type: "refresh" });
+      }
       let selectedDocumentationId = state.documentation?.defaultGuideId;
       let documentationSearch = "";
       let documentationWelcomeAcknowledged = false;
@@ -1713,7 +1728,18 @@ function renderCockpitHtml(payload, assets = {}) {
 
       window.addEventListener("message", (event) => {
         if (detailWindows.receive(event.data)) return;
+        if (event.data?.type === "cockpitInvalidated") { invalidateCockpitPages(event.data.except); refreshStalePage(); return; }
+        if (event.data?.type === "pageRefreshFailed") {
+          pendingPageRefreshes.delete(event.data.page); staleCockpitPages.add(event.data.page); return;
+        }
+        if (event.data?.type === "statePatch") {
+          if (event.data.invalidated) invalidateCockpitPages([event.data.page]);
+          staleCockpitPages.delete(event.data.page); pendingPageRefreshes.delete(event.data.page);
+          window.dispatchEvent(new MessageEvent("message", { data: { type: "state", payload: { ...state, ...event.data.payload }, patch: true, page: event.data.page } }));
+          return;
+        }
         if (event.data?.type === "state") {
+          if (!event.data.patch) { staleCockpitPages.clear(); pendingPageRefreshes.clear(); }
           const previousNodeId = selectedNodeId;
           const previousGraph = state?.graph;
           const nextState = event.data.payload;
@@ -1734,19 +1760,19 @@ function renderCockpitHtml(payload, assets = {}) {
           cockpitTheme = (typeof state.cockpitTheme === "string" && state.cockpitTheme) ? state.cockpitTheme : "dark";
           applyCockpitTheme();
           if (!contextScopeDraftDirty) initContextScopeFromState();
-          if (!detailWindows.dirty("map") && !detailWindows.busy("map")) selectedNodeId = undefined;
+          if (previousGraph !== state.graph && !detailWindows.dirty("map") && !detailWindows.busy("map")) selectedNodeId = undefined;
           if (!detailWindows.isOpen("tasks") && !findTask(selectedTaskId)) selectedTaskId = undefined;
           if (!detailWindows.isOpen("notes") && selectedNoteId !== "__new__" && !findManualNote(selectedNoteId)) selectedNoteId = undefined;
           if (!findInboxItem(selectedInboxId)) selectedInboxId = undefined;
           if (!findCurationPackage(selectedCurationPackageId)) selectedCurationPackageId = undefined;
-          const graphDelta = computeGraphDelta(previousGraph, state.graph);
+          const graphDelta = previousGraph === state.graph ? undefined : computeGraphDelta(previousGraph, state.graph);
           if (graphDelta) {
             recentGraphChanges = { ids: graphDelta.ids, at: Date.now() };
             showLiveUpdateToast(graphDelta);
           }
-          render();
-          renderContextScopePanel();
-          if (previousNodeId && detailWindows.isOpen("map") && !detailWindows.dirty("map") && !detailWindows.busy("map")) {
+          if (!event.data.patch || event.data.page === activeCockpitView) render();
+          refreshStalePage();
+          if (previousGraph !== state.graph && previousNodeId && detailWindows.isOpen("map") && !detailWindows.dirty("map") && !detailWindows.busy("map")) {
             const stillThere = (state.graph?.nodes || []).find((node) => node.id === previousNodeId);
             if (stillThere) selectNode(stillThere, { restore: true });
           }
@@ -2200,7 +2226,6 @@ function renderCockpitHtml(payload, assets = {}) {
       function setActiveView(view) {
         activeCockpitView = view;
         memoryExplorer?.setActive(view === "map");
-        if (view === "priorities") mountPriorities();
         document.querySelectorAll("[data-view]").forEach((item) => item.classList.toggle("active", item.dataset.view === view));
         document.querySelectorAll("[data-panel]").forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === view));
         document.querySelector(".topbar").classList.toggle("map-active", view === "map");
@@ -2214,14 +2239,11 @@ function renderCockpitHtml(payload, assets = {}) {
               : "No product configured";
         }
         document.querySelector(".content").classList.add("side-hidden");
-        if (view === "notes") {
-          renderNotes();
-          renderNoteDetail();
-        }
-        if (view === "help") {
-          renderDocumentation();
-          acknowledgeDocumentation();
-        }
+        if (view === "priorities") mountPriorities();
+        vscode?.postMessage({ type: "cockpitPageChanged" });
+        if (cockpitRendered) render();
+        refreshStalePage();
+        if (view === "help") acknowledgeDocumentation();
       }
 
       function scheduleGraphResize() {
@@ -2248,30 +2270,26 @@ function renderCockpitHtml(payload, assets = {}) {
           : graph.includedProductIds.length
             ? graph.includedProductIds.join(" · ")
             : "No product configured";
-        renderFocusSelector();
+        const initial = !cockpitRendered;
+        const visible = name => initial || activeCockpitView === name;
         renderCurationQueue();
-        renderLegend();
-        renderGraphFilterPanel();
-        renderGraphFocusFilter();
-        renderGraphGroupControls();
-        renderGraphRelationQuickControls();
-        updateGraphIsolateControls();
-        renderGraph();
-        renderTasks();
-        renderNotes();
-        renderInbox();
-        renderSources();
-        renderDocumentation();
-        renderSettings();
-        renderContextScopePanel();
-        renderWorkspace();
-        renderToday();
-        renderTaskDetail();
-        renderNoteDetail();
-        renderInboxDetail();
-        renderSettingsDetail();
-        renderDiagnostics();
+        if (visible("map")) {
+          renderFocusSelector(); renderLegend(); renderGraphFilterPanel(); renderGraphFocusFilter();
+          renderGraphGroupControls(); renderGraphRelationQuickControls(); updateGraphIsolateControls();
+          renderGraph(); renderContextScopePanel();
+        }
+        if (visible("tasks")) renderTasks();
+        if (visible("notes")) renderNotes();
+        if (visible("inbox")) renderInbox();
+        if (visible("sources")) renderSources();
+        if (visible("help")) renderDocumentation();
+        if (visible("settings")) { renderSettings(); renderContextScopePanel(); }
+        if (visible("workspace")) renderWorkspace();
+        if (visible("today")) renderToday();
+        renderTaskDetail(); renderNoteDetail(); renderInboxDetail(); renderSettingsDetail();
+        if (visible("settings")) renderDiagnostics();
         renderOperation();
+        cockpitRendered = true;
       }
 
       function computeGraphDelta(previousGraph, nextGraph) {

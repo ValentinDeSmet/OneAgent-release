@@ -305,6 +305,17 @@ export function listPriorities(db: WorkMemoryDatabase, raw: unknown) {
 }
 function rank(value: string): number { const index = priorities.indexOf(value); return index < 0 ? 2 : index; }
 
+function rankingSnapshot(db: WorkMemoryDatabase, tasks: TaskRecord[], before: TaskRecord[] = tasks) {
+  const previous = new Map(before.map(task => [task.id, task]));
+  const byTask = new Map<string, TaskLinkRecord[]>();
+  for (const link of db.listTaskLinks(tasks.map(task => task.id))) {
+    const links = byTask.get(link.taskId) || []; links.push(link); byTask.set(link.taskId, links);
+  }
+  return tasks.map((task, index) => ({ id: task.id, manualPosition: index + 1,
+    revision: priorityRevision(task, byTask.get(task.id) || []),
+    previousRevision: priorityRevision(previous.get(task.id)!, byTask.get(task.id) || []), updatedAt: task.updatedAt }));
+}
+
 /** Move one personal row relative to another, preserving every other row's order. */
 export function reorderPriority(db: WorkMemoryDatabase, raw: unknown) {
   const input = fields(raw, ["scope", "taskId", "targetTaskId", "position", "orderRevision"]);
@@ -318,16 +329,16 @@ export function reorderPriority(db: WorkMemoryDatabase, raw: unknown) {
     if (expected !== current) throw new Error("Le classement a changé. Actualise la liste avant de déplacer une priorité.");
     const moved = ordered.find(task => task.id === taskId);
     if (!moved || !ordered.some(task => task.id === targetTaskId)) throw new Error("Priorité introuvable, archivée ou hors de tes sollicitations personnelles.");
-    if (taskId === targetTaskId) return { moved: false, orderRevision: current };
+    if (taskId === targetTaskId) return { moved: false, orderRevision: current, order: rankingSnapshot(db, ordered) };
     const next = ordered.filter(task => task.id !== taskId);
     const targetIndex = next.findIndex(task => task.id === targetTaskId);
     next.splice(targetIndex + (position === "after" ? 1 : 0), 0, moved);
-    if (next.every((task, index) => task.id === ordered[index].id)) return { moved: false, orderRevision: current };
+    if (next.every((task, index) => task.id === ordered[index].id)) return { moved: false, orderRevision: current, order: rankingSnapshot(db, ordered) };
     // Dense ranks avoid floating-point gaps and stay durable in the existing
     // tracking JSON. Filters and pagination never replace the portfolio order.
     const saved = next.map((task, index) => manualRank(task) === index ? task
       : db.updateTask({ taskId: task.id, tracking: { ...task.tracking, manualRank: index } }));
-    return { moved: true, orderRevision: orderRevision(saved) };
+    return { moved: true, orderRevision: orderRevision(saved), order: rankingSnapshot(db, saved, ordered) };
   });
 }
 

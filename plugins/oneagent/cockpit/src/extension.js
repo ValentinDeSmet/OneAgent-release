@@ -5,6 +5,21 @@ const os = require("node:os");
 const path = require("node:path");
 // Each host gets its own controller state and injected UI/model services.
 function createCockpitRuntime(vscode) {
+// Page-aware clients receive small patches; older clients retain full-state replies.
+const cockpitPages = new WeakMap();
+const pageLoads = {
+  tasks: ["tasks", "entities"],
+  notes: ["manualNotes", "entities", "contextScope"],
+  sources: ["sources", "captures", "entities"],
+  map: ["graph", "memoryIndex", "tasks", "manualNotes", "entities", "graphFilters", "contextScope", "graphViews", "taxonomy"],
+  workspace: ["entities", "tasks", "manualNotes", "contextScope"],
+  inbox: ["inbox", "graphChangeHistoryState", "curationPackageState", "captures", "entities", "contextScope"],
+  today: ["today", "manualNotes", "entities", "contextScope"],
+  settings: ["graph", "diagnostics", "taxonomy", "entities", "cockpitTheme", "contextScope"],
+  help: ["documentation", "documentationState"],
+  priorities: []
+};
+
 const { readMemoryLocations } = require("./memory-location.js");
 const { renderCockpitHtml } = require("./cockpit.js");
 const { registerCopilotIntegration } = require("./copilot-tools.js").createCopilotTools(vscode);
@@ -343,8 +358,10 @@ function activate(context) {
       targets.push(cockpitPanel.webview);
     }
     if (targets.length > 0) {
-      const payload = await loadCockpitState(cli, { silent: Boolean(options.auto) });
-      await Promise.all(targets.map((webview) => webview.postMessage({ type: "state", payload })));
+      for (const webview of targets) {
+        if (cockpitPages.has(webview)) await webview.postMessage({ type: "cockpitInvalidated", except: [] });
+        else await postCockpitState(cli, webview, { silent: Boolean(options.auto) });
+      }
       if ((monitoredContext?.suggestions || []).length > 0) {
         const message = `${monitoredContext.suggestions.length} new Context proposal(s) are ready for review in ${monitoredContext.view.name}.`;
         await Promise.all(targets.map((webview) => postOperation(webview, "success", message)));
@@ -2317,7 +2334,15 @@ async function attachCockpitWebview(cli, webview, options = {}) {
 }
 
 async function postCockpitState(cli, webview, options = {}) {
-  await webview.postMessage({ type: "state", payload: await loadCockpitState(cli, options) });
+  const page = options.refreshGraphify ? undefined : options.page || cockpitPages.get(webview);
+  if (page && !options.readOnly) await webview.postMessage({ type: "cockpitInvalidated", except: [page] });
+  try {
+    const payload = await loadCockpitState(cli, { silent: true, ...options, page });
+    await webview.postMessage({ type: page ? "statePatch" : "state", payload, ...(page ? { page } : {}) });
+  } catch (error) {
+    if (page) await webview.postMessage({ type: "pageRefreshFailed", page });
+    throw error;
+  }
 }
 
 function createDocumentationOnlyCockpitState(options = {}) {
@@ -2426,6 +2451,8 @@ async function cancelContextBoundaryChange(webview) {
 }
 
 async function handleCockpitMessage(cli, webview, message) {
+  if (Object.hasOwn(pageLoads, message.cockpitPage || "")) cockpitPages.set(webview, message.cockpitPage);
+  if (message.type === "cockpitPageChanged") return;
   let editorWriteConfirmed = false;
   const confirmEditorWrite = async () => {
     editorWriteConfirmed = true;
@@ -2438,10 +2465,13 @@ async function handleCockpitMessage(cli, webview, message) {
         const payload = JSON.parse(await cli.run(["priorities", message.operation, "--stdin", "--json"], { input: JSON.stringify({ ...message.input, scope: "portfolio" }), logOutput: false }));
         await webview.postMessage({ type: "priorityResult", requestId: message.requestId, payload });
         if (!["list", "tasks", "views", "view-save", "view-delete"].includes(message.operation)) {
-          // The write is already confirmed. A refresh failure must not turn it
-          // into a failed save and invite a duplicate creation.
-          try { await postCockpitState(cli, webview); }
-          catch (error) { cli.output?.appendLine?.(`Priority saved; cockpit refresh unavailable: ${error.message}`); }
+          // Priorities already receive their canonical write result. Other pages
+          // refresh on demand instead of placing a full cockpit read in this queue.
+          if (message.cockpitPage) await webview.postMessage({ type: "cockpitInvalidated", except: ["priorities"] });
+          else if (message.operation !== "reorder") {
+            try { await postCockpitState(cli, webview); }
+            catch (error) { cli.output?.appendLine?.(`Priority saved; cockpit refresh unavailable: ${error.message}`); }
+          }
         }
       } catch (error) {
         await webview.postMessage({ type: "priorityResult", requestId: message.requestId, error: error.message });
@@ -2449,7 +2479,7 @@ async function handleCockpitMessage(cli, webview, message) {
       return;
     }
     if (message.type === "refresh") {
-      await postCockpitState(cli, webview);
+      await postCockpitState(cli, webview, { readOnly: true, page: message.cockpitPage });
     }
     if (message.type === "checkForUpdates") {
       await vscode.commands.executeCommand("workMemory.checkForUpdates");
@@ -3496,56 +3526,41 @@ async function loadCockpitState(cli, options = {}) {
     if (options.refreshGraphify) {
       graphArgs.push("--refresh-graphify");
     }
-    const [graph, tasks, inbox, graphChangeHistoryState, curationPackageState, sources, diagnostics, entities, captures, manualNotes, today, graphFilters, contextScope, cockpitTheme, graphViews, taxonomy, documentation, documentationState, memoryIndex] = await Promise.all([
-      cli.json(graphArgs),
-      cli.json(["tasks", "--json", "--scope", "portfolio"]),
-      cli.json(["inbox", "--json", "--scope", "portfolio", "--context-scope", "active"]),
-      loadGraphChangeHistory(cli),
-      loadCurationPackageState(cli),
-      cli.json(["sources", "--json", "--scope", "portfolio"]),
-      cli.json(["diagnose", "--json"]),
-      cli.json(["entity", "list", "--json"]),
-      cli.json(["capture", "list", "--json"]),
-      loadScopedManualNotes(cli),
-      cli.json(["today", "--json", "--context-scope", "active"]),
-      cli.json(["ui-state", "get", "graphFilters", "--json"]),
-      loadActiveContextPreview(cli),
-      cli.json(["ui-state", "get", "cockpitTheme", "--json"]),
-      loadGraphViews(cli),
-      cli.json(["taxonomy", "list", "--json"]),
-      options.includeDocumentation ? cli.documentationPayload() : undefined,
-      cli.documentationState(),
-      cli.json(["memory-index", "--json"]).catch(error => ({ entries: [], error: error.message || String(error) }))
-    ]);
-    const enrichedInbox = await enrichInboxSummaries(cli, inbox);
-    return {
-      graph,
-      memoryIndex,
-      graphLimits: { visibleMaxNodes, visibleMaxEdges, loadedMaxNodes, loadedMaxEdges },
-      contextTokenBudget,
-      tasks,
-      inbox: enrichedInbox,
-      graphChangeHistory: graphChangeHistoryState.items,
-      graphChangeHistoryState: graphChangeHistoryState.state,
-      curationPackages: curationPackageState.current,
-      curationPackageHistory: curationPackageState.history,
-      curationPackageHistoryState: curationPackageState.historyState,
-      curationCapabilities: curationPackageState.capabilities,
-      sources,
-      diagnostics,
-      entities,
-      captures,
-      manualNotes,
-      today,
-      graphFilters,
-      contextScope,
-      cockpitTheme,
-      graphViews,
-      taxonomy,
-      ...(documentation ? { documentation } : {}),
-      documentationState,
-      extensionVersion: cli.extensionVersion()
+    const loaders = {
+      graph: () => cli.json(graphArgs),
+      tasks: () => cli.json(["tasks", "--json", "--scope", "portfolio"]),
+      inbox: async () => enrichInboxSummaries(cli, await cli.json(["inbox", "--json", "--scope", "portfolio", "--context-scope", "active"])),
+      graphChangeHistoryState: () => loadGraphChangeHistory(cli),
+      curationPackageState: () => loadCurationPackageState(cli),
+      sources: () => cli.json(["sources", "--json", "--scope", "portfolio"]),
+      diagnostics: () => cli.json(["diagnose", "--json"]),
+      entities: () => cli.json(["entity", "list", "--json"]),
+      captures: () => cli.json(["capture", "list", "--json"]),
+      manualNotes: () => loadScopedManualNotes(cli),
+      today: () => cli.json(["today", "--json", "--context-scope", "active"]),
+      graphFilters: () => cli.json(["ui-state", "get", "graphFilters", "--json"]),
+      contextScope: () => loadActiveContextPreview(cli),
+      cockpitTheme: () => cli.json(["ui-state", "get", "cockpitTheme", "--json"]),
+      graphViews: () => loadGraphViews(cli),
+      taxonomy: () => cli.json(["taxonomy", "list", "--json"]),
+      documentation: () => options.includeDocumentation || options.page === "help" ? cli.documentationPayload() : undefined,
+      documentationState: () => cli.documentationState(),
+      memoryIndex: () => cli.json(["memory-index", "--json"]).catch(error => ({ entries: [], error: error.message || String(error) }))
     };
+    const keys = pageLoads[options.page] || Object.keys(loaders);
+    const result = Object.fromEntries(await Promise.all(keys.map(async key => [key, await loaders[key]()])));
+    if (result.graphChangeHistoryState) {
+      const history = result.graphChangeHistoryState;
+      result.graphChangeHistory = history.items; result.graphChangeHistoryState = history.state;
+    }
+    if (result.curationPackageState) {
+      const packages = result.curationPackageState; delete result.curationPackageState;
+      Object.assign(result, { curationPackages: packages.current, curationPackageHistory: packages.history,
+        curationPackageHistoryState: packages.historyState, curationCapabilities: packages.capabilities });
+    }
+    if (result.graph) Object.assign(result, { graphLimits: { visibleMaxNodes, visibleMaxEdges, loadedMaxNodes, loadedMaxEdges }, contextTokenBudget });
+    if (!result.documentation) delete result.documentation;
+    return { ...result, extensionVersion: cli.extensionVersion() };
   };
 
   if (options.silent) {

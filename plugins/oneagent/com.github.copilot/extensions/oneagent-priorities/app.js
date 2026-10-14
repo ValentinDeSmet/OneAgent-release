@@ -1,4 +1,5 @@
 "use strict";
+const priorityRoot = document;
 const $ = (selector) => document.querySelector(selector);
 const token = $('meta[name="oneagent-token"]').content;
 const openExternal = null;
@@ -8,6 +9,7 @@ let entities = [], sortBy = "manual", sortDirection = "asc";
 let items = [], nextOffset = null, selected = null, loading = false, saving = false, requestVersion = 0;
 let orderRevision = "", reordering = false, draggedId = "", draggedRow = null, dropRow = null;
 let rankHandles = new Map();
+let rankQueue = [], confirmedRankItems = [], rankControls = [];
 let pendingDelete = null;
 const deletion = $("#delete-confirm");
 const rowMenu = $("#row-menu");
@@ -122,7 +124,7 @@ async function writeView(operation, input, target, confirmed) {
   try {
     const data = await api(operation, { ...input, revision: viewsRevision });
     savedViews = data.items; defaultViewId = data.defaultViewId; viewsRevision = data.revision;
-    confirmed(data); error($("#view-error")); await refresh();
+    confirmed(data); error($("#view-error")); await refresh(false, { views: false });
   } catch (failure) {
     viewsRevision = "";
     error(target, failure.message + "\nModification non confirmée. Ferme cette fenêtre et actualise les vues avant de réessayer.");
@@ -244,7 +246,6 @@ function initializeColumns() {
   }
   $('#view-scope').append($('#view').closest('label'));
   $('#attention-filter').append($('#filter').closest('.filter-field'));
-  const priorityRoot = document;
   tableColumns=createTableColumns({root:priorityRoot,columns:priorityColumns,required:['rank','title'],config:()=>presentation,isFiltered:columnFilterCount,disabled:()=>saving||reordering||viewBusy,
     onHide(key){if(sortBy===key){sortBy='manual';sortDirection='asc';refresh();}},
     changed(){render();}
@@ -373,49 +374,109 @@ function clearDrag() {
   if (draggedRow) delete draggedRow.dataset.dragging;
   draggedId = ""; draggedRow = null; dropRow = null;
 }
-async function movePriority(taskId, targetTaskId, position) {
-  if (!manualView() || loading || saving || reordering || !orderRevision) return;
-  clearTimeout(searchTimer);
-  clearDrag(); reordering = true; render(); error($("#error"));
-  const controls = [...document.querySelectorAll(".toolbar input, .toolbar select, .toolbar button, .filters input, .filters select, .filters button, #column-menu input, #column-menu button, [data-column-menu], #column-settings input, #column-settings button, [data-sort], [data-filter], #add, #empty-add, #refresh, #more, #manual-order")];
-  const previous = controls.map(control => control.disabled);
-  for (const control of controls) control.disabled = true;
-  $("#rank-feedback").textContent = "Enregistrement du classement…";
-  try {
-    const result = await api("reorder", { taskId, targetTaskId, position, orderRevision });
-    orderRevision = result.orderRevision;
-    await refresh();
-    $("#rank-feedback").textContent = result.moved ? "Classement enregistré." : "Classement inchangé.";
-  } catch (failure) {
-    orderRevision = "";
-    error($("#error"), failure.message + "\nClassement non confirmé. Actualise la liste avant de réessayer le déplacement.");
-    $("#rank-feedback").textContent = "Classement non confirmé.";
-  } finally {
-    reordering = false;
-    controls.forEach((control, index) => { control.disabled = previous[index]; });
-    renderFacets(); render(); rankHandles.get(taskId)?.focus();
+function movedRows(rows, move) {
+  const moved = rows.find(item => item.id === move.taskId);
+  if (!moved || moved.id === move.targetTaskId || !rows.some(item => item.id === move.targetTaskId)) return rows;
+  const next = rows.filter(item => item.id !== moved.id);
+  next.splice(next.findIndex(item => item.id === move.targetTaskId) + (move.position === "after" ? 1 : 0), 0, moved);
+  return next;
+}
+function placeRankRows() {
+  const body = $("#rows");
+  const rows = new Map([...body.querySelectorAll("tr[data-task-id]")].map(row => [row.dataset.taskId, row]));
+  const groups = new Map([...rows].map(([id, row]) => [id, row.nextElementSibling?.classList.contains("tasks-accordion") ? [row, row.nextElementSibling] : [row]]));
+  let cursor = body.firstElementChild;
+  for (const [index, item] of items.entries()) {
+    for (const row of groups.get(item.id) || []) {
+      if (row !== cursor) body.insertBefore(row, cursor); else cursor = cursor.nextElementSibling;
+    }
+    const handle = rankHandles.get(item.id);
+    if (handle) { handle.disabled = !manualView() || !orderRevision; handle.draggable = !handle.disabled; }
+    const number = rows.get(item.id)?.querySelector(".rank-number");
+    if (number) number.textContent = reordering ? "…" : String(item.manualPosition || index + 1);
   }
+}
+function finishRanking() {
+  reordering = false;
+  for (const [control, disabled] of rankControls) if (control.isConnected) control.disabled = disabled;
+  rankControls = []; placeRankRows();
+}
+async function flushRanking() {
+  let changedElsewhere = false;
+  while (rankQueue.length) {
+    const move = rankQueue[0];
+    try {
+      const result = await api("reorder", { taskId: move.taskId, targetTaskId: move.targetTaskId, position: move.position, orderRevision });
+      if (!result.orderRevision || !Array.isArray(result.order)) throw new Error("Le serveur n’a pas confirmé les positions. Actualise la liste.");
+      orderRevision = result.orderRevision;
+      const positions = new Map(result.order.map(item => [item.id, item]));
+      confirmedRankItems = confirmedRankItems.map(item => {
+        const position = positions.get(item.id);
+        // Never grant a fresh revision to stale content changed by another host.
+        if (position?.previousRevision && position.previousRevision !== item.revision) {
+          changedElsewhere = true;
+          return { ...item, manualPosition: position.manualPosition };
+        }
+        return { ...item, ...position };
+      }).sort((a,b) => a.manualPosition - b.manualPosition);
+      for (const item of confirmedRankItems) {
+        const cached = taskCache.get(item.id); if (cached) cached.priorityRevision = item.revision;
+      }
+      rankQueue.shift(); move.resolve(true);
+      items = rankQueue.reduce(movedRows, confirmedRankItems);
+      placeRankRows();
+    } catch (failure) {
+      items = confirmedRankItems; orderRevision = "";
+      for (const queued of rankQueue) queued.resolve(false);
+      rankQueue = [];
+      error($("#error"), failure.message + "\nDéplacement non confirmé. Les déplacements suivants ont été annulés ; actualise avant de réessayer.");
+      $("#rank-feedback").textContent = "Classement à vérifier.";
+      finishRanking(); return;
+    }
+  }
+  $("#rank-feedback").textContent = "Classement enregistré.";
+  finishRanking();
+  if (changedElsewhere) await refresh(false, { views: false });
+}
+function movePriority(taskId, targetTaskId, position) {
+  if (!manualView() || loading || saving || !orderRevision || taskId === targetTaskId) return;
+  if (!items.some(item => item.id === taskId) || !items.some(item => item.id === targetTaskId)) return;
+  clearTimeout(searchTimer); clearDrag(); error($("#error"));
+  const starting = !reordering;
+  if (starting) {
+    confirmedRankItems = items; reordering = true;
+    const controls = priorityRoot.querySelectorAll(".toolbar input, .toolbar select, .toolbar button, #column-menu input, #column-menu button, [data-column-menu], #column-settings input, #column-settings button, [data-sort], [data-filter], #add, #empty-add, #refresh, #more, #manual-order, .row-actions button, .tasks-accordion button, .tasks-toggle, .subject, .memory-view-tab, #view-picker, #view-actions button");
+    rankControls = [...controls].map(control => [control, control.disabled]);
+    for (const [control] of rankControls) control.disabled = true;
+  }
+  const promise = new Promise(resolve => rankQueue.push({ taskId, targetTaskId, position, resolve }));
+  items = movedRows(items, { taskId, targetTaskId, position });
+  placeRankRows(); rankHandles.get(taskId)?.focus();
+  $("#rank-feedback").textContent = "Enregistrement du classement…";
+  if (starting) void flushRanking();
+  return promise;
 }
 function rankCell(item, row, index) {
   const cell = node("td", "", "rank-cell"), handle = node("button", "⠿", "rank-handle");
-  handle.type = "button"; handle.draggable = manualView() && !reordering && Boolean(orderRevision); handle.disabled = !manualView() || reordering || !orderRevision;
+  handle.type = "button"; handle.draggable = manualView() && Boolean(orderRevision); handle.disabled = !manualView() || !orderRevision;
   handle.setAttribute("aria-label", "Déplacer " + item.title);
   handle.setAttribute("aria-describedby", "rank-help");
   handle.title = manualView() ? "Glisser pour classer · Flèche haut / bas pour déplacer au clavier" : "Reviens à Mon classement pour déplacer ce sujet";
   handle.addEventListener("dragstart", event => {
-    if (!manualView() || loading || saving || reordering) { event.preventDefault(); return; }
+    if (!manualView() || loading || saving || !orderRevision) { event.preventDefault(); return; }
     draggedId = item.id; draggedRow = row; row.dataset.dragging = "true";
     event.dataTransfer?.setData("text/plain", item.id);
     if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
   });
   handle.addEventListener("dragend", clearDrag);
   handle.addEventListener("keydown", event => {
-    const target = event.key === "ArrowUp" ? items[index - 1] : event.key === "ArrowDown" ? items[index + 1] : null;
+    const currentIndex = items.findIndex(row => row.id === item.id);
+    const target = event.key === "ArrowUp" ? items[currentIndex - 1] : event.key === "ArrowDown" ? items[currentIndex + 1] : null;
     if (!manualView() || !target) return;
     event.preventDefault(); return movePriority(item.id, target.id, event.key === "ArrowUp" ? "before" : "after");
   });
   row.addEventListener("dragover", event => {
-    if (!draggedId || draggedId === item.id || !manualView() || reordering) return;
+    if (!draggedId || draggedId === item.id || !manualView() || !orderRevision) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
     if (dropRow && dropRow !== row) delete dropRow.dataset.dropPosition;
@@ -425,7 +486,7 @@ function rankCell(item, row, index) {
   });
   row.addEventListener("dragleave", event => { if (!row.contains(event.relatedTarget)) { delete row.dataset.dropPosition; if (dropRow === row) dropRow = null; } });
   row.addEventListener("drop", event => {
-    if (!draggedId || draggedId === item.id || !manualView() || reordering) return;
+    if (!draggedId || draggedId === item.id || !manualView() || !orderRevision) return;
     event.preventDefault();
     const from = draggedId, position = row.dataset.dropPosition || "before";
     clearDrag(); return movePriority(from, item.id, position);
@@ -474,14 +535,14 @@ function render() {
   for (const [index, item] of items.entries()) {
     const row = node("tr"), subject = node("td"), button = node("button", item.title, "subject");
     row.dataset.taskId = item.id;
-    button.type = "button"; button.addEventListener("click", () => edit(item));
+    button.type = "button"; button.addEventListener("click", () => edit(items.find(current => current.id === item.id) || item));
     const titleLine = node("div", "", "subject-line"), actions = node("div", "", "row-actions");
     const modify = actionButton("Modifier " + item.title, '<path d="m16 3 5 5-12 12-6 1 1-6Z"/><path d="m14 5 5 5"/>');
-    modify.addEventListener("click", () => edit(item));
+    modify.addEventListener("click", () => edit(items.find(current => current.id === item.id) || item));
     const more = actionButton("Actions pour " + item.title, '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>');
     more.setAttribute("aria-haspopup", "menu"); more.setAttribute("aria-controls", "row-menu"); more.setAttribute("aria-expanded", "false");
-    more.addEventListener("click", () => showRowMenu(item, more));
-    more.addEventListener("keydown", event => { if (event.key === "ArrowDown") { event.preventDefault(); showRowMenu(item, more); } });
+    more.addEventListener("click", () => showRowMenu(items.find(current => current.id === item.id) || item, more));
+    more.addEventListener("keydown", event => { if (event.key === "ArrowDown") { event.preventDefault(); showRowMenu(items.find(current => current.id === item.id) || item, more); } });
     actions.append(modify, more); titleLine.append(button, actions); subject.append(titleLine);
     if (item.inPriorities === false) subject.append(node("span", "Retirée des priorités", "badge excluded"));
     subject.append(node("span", item.itemType === "task" ? "Tâche" : "Sujet", "badge nature"));
@@ -489,7 +550,7 @@ function render() {
     const tasksToggle = node("button", `${expandedTasks.has(item.id) ? "▾" : "▸"} Tâches · ${item.taskDoneCount || 0}/${item.taskCount || 0}`, "tasks-toggle");
     tasksToggle.type = "button"; tasksToggle.setAttribute("aria-expanded", String(expandedTasks.has(item.id)));
     tasksToggle.setAttribute("aria-controls", "priority-tasks-" + encodeURIComponent(item.id));
-    tasksToggle.addEventListener("click", () => { expandedTasks.has(item.id) ? expandedTasks.delete(item.id) : expandedTasks.add(item.id); render(); });
+    tasksToggle.addEventListener("click", () => { if (reordering) return; expandedTasks.has(item.id) ? expandedTasks.delete(item.id) : expandedTasks.add(item.id); render(); });
     subject.append(tasksToggle);
     const description = node("td"), content = node("span", item.body || "—", "description");
     content.title = item.body || ""; description.append(content);
@@ -540,19 +601,26 @@ function render() {
   const count = activeFilterCount();
   $("#filter-count").textContent = count ? `(${count} actif${count > 1 ? "s" : ""})` : "";
 }
-async function refresh(append = false) {
+async function refresh(append = false, options = {}) {
+  if (reordering) return;
   clearDrag();
   const version = ++requestVersion;
   loading = true; $("#refresh").disabled = true; $("#more").disabled = true;
   try {
-    await readViews(version); if (version !== requestVersion) return;
+    if (!viewsReady || options.views !== false) await readViews(version);
+    if (version !== requestVersion) return;
     const data = await api("list", { today: day(), query: $("#search").value, view: $("#view").value, ...filters(), sortBy, sortDirection, limit: 100, offset: append ? nextOffset : 0 });
     if (version !== requestVersion) return;
+    for (const item of data.items) {
+      const previous = items.find(row => row.id === item.id);
+      if (options.views !== false || !previous || previous.revision !== item.revision || previous.taskCount !== item.taskCount || previous.taskDoneCount !== item.taskDoneCount) {
+        taskCache.delete(item.id); taskLoads.delete(item.id);
+      }
+    }
     items = append ? [...items, ...data.items.filter((item) => !items.some((old) => old.id === item.id))] : data.items;
     orderRevision = data.orderRevision || "";
     nextOffset = data.nextOffset;
     entities = data.entities || [];
-    taskCache.clear(); taskLoads.clear();
     facets = data.facets || {}; renderFacets();
     for (const key of ["active", "urgent", "overdue", "clarify"]) $("#count-" + key).textContent = data.counts[key];
     for (const button of document.querySelectorAll("[data-filter]")) button.setAttribute("aria-pressed", String((button.dataset.filter === "all" ? !selectedFilters.filter.size : selectedFilters.filter.has(button.dataset.filter)) && $("#view").value === "active"));
@@ -585,7 +653,7 @@ function renderPriorityTasks(item, panel) {
     taskLoads.set(item.id, request);
     api("tasks", { priorityId: item.id }).then(value => {
       if (taskLoads.get(item.id) !== request) return;
-      taskLoads.delete(item.id); taskCache.set(item.id, value);
+      taskLoads.delete(item.id); value.priorityRevision = items.find(row => row.id === item.id)?.revision || value.priorityRevision; taskCache.set(item.id, value);
       const current = taskPanels.get(item.id);
       if (current && expandedTasks.has(item.id)) renderPriorityTasks(item, current);
     }).catch(failure => {
@@ -610,11 +678,12 @@ function renderPriorityTasks(item, panel) {
     const detach = node("button", "Détacher", "subtle"); detach.type = "button"; detach.disabled = saving;
     detach.title = "Retirer le lien à cette priorité ; conserver la tâche et ses autres liens.";
     detach.addEventListener("click", async () => {
-      if (saving || detach.disabled) return;
+      if (saving || reordering || detach.disabled) return;
       saving = true; detach.disabled = true;
       try {
         await api("task-detach", { priorityId: item.id, priorityRevision: data.priorityRevision, taskId: task.id, taskRevision: task.priorityRevision });
-        $("#action-feedback").textContent = "Tâche détachée ; elle reste disponible dans Tâches."; $("#action-feedback").hidden = false; await refresh();
+        taskCache.delete(item.id); taskLoads.delete(item.id);
+        $("#action-feedback").textContent = "Tâche détachée ; elle reste disponible dans Tâches."; $("#action-feedback").hidden = false; await refresh(false, { views: false });
       } catch (failure) { error($("#error"), failure.message + "\nDétachement non confirmé. Actualise avant de réessayer."); }
       finally { saving = false; render(); }
     });
@@ -675,7 +744,7 @@ taskForm.addEventListener("submit", async event => {
   }
   saving = true; error($("#task-error"));
   for (const button of taskForm.querySelectorAll("button")) button.disabled = true;
-  try { await api(operation, input); taskEditor.close(); await refresh(); }
+  try { await api(operation, input); taskCache.delete(taskContext.priorityId); taskLoads.delete(taskContext.priorityId); taskEditor.close(); await refresh(false, { views: false }); }
   catch (failure) { error($("#task-error"), failure.message + "\nÉcriture non confirmée. Ferme cette fiche et actualise avant de réessayer, pour éviter un doublon."); }
   finally { saving = false; for (const button of taskForm.querySelectorAll("button")) if (button.id !== "task-save") button.disabled = false; render(); }
 });
@@ -729,7 +798,12 @@ async function save(event) {
   saving = true;
   for (const button of form.querySelectorAll("button")) button.disabled = true;
   error($("#form-error"));
-  try { await api("save", input); editor.close(); await refresh(); }
+  try {
+    const saved = await api("save", input);
+    const index = items.findIndex(item => item.id === saved.id);
+    if (index >= 0) items[index] = { ...items[index], ...saved }; else items.push(saved);
+    editor.close(); render(); await refresh(false, { views: false });
+  }
   catch (failure) { error($("#form-error"), failure.message + "\nEn cas de coupure, vérifie la liste avant de réessayer une création."); }
   finally { saving = false; for (const button of form.querySelectorAll("button")) button.disabled = false; renderFacets(); render(); }
 }
@@ -751,7 +825,7 @@ $("#delete-submit").addEventListener("click", async () => {
     pendingDelete = null; deletion.close();
     if (selected?.id === item.id) { selected = null; editor.close(); }
     $("#action-feedback").textContent = `« ${item.title} » a été retirée des priorités. La tâche est conservée.`; $("#action-feedback").hidden = false;
-    await refresh();
+    await refresh(false, { views: false });
   } catch (failure) { error($("#delete-error"), failure.message + "\nRetrait non confirmé. Ferme cette fenêtre et actualise la liste avant de réessayer."); }
   finally { saving = false; $("#delete-cancel").disabled = false; renderFacets(); render(); }
 });
@@ -763,7 +837,7 @@ async function restorePriority(item) {
     await api("save", { taskId: item.id, revision: item.revision, inPriorities: true });
     if (selected?.id === item.id) { selected = null; editor.close(); }
     $("#action-feedback").textContent = `« ${item.title} » a été remise dans les priorités.`; $("#action-feedback").hidden = false;
-    await refresh();
+    await refresh(false, { views: false });
   } catch (failure) { error(editor.open ? $("#form-error") : $("#error"), failure.message + "\nRemise dans les priorités non confirmée. Actualise la liste avant de réessayer."); }
   finally { saving = false; for (const button of form.querySelectorAll("button")) button.disabled = false; renderFacets(); render(); }
 }

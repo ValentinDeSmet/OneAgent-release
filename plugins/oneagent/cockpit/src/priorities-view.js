@@ -47,7 +47,7 @@ function prioritiesBootstrap() {
     const createTableColumns = ${createTableColumns.toString()};
     ${script}
     refreshPriorities = autoRefresh;
-    window.addEventListener("message", (event) => { if (event.data?.type === "state") autoRefresh(); });
+    window.addEventListener("message", (event) => { if (event.data?.type === "state" && !event.data.patch || event.data?.type === "cockpitInvalidated" && !event.data.except?.includes("priorities")) autoRefresh(); });
   }`;
 }
 
