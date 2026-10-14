@@ -352,3 +352,10 @@ Le filtre `priorityId` accepte un identifiant de priorité ou plusieurs identifi
 (OU entre eux), combinés aux autres critères (ET). `facets.priorityId` fournit
 leurs titres avant pagination. Les vues enregistrées conservent ces identifiants
 et continuent de fonctionner après renommage d’un sujet.
+
+
+### Réactivité du classement
+
+Les lignes se déplacent immédiatement ; les écritures sont envoyées dans l’ordre, sans recharger le tableau. On peut enchaîner les glisser-déposer ou les flèches du clavier. Le focus et les tâches dépliées restent en place. Les autres commandes du tableau attendent la fin de l’enregistrement pour conserver un classement cohérent.
+
+Une erreur remet l’affichage au dernier classement confirmé et annule les gestes encore en attente. Utiliser **Actualiser** avant de reprendre, notamment si une écriture a pu être enregistrée malgré une coupure de connexion. Aucun déplacement n’est rejoué automatiquement.

@@ -2,12 +2,14 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.23](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [GitHub Copilot 0.6.24](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
 
 Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
 
-**Pages en pleine largeur (Copilot 0.6.23 / VS Code 0.1.145).** Tâches, Notes et Mémoire n’ont plus de panneau de détail permanent à droite. Un clic ouvre une grande fenêtre de consultation ou d’édition, comme dans l’Inbox. Les réglages proposent **Actions et diagnostics**. Les actualisations préservent les brouillons ; la fermeture protège les modifications non enregistrées et la fenêtre se ferme après confirmation de la sauvegarde. Les longues descriptions sont limitées à trois lignes dans les cartes de tâches, avec le contenu complet dans la fiche.
+**Interface plus réactive (Copilot 0.6.24 / VS Code 0.1.146).** Les sauvegardes actualisent la page concernée sans recharger tout le cockpit. Les autres pages se remettent à jour à leur ouverture. Les déplacements de priorités apparaissent immédiatement ; les écritures sont confirmées dans l’ordre, sans reconstruire le tableau, avec conservation des accordéons. Un conflit remet l’affichage au dernier classement confirmé et annule les gestes encore en attente, sans réessai automatique.
+
+Les pages gardent toute leur largeur et ouvrent les fiches dans une grande fenêtre au clic. Les brouillons restent protégés.
 
 **Inbox corrigée.** Toutes les propositions en attente rejoignent To review, y compris les documents Markdown, wiki et les changements du graphe. L’historique reste repliable sous la liste. [Guide Inbox](docs/inbox.md).
 
