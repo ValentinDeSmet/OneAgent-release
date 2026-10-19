@@ -83,6 +83,16 @@ silently uninstall it or claim remote updates are already configured.
 
 ## Memory worker startup failures
 
+For "Aucun exécutable Node.js trouvé", the worker did not receive a memory request.
+Copilot 0.6.27+ checks common macOS installations outside PATH (Homebrew, nvm, fnm,
+Volta, asdf, mise, nodenv) without evaluating shell profiles or relaunching the app.
+Older plugins only inspect the inherited PATH. Do not conclude Node is absent on
+the Mac from that older error. Ask for `command -v node` and `node --version` in
+Terminal when needed. A compatible local Node.js ≥ 22.18 is still required; the
+plugin does not install it. An explicit ONEAGENT_NODE_PATH remains authoritative.
+After a runtime installation is corrected, refresh the cockpit to retry discovery
+in the same conversation; do not reset or recreate the memory.
+
 An old "OneAgent worker stopped (1)" message does not establish a database lock,
 corruption, or missing product configuration. Do not reset the memory, delete locks,
 or replay a write on that evidence. The current bridge checks Node compatibility

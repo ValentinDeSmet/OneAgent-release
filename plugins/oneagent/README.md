@@ -1,5 +1,7 @@
 # OneAgent pour l’application GitHub Copilot
 
+Version 0.6.27 : détection automatique des installations Node.js hors du PATH de Copilot sur macOS (Homebrew, nvm, fnm, Volta, asdf, mise, nodenv). Les opérations mémoire ne nécessitent plus que l’application hérite du PATH du Terminal. Un Node.js compatible déjà installé reste nécessaire.
+
 Version 0.6.26 : l’agent peut maintenant créer une entité avec son Markdown et la relier à un produit via MCP. Les types disponibles dans la mémoire sont consultables ; les IDs existants et le contexte strict restent protégés.
 
 Version 0.6.25 : nouvelle page **Ma mission** avec Mission, Entretiens et Bilan. Objectifs et résultats clés/KPIs, versions de périmètre datées, EI avec enregistrement automatique et propositions de rédaction Copilot à relire. Les contributions hors mission sont conservées avec leur impact et leurs preuves, puis valorisées dans le bilan annuel. Le suivi partage le même front et le même moteur que VS Code 0.1.147. [Guide](cockpit/docs/mission-and-interviews.md).
@@ -69,12 +71,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.26.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.27.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.26/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.27/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -292,10 +294,17 @@ un module manquant ou un accès refusé, sans recopier les sorties brutes du pos
 Aucune écriture n’est répétée automatiquement. Une erreur encore inconnue est
 présentée comme telle ; ce correctif ne confirme pas la cause d’une panne à distance.
 
-Si Node.js est introuvable depuis l’application, rendre le même Node compatible
-accessible dans son `PATH`. Pour un hôte administré, `ONEAGENT_NODE_PATH` accepte
-un chemin absolu vers le Node à utiliser. Le plugin conserve les options et les
-restrictions de l’environnement ; il ne change pas les permissions de la mémoire.
+Depuis 0.6.27, le moteur cherche aussi hors du `PATH` : Homebrew Intel/Apple Silicon,
+y compris les versions non liées dans `opt`, nvm, fnm, Volta, asdf, mise et nodenv.
+Il utilise les emplacements configurés de ces gestionnaires et leurs dossiers
+habituels sur le Mac, puis vérifie réellement la compatibilité avant tout accès mémoire.
+Il ne charge pas `.zshrc`/`.zprofile`, ne lance pas l’application comme un Node et
+ne télécharge aucun moteur. Si Node est absent ou incompatible, installer un Node.js
+≥ 22.18 avec TypeScript et SQLite disponibles reste nécessaire. Actualiser ensuite
+le cockpit permet de relancer la détection ; un échec n’est pas mis en cache.
+Pour un hôte administré, `ONEAGENT_NODE_PATH` accepte un chemin absolu et reste
+prioritaire : une valeur invalide est signalée sans changer silencieusement de moteur.
+Les options, certificats et restrictions de l’environnement restent inchangés.
 
 ## Mémoire, VS Code et plusieurs postes
 
@@ -364,7 +373,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.26.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.27.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.

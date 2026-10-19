@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import os from "node:os";
 import { execFile } from "node:child_process";
 
 const marker = "ONEAGENT_NODE_PROBE=";
@@ -15,9 +16,69 @@ const executable = (file: string): boolean => {
   try { fs.accessSync(file, fs.constants.X_OK); return fs.statSync(file).isFile(); } catch { return false; }
 };
 
+type NodeLocations = {
+  env?: NodeJS.ProcessEnv; home?: string; platform?: NodeJS.Platform;
+  /** Installation prefixes, injectable so tests never rely on the developer's Node. */
+  installRoots?: string[];
+};
+
+/** Fixed installation layouts only. No shell startup files, recursive disk search,
+ * downloads, or application executables are run to discover a worker. */
+export function installedNodeCandidates(options: NodeLocations = {}): string[] {
+  const env = options.env ?? process.env, home = options.home ?? os.homedir(), platform = options.platform ?? process.platform;
+  if (platform !== "darwin" && platform !== "linux") return [];
+  const candidates: string[] = [];
+  const absolute = (directory: string | undefined): directory is string => Boolean(directory && path.isAbsolute(directory));
+  const add = (directory: string | undefined, ...parts: string[]) => { if (absolute(directory)) candidates.push(path.join(directory, ...parts, "node")); };
+  const versions = (root: string | undefined, suffix: string[]) => {
+    if (!absolute(root)) return;
+    try {
+      const entries = fs.readdirSync(root, { withFileTypes: true })
+        .filter(entry => (entry.isDirectory() || entry.isSymbolicLink()) && /^v?\d+\.\d+\.\d+(?:[-+][A-Za-z0-9.-]+)?$/.test(entry.name))
+        .sort((a, b) => b.name.replace(/^v/, "").localeCompare(a.name.replace(/^v/, ""), "en", { numeric: true }));
+      for (const entry of entries.slice(0, 8)) add(root, entry.name, ...suffix);
+    } catch { /* An absent or inaccessible optional installation is not a memory error. */ }
+  };
+  const manager = (type: string, root: string | undefined) => {
+    if (!absolute(root)) return;
+    switch (type) {
+      case "nvm": versions(path.join(root, "versions/node"), ["bin"]); break;
+      case "fnm": versions(path.join(root, "node-versions"), ["installation", "bin"]); break;
+      case "volta": versions(path.join(root, "tools/image/node"), ["bin"]); break;
+      case "asdf": versions(path.join(root, "installs/nodejs"), ["bin"]); break;
+      case "mise": versions(path.join(root, "installs/node"), ["bin"]); break;
+      case "nodenv": versions(path.join(root, "versions"), ["bin"]); break;
+    }
+  };
+  // Honor configured manager locations before looking in default locations.
+  for (const [type, key] of [["nvm", "NVM_DIR"], ["fnm", "FNM_DIR"], ["volta", "VOLTA_HOME"], ["asdf", "ASDF_DATA_DIR"], ["mise", "MISE_DATA_DIR"], ["nodenv", "NODENV_ROOT"]]) manager(type, env[key]);
+  const roots = [env.HOMEBREW_PREFIX, ...(options.installRoots ?? (platform === "darwin" ? ["/opt/homebrew", "/usr/local"] : ["/usr/local", "/usr"]))].filter(absolute);
+  for (const root of roots) {
+    add(root, "bin");
+    // A keg-only Homebrew Node may have no bin/node symlink in the prefix.
+    try {
+      const packages = fs.readdirSync(path.join(root, "opt"), { withFileTypes: true })
+        .filter(entry => (entry.isDirectory() || entry.isSymbolicLink()) && /^node(?:@\d+)?$/.test(entry.name))
+        .sort((a, b) => b.name.localeCompare(a.name, "en", { numeric: true }));
+      for (const entry of packages.slice(0, 8)) add(root, "opt", entry.name, "bin");
+    } catch { /* Not a Homebrew prefix. */ }
+  }
+  if (absolute(home)) {
+    manager("nvm", path.join(home, ".nvm"));
+    manager("fnm", path.join(home, "Library/Application Support/fnm"));
+    manager("fnm", path.join(home, ".local/share/fnm"));
+    manager("volta", path.join(home, ".volta"));
+    manager("asdf", path.join(home, ".asdf"));
+    manager("mise", path.join(home, ".local/share/mise"));
+    manager("nodenv", path.join(home, ".nodenv"));
+    add(home, "n", "bin");
+  }
+  return [...new Set(candidates)].filter(executable);
+}
+
 /** A canvas may be hosted by an app executable; it is not necessarily a Node CLI.
  * Do not launch that app a second time with the memory request as stdin. */
-export function nodeCandidates(options: { execPath?: string; versions?: Record<string, string | undefined>; env?: NodeJS.ProcessEnv } = {}): string[] {
+export function nodeCandidates(options: NodeLocations & { execPath?: string; versions?: Record<string, string | undefined> } = {}): string[] {
   const env = options.env ?? process.env, host = options.execPath ?? process.execPath, versions = options.versions ?? process.versions;
   if (env.ONEAGENT_NODE_PATH) {
     if (!path.isAbsolute(env.ONEAGENT_NODE_PATH)) throw new Error("ONEAGENT_NODE_PATH doit désigner un exécutable Node.js avec un chemin absolu.");
@@ -28,6 +89,7 @@ export function nodeCandidates(options: { execPath?: string; versions?: Record<s
   for (const directory of (env.PATH ?? "").split(path.delimiter)) {
     if (path.isAbsolute(directory)) candidates.push(path.join(directory, process.platform === "win32" ? "node.exe" : "node"));
   }
+  candidates.push(...installedNodeCandidates(options));
   return [...new Set(candidates)].filter(executable);
 }
 
@@ -63,7 +125,7 @@ export function resolveWorkerNode(): Promise<string> {
       if (!diagnosis) return command;
       failures.push(diagnosis);
     }
-    throw new Error(`Démarrage OneAgent impossible avant toute requête mémoire. ${failures[0] ?? "Aucun exécutable Node.js trouvé. Rendre Node.js ≥ 22.18 accessible à Copilot, ou définir ONEAGENT_NODE_PATH avec son chemin absolu."}`);
+    throw new Error(`Démarrage OneAgent impossible avant toute requête mémoire. ${failures[0] ?? "Aucun exécutable Node.js trouvé dans le PATH ou les emplacements d’installation reconnus. Installer Node.js ≥ 22.18, ou définir ONEAGENT_NODE_PATH avec le chemin absolu d’une installation existante."}`);
   })();
   cached = { key, result };
   void result.catch(() => { if (cached?.result === result) cached = undefined; });
