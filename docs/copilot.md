@@ -1,5 +1,7 @@
 # OneAgent pour l’application GitHub Copilot
 
+Version 0.6.33 : validation des observations directement dans la conversation (l’Inbox garde ce qui reste à trancher) ; « Reingest » remet la capture en attente de curation avec un message clair ; curation datée des anciennes captures.
+
 Version 0.6.32 : maintenance de la mémoire par l’agent (doublons, entités isolées, contradictions, wiki obsolète, captures à curer), avec plan validé avant toute modification.
 
 Version 0.6.31 : curation des captures par l’agent de la conversation (la curation automatique n’est pas disponible dans l’application) ; mission, entretiens individuels et bilan entièrement pilotables par l’agent, import d’entretiens passés compris.
@@ -81,12 +83,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.32.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.33.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.32/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.33/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -383,7 +385,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.32.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.33.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.
