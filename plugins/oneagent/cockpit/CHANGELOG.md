@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.150
+
+- Copilot 0.6.28 et VS Code 0.1.150 : la détection de Node.js hors du PATH (Copilot 0.6.27) arrive aussi dans l’extension VS Code. Aucun autre changement fonctionnel.
+- Publication automatique réparée : le script appelait l’API GitHub avec une barre oblique finale (`repos/…/OneAgent-release/`), refusée en 404. Aucune release VSIX n’avait été publiée depuis 0.1.124 ; 0.1.125 à 0.1.149 n’ont pas de release.
+
 ## 0.1.148
 
 - Copilot 0.6.26 expose la création d’entités avec leur contenu Markdown, la lecture du vocabulaire du workspace et la création/lecture des relations. Le skill ne demande plus de remplacer une entité par une note ou de la créer manuellement.
