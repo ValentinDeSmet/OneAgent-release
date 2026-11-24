@@ -2,32 +2,8 @@
 
 Deux plugins en parallèle :
 
-- [GitHub Copilot 0.6.27](docs/copilot.md) : installation et mise à jour depuis ce catalogue.
+- [Installer OneAgent dans GitHub Copilot](docs/copilot.md) : ajouter ce dépôt comme catalogue, puis installer OneAgent.
 - Extension VS Code : guide ci-dessous et fichiers VSIX dans les releases.
-
-**Démarrage du moteur (Copilot 0.6.27).** Le plugin cherche Node.js dans les installations Homebrew et les gestionnaires de versions, même lorsque le PATH transmis par l’application est réduit. La compatibilité est vérifiée avant tout accès mémoire. Un Node.js ≥ 22.18 déjà installé reste nécessaire ; aucun moteur n’est téléchargé automatiquement. [Diagnostic et prérequis](docs/copilot.md).
-
-**Création d’entités depuis le chat (Copilot 0.6.26).** L’agent peut créer une étude avec sa propre page Markdown et la relier au produit demandé. Les types d’entités et de relations du workspace sont consultables ; les IDs existants et le contexte strict restent protégés. Une création explicitement demandée ne nécessite plus de remplacement par une note ni de création manuelle. [Guide Copilot](docs/copilot.md).
-
-Le cockpit complet est partagé : graphe, notes, tâches, priorités, Inbox, sources, Today, contexte, aide et réglages.
-
-**Ma mission, entretiens et bilan (Copilot 0.6.25 / VS Code 0.1.147).** Une page commune pour les objectifs et résultats clés/KPIs, les changements de périmètre par versions datées, la préparation des EI et le bilan annuel. Les contributions hors mission conservent leur impact, leur date et leurs preuves ; elles sont reprises dans le bilan même sans objectif initial. Les champs sont enregistrés automatiquement avec protection des brouillons et révisions. Les propositions de rédaction Copilot restent à relire avant application, sans bloquer les sauvegardes. [Guide Mission et EI](docs/mission-and-interviews.md).
-
-Les sauvegardes actualisent la page concernée, et le classement des priorités réagit immédiatement.
-
-Les pages gardent toute leur largeur et ouvrent les fiches dans une grande fenêtre au clic. Les brouillons restent protégés.
-
-**Inbox corrigée.** Toutes les propositions en attente rejoignent To review, y compris les documents Markdown, wiki et les changements du graphe. L’historique reste repliable sous la liste. [Guide Inbox](docs/inbox.md).
-
-Les filtres des priorités, le tri désactivable et les contrôles de colonnes partagés avec Mémoire restent disponibles. [Guide des priorités](docs/priorities.md) · [Guide Mémoire](docs/memory-views.md).
-
-Le faux blocage de mise à jour par un ancien formulaire fermé, corrigé en 0.6.20, reste corrigé.
-
-Les mises à jour Copilot conservent le parcours du bouton introduit en 0.6.15 : installation native, rechargement des outils dans la même conversation, réouverture des onglets. [Guide et compatibilité](docs/copilot.md#recharger-sans-recommencer-le-chat).
-
-**Vues de priorités enregistrées.** Onglets, filtres multiples et tri enregistrés, ajustements temporaires et mise à jour explicite, duplication et choix par défaut. Les listes restent dynamiques ; Mon classement conserve le rang global. [Guide des priorités](docs/priorities.md).
-
-L’Inbox Markdown permet de proposer un document, modifier l’aperçu puis accepter sa publication privée, sans embeddings.
 
 ---
 
