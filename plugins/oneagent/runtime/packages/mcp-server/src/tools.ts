@@ -47,18 +47,27 @@ export const mcpTools: Tool[] = [
   tool("upsert_relation", "At the user's explicit request, connect two existing private-memory entities with an available relation type from get_taxonomy. Use source/target as exact kind:id values; scoped_to goes from the study/discovery/feature to the product. Preserves existing provenance; repeated identical endpoints/type reuse the same relation. No entity is created implicitly. Respects the active strict context and never widens it.", {
     source: entity, target: entity, type: { ...text(100), pattern: "^(?:[a-z][a-z0-9_-]*|custom:[a-z][a-z0-9_-]*)$" }, description: text(4000)
   }, ["source", "target", "type"], true),
-  tool("memory_health", "Memory maintenance (lint): one read-only health report so the memory does not degrade over time. Returns likely duplicate entities (same or near-identical label, ID or alias, also across kinds), isolated entities (no relation and no parent), contradictions between observations, wiki findings (stale pages, broken references, orphan pages), captures waiting for curation and stale KPIs, each with the tool that fixes it. Changes nothing: show the user the findings and a plan, then fix only what they approve.", { limit }, []),
+  tool("memory_health", "Memory maintenance (lint): one read-only health report so the memory does not degrade over time. Returns likely duplicate entities (same or near-identical label, ID or alias, also across kinds), isolated entities (no relation and no parent), contradictions between observations, wiki findings (stale pages, broken references, orphan pages), captures waiting for curation, observations still waiting for the user's decision and stale KPIs, each with the tool that fixes it. Changes nothing: show the user the findings and a plan, then fix only what they approve.", { limit }, []),
   tool("list_curation_queue", "List captures (notes, meetings, documents…) waiting for curation: pending, or failed in an earlier automatic attempt. Each item gives captureId, title, contentType, primaryEntity, curationStatus and ingestionStatus. Curate them with read_note, resolve_entities, propose_observation and finish_curation. Paginated.", { limit, offset }, []),
   tool("reingest_capture", "Index a capture whose ingestionStatus is not 'indexed' (for example not_ingested or failed), so observations can cite it. Does not change its content.", { captureId: id }, ["captureId"], true),
   tool("resolve_entities", "Resolve the entity names a capture mentions, all in one call. For each name: recommendation reuse (use the returned kind:id), review (compare candidates) or create (no match), with candidates. Never creates anything.", {
     names: { type: "string", minLength: 1, maxLength: 4000, pattern: "^(?!--)[^\\n]+(?:\\n(?!--)[^\\n]+)*$", description: "One name per line, up to 50." }
   }, ["names"]),
-  tool("propose_observation", "Curation: record one sourced, reviewable observation extracted from a capture. excerpt must be an exact passage copied from the capture (no paraphrase); body is your interpretation. One atomic claim per call. The human accepts, edits or rejects it later in the Inbox; nothing is accepted automatically. The capture must be indexed (reingest_capture otherwise).", {
+  tool("propose_observation", "Curation: record one sourced, reviewable observation extracted from a capture. excerpt must be an exact passage copied from the capture (no paraphrase); body is your interpretation. One atomic claim per call. Show the proposals to the user in the chat and apply their decisions with review_observation; undecided ones stay in the Inbox. Nothing is accepted automatically. The capture must be indexed (reingest_capture otherwise).", {
     captureId: id, kind: { type: "string", enum: ["claim", "decision", "question", "task", "risk", "feature_request", "insight", "metric", "relationship"] },
     title: text(300), body: text(8000), excerpt: text(4000), entity: { ...entity, description: "Subject entity kind:id when it exists (from resolve_entities)." },
     confidence: { type: "string", pattern: "^(0(\\.[0-9]{1,3})?|1(\\.0{1,3})?)$", description: "Between 0 and 1, e.g. 0.8." }
   }, ["captureId", "kind", "title", "body", "excerpt"], true),
-  tool("finish_curation", "Close the curation of a capture once its observations are proposed: status curated with a one-line summary (for example '3 observations proposées'). Use status failed only when the capture cannot be curated, with the reason. Its observations stay pending for human review in the Inbox.", {
+  tool("list_observations", "List observations (proposed facts extracted from captures) with their exact excerpt, capture, subject entity and date. Default: those still waiting for the user's decision (proposed), i.e. what remains to validate in the chat or in the Inbox. Filter by capture. Paginated.", {
+    captureId: id, status: { type: "string", enum: ["proposed", "accepted", "rejected", "all"] }, limit, offset
+  }, []),
+  tool("review_observation", "Apply the user's decision on one observation, ONLY after the user explicitly validated, refused or corrected it in this conversation (e.g. \"1 et 2 ok, 3 non, 4 reformule\"). accept: becomes accepted knowledge. reject: kept as refused, with the reason, so it is not proposed again. edit_and_accept: apply the user's correction (title, body, kind or subject entity), then accept. edit: correct without deciding. Never decide on your own; anything the user did not decide stays proposed in the Inbox.", {
+    observationId: id, decision: { type: "string", enum: ["accept", "reject", "edit_and_accept", "edit"] },
+    reason: text(2000), title: text(300), body: text(8000),
+    kind: { type: "string", enum: ["claim", "decision", "question", "task", "risk", "feature_request", "insight", "metric", "relationship"] },
+    entity: { ...entity, description: "Corrected subject entity kind:id." }
+  }, ["observationId", "decision"], true),
+  tool("finish_curation", "Close the curation of a capture once its observations are proposed: status curated with a one-line summary (for example '3 observations proposées'). Use status failed only when the capture cannot be curated, with the reason. Its observations stay proposed until the user decides (review_observation in the chat, or the Inbox).", {
     captureId: id, summary: text(2000), status: { type: "string", enum: ["curated", "failed"] }
   }, ["captureId", "summary"], true),
   tool("delete_relation", "At the user's explicit request, permanently delete one graph relation by the id returned by list_relations. The two entities stay. Irreversible. Respects the active strict context.", {
@@ -157,6 +166,24 @@ export async function callMemoryTool(configPath: string, name: string, raw: unkn
     case "oneagent_propose_observation": return run(["observation", "propose", "--capture", String(args.captureId), "--kind", String(args.kind), "--title", String(args.title), "--body", String(args.body), "--excerpt", String(args.excerpt),
       ...(args.entity ? ["--entity", String(args.entity)] : []), ...(args.confidence ? ["--confidence", String(args.confidence)] : [])]);
     case "oneagent_finish_curation": return run(["capture", "curate", String(args.captureId), "--status", String(args.status ?? "curated"), "--summary", String(args.summary)]);
+    case "oneagent_list_observations": {
+      const status = String(args.status ?? "proposed");
+      const rows = await run(["observation", "list", ...(args.captureId ? ["--capture", String(args.captureId)] : []), ...(status === "all" ? [] : ["--status", status])]) as Array<Record<string, unknown>>;
+      return page(rows.map((row) => ({ id: row.id, kind: row.kind, title: row.title, body: row.body, excerpt: row.excerpt, captureId: row.captureId,
+        subject: row.subjectKind && row.subjectId ? `${row.subjectKind}:${row.subjectId}` : undefined, confidence: row.confidence, status: row.validationStatus, createdAt: row.createdAt })));
+    }
+    case "oneagent_review_observation": {
+      const observationId = String(args.observationId), decision = String(args.decision);
+      const edits = ["title", "body", "kind"].flatMap((field) => args[field] !== undefined ? [`--${field}`, String(args[field])] : []);
+      if (args.entity !== undefined) edits.push("--entity", String(args.entity));
+      if (decision === "reject") return { decision, observation: await run(["observation", "reject", observationId, ...(args.reason ? ["--reason", String(args.reason)] : [])]) };
+      if (decision.startsWith("edit")) {
+        if (!edits.length) throw new Error("Give the corrected title, body, kind or entity.");
+        await run(["observation", "edit", observationId, "--reason", String(args.reason ?? "Corrigé à la demande de l'utilisateur dans la conversation."), ...edits]);
+        if (decision === "edit") return { decision, observation: (await run(["observation", "show", observationId])) };
+      } else if (edits.length) throw new Error("Use edit_and_accept to change an observation before accepting it.");
+      return { decision, observation: await run(["observation", "accept", observationId]) };
+    }
     case "oneagent_delete_relation": return await run(["relation", "delete", String(args.relationId)]);
     case "oneagent_list_relations": return page(await run(["relation", "list", ...(args.entity ? ["--entity", String(args.entity)] : [])]));
     case "oneagent_upsert_relation": return { relation: await run(["relation", "upsert", "--source", String(args.source), "--target", String(args.target), "--type", String(args.type), ...(args.description !== undefined ? ["--description", String(args.description)] : [])]) };
@@ -214,11 +241,12 @@ export function duplicateCandidates(entities: EntityRow[], limit: number) {
 
 async function memoryHealth(run: (argv: string[]) => Promise<unknown>, limit: number) {
   const settle = async <T>(work: Promise<unknown>, fallback: T) => { try { return await work as T; } catch (error) { return { error: error instanceof Error ? error.message : String(error), fallback } as unknown as T; } };
-  const [entities, relations, lint, today, queue] = await Promise.all([
+  const [entities, relations, lint, today, queue, proposed] = await Promise.all([
     settle<EntityRow[]>(run(["entity", "list"]), []), settle<RelationRow[]>(run(["relation", "list"]), []),
     settle<{ findings?: Array<Record<string, unknown>> }>(run(["wiki", "lint"]), {}),
     settle<{ summary?: Record<string, number>; contradictions?: unknown[] }>(run(["today", "--section", "contradictions"]), {}),
-    settle<Array<{ id: string; title: string; curationStatus?: string; ingestionStatus?: string }>>(run(["curation", "queue"]), [])
+    settle<Array<{ id: string; title: string; curationStatus?: string; ingestionStatus?: string }>>(run(["curation", "queue"]), []),
+    settle<Array<Record<string, unknown>>>(run(["observation", "list", "--status", "proposed"]), [])
   ]);
   const list = <T>(value: unknown) => Array.isArray(value) ? value as T[] : [];
   const linked = new Set<string>();
@@ -233,13 +261,14 @@ async function memoryHealth(run: (argv: string[]) => Promise<unknown>, limit: nu
   const summary = (today as { summary?: Record<string, number> }).summary || {};
   return {
     summary: { entities: rows.length, relations: list(relations).length, duplicateCandidates: duplicates.length, isolatedEntities: isolated.length, contradictions: contradictions.length,
-      wikiFindings: wiki.length, capturesToCurate: waiting.length, staleKpis: summary.staleKpis ?? 0, atRiskOkrs: summary.atRiskOkrs ?? 0 },
+      wikiFindings: wiki.length, capturesToCurate: waiting.length, observationsToReview: list(proposed).length, staleKpis: summary.staleKpis ?? 0, atRiskOkrs: summary.atRiskOkrs ?? 0 },
     duplicates: { items: duplicates, fix: "Compare with get_entity_context and list_relations; merge_entities (duplicate → kept) after the user's go-ahead. Not every pair is a duplicate." },
     isolatedEntities: { items: isolated.slice(0, limit), fix: "upsert_relation to its product, team or parent; merge_entities if it duplicates another entity; delete_entity only if created by mistake." },
     contradictions: { items: contradictions.slice(0, limit), fix: "Show both observations with their sources; the user decides which holds (Inbox review)." },
     wiki: { items: wiki.slice(0, limit), fix: "stale_page: propose an updated page (propose_document); broken_reference: fix the name or the entity (update_entity/merge_entities); orphan_page: ask the user." },
     capturesToCurate: { items: waiting.slice(0, limit).map((item) => ({ captureId: item.id, title: item.title, curationStatus: item.curationStatus, ingestionStatus: item.ingestionStatus })), fix: "Curate with list_curation_queue, read_note, resolve_entities, propose_observation and finish_curation." },
+    observationsToReview: { items: list<Record<string, unknown>>(proposed).slice(0, limit).map((row) => ({ id: row.id, kind: row.kind, title: row.title, captureId: row.captureId, createdAt: row.createdAt })), fix: "Show them in the chat (list_observations) and apply the user's decisions with review_observation." },
     outcomes: { staleKpis: summary.staleKpis ?? 0, atRiskOkrs: summary.atRiskOkrs ?? 0, fix: "Ask the user for current values; record them with oneagent_career measure. Never invent a value." },
-    errors: [entities, relations, lint, today, queue].filter((value) => value && typeof value === "object" && !Array.isArray(value) && "error" in (value as object)).map((value) => (value as { error: string }).error)
+    errors: [entities, relations, lint, today, queue, proposed].filter((value) => value && typeof value === "object" && !Array.isArray(value) && "error" in (value as object)).map((value) => (value as { error: string }).error)
   };
 }

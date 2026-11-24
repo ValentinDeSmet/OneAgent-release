@@ -78,6 +78,10 @@ const VITAMIN_PLAY_TOKENS = `
       .vp-tabs { min-width: 0; }
       .vp-tabs > .vp-divider { display: none; }
       .vp-select-trigger { display: flex; width: 100%; align-items: center; justify-content: space-between; text-align: start; cursor: pointer; }
+      /* .vp-modal sets display:flex with opacity 0: a closed dialog would stay
+         laid out, invisible, over the screen and swallow clicks (graph nodes).
+         !important: this block may sit in a cascade layer below Vitamin Play. */
+      dialog.vp-modal:not([open]) { display: none !important; }
 `;
 
 /** Node colours of the memory graph, per entity kind: data hues of the design system. */

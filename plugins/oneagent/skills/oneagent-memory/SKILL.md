@@ -216,9 +216,33 @@ failed ones), do it yourself with the MCP tools, one capture at a time:
 6. `oneagent_finish_curation` with a one-line summary (status curated); status failed only
    when the capture cannot be curated, with the reason.
 
-Observations stay pending until the user reviews them in the Inbox; never accept them,
-write wiki pages or create entities as part of curation. For many captures, say how many
-you will curate, then report the observations proposed per capture and any failure.
+Old captures never overwrite newer knowledge, and curation must keep it that way: the
+capture date (`createdAt` in the queue) is the date of its facts. Before proposing, search
+what the memory already holds on the same subject (`oneagent_search_memory`, plane accepted,
+or `oneagent_get_entity_context`). When newer knowledge exists, write the observation as
+dated history ("Au 2026-03-12, …"), cite the newer source in its body, and use kind
+relationship or question when the two disagree, so the user sees the contradiction instead
+of a stale fact presented as current. Process an old backlog oldest first.
+
+### Validating in the chat (the Inbox is the backlog)
+
+The user validates observations here, in the conversation; the Inbox only keeps what is
+left undecided and the history.
+
+1. After proposing the observations of a capture (or of a few captures), show them as a
+   numbered table: kind, title, your interpretation, the exact excerpt, the subject entity
+   and the capture date. Then ask: which to accept, refuse or correct.
+2. Apply exactly the user's answer with `oneagent_review_observation`, one call per
+   observation: `accept`, `reject` (with the user's reason when given, so it is not proposed
+   again), `edit_and_accept` with the correction they asked for, or `edit` only.
+3. Never accept, refuse or correct anything the user did not explicitly decide in this
+   conversation, and never treat silence or "ok pour tout" on an unseen list as a decision.
+   Undecided observations stay proposed in the Inbox; say how many remain.
+4. To resume later, `oneagent_list_observations` (default: still proposed) shows the
+   backlog; present it the same way.
+
+Accepted observations become knowledge; they never rewrite entities or wiki pages by
+themselves. Never write wiki pages or create entities as part of curation.
 
 ## Editing, merging and deleting entities and relations
 

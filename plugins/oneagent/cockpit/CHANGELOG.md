@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.156
+
+- Copilot 0.6.33 : validation des observations dans la conversation. Après une curation, l'agent présente ses propositions (extrait exact, entité, date) et applique ta décision : accepter, refuser ou corriger puis accepter (`oneagent_review_observation`, `oneagent_list_observations`). Il ne décide jamais seul ; ce qui n'est pas tranché reste dans l'Inbox, qui devient le reste à traiter et l'historique. Le bilan de santé compte les propositions en attente.
+- Copilot 0.6.33 : « Reingest » sur une capture affiche « indexée et en attente de curation » au lieu d'une erreur quand la curation automatique n'est pas disponible dans l'application Copilot ; la capture quitte l'état d'échec.
+- Curation par l'agent : une ancienne capture est rédigée comme un historique daté et ses désaccords avec une connaissance plus récente sont signalés, jamais présentés comme l'état actuel.
+
 ## 0.1.155
 
 - Copilot 0.6.32 : maintenance de la mémoire par l'agent. `oneagent_memory_health` produit, sans rien modifier, un bilan de santé : doublons probables (libellé, identifiant ou alias identiques ou quasi identiques, y compris entre types), entités isolées, contradictions entre observations, pages wiki obsolètes ou références cassées, captures à curer, indicateurs non mesurés. L'agent vérifie, propose un plan, n'applique que ce que l'utilisateur valide, puis relance le bilan.

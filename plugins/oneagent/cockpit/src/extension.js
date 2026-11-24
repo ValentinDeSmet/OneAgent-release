@@ -4630,6 +4630,9 @@ async function runCuration(cli, webview, captureId) {
   const result = await curateCaptureWithAgent(cli, captureId);
   if (result.ok) {
     await postOperation(webview, "success", `Observation package prepared for ${captureId} (${(result.toolsUsed || []).length} tool calls). Review it in Inbox.`);
+  } else if (result.unavailable) {
+    // Not an error of the capture: this host has no separate model runtime (Copilot application).
+    await postOperation(webview, "success", `Capture ${captureId} indexée et en attente de curation. ${result.reason}`);
   } else {
     const message = `Curation failed for ${captureId}: ${result.reason}`;
     cli.output.appendLine(`${message} (${result.attempts || 0} attempt(s), ${(result.toolsUsed || []).length} tool call(s)).`);
