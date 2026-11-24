@@ -2,7 +2,7 @@ import { runMemoryCommand } from "./cli-bridge.ts";
 
 type Property = { type: "string" | "integer"; description?: string; enum?: string[]; minLength?: number; maxLength?: number; pattern?: string; minimum?: number; maximum?: number };
 type Arguments = Record<string, string | number>;
-type Tool = { name: string; description: string; inputSchema: { type: "object"; properties: Record<string, Property>; required: string[]; additionalProperties: false }; annotations: { readOnlyHint: boolean; destructiveHint: false; idempotentHint: boolean; openWorldHint: false } };
+type Tool = { name: string; description: string; inputSchema: { type: "object"; properties: Record<string, Property>; required: string[]; additionalProperties: false }; annotations: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: false } };
 const text = (maxLength: number): Property => ({ type: "string", minLength: 1, maxLength, pattern: "^(?!--)" });
 const id: Property = { ...text(256), pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]*$" };
 const entity: Property = { ...text(256), pattern: "^[a-z][a-z0-9_-]*:[A-Za-z0-9][A-Za-z0-9._-]*$", description: "Explicit kind:id returned by OneAgent, e.g. product:checkout." };
@@ -10,12 +10,15 @@ const limit: Property = { type: "integer", minimum: 1, maximum: 100 };
 const offset: Property = { type: "integer", minimum: 0, maximum: 1_000_000 };
 const maxChars: Property = { type: "integer", minimum: 500, maximum: 200000 };
 const section = { maxChars, offset: { type: "integer", minimum: 0, maximum: Number.MAX_SAFE_INTEGER } as Property, revision: { ...text(64), pattern: "^[a-f0-9]{64}$" } };
-const tool = (name: string, description: string, properties: Record<string, Property>, required: string[], writes = false): Tool => ({
+const tool = (name: string, description: string, properties: Record<string, Property>, required: string[], writes = false, destructive = false): Tool => ({
   name: `oneagent_${name}`, description,
   inputSchema: { type: "object", properties, required, additionalProperties: false },
   // Reads may perform the shared runtime's local schema/Markdown/index maintenance.
-  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: !writes, openWorldHint: false }
+  // Deletions and merges are destructive: hosts ask the user before running them.
+  annotations: { readOnlyHint: false, destructiveHint: destructive, idempotentHint: !writes, openWorldHint: false }
 });
+const kindProperty: Property = { ...text(80), pattern: "^[a-z][a-z0-9_-]*$" };
+const list: Property = { ...text(4000), pattern: "^(?!--)[^,]+(?:,[^,]+)*$", description: "Comma-separated values; replaces the previous list." };
 
 export const mcpTools: Tool[] = [
   tool("list_memory", "List all accessible memory metadata including Markdown pages, notes, entities and linked documents. Returns IDs for read_document; respects only an explicitly active strict context. Paginated.", { limit, offset, query: text(2000) }, []),
@@ -29,10 +32,24 @@ export const mcpTools: Tool[] = [
     label: text(300), description: text(4000), content: { type: "string", minLength: 1, maxLength: 500000 },
     status: { type: "string", enum: ["active", "inactive", "candidate", "archived"] }
   }, ["kind", "id", "label"], true),
+  tool("update_entity", "At the user's explicit request, change an existing private-memory entity: label, description, status, aliases, tags, parent, or its complete Markdown content (replaced, not appended). Only the given fields change. The kind:id cannot change: to move an entity to another kind or ID, create the new one and use merge_entities. OKR/KPI use their structured workflow. Respects the active strict context.", {
+    entity, label: text(300), description: text(4000), content: { type: "string", minLength: 1, maxLength: 500000 },
+    status: { type: "string", enum: ["active", "inactive", "candidate", "archived"] }, aliases: list, tags: list,
+    parent: { ...id, description: "ID of the parent entity (for example the product of a feature)." }
+  }, ["entity"], true),
+  tool("merge_entities", "At the user's explicit request, merge a duplicate entity (source) into the entity to keep (target). Moves its relations, notes, captures and wiki pages onto the target, drops self-links, then removes the source. Use this to clean duplicates instead of delete_entity, which loses the duplicate's links. Confirm the pair with the user first; irreversible. Respects the active strict context.", {
+    source: { ...entity, description: "Duplicate to remove, kind:id." }, target: { ...entity, description: "Entity to keep, kind:id." }
+  }, ["source", "target"], true, true),
+  tool("delete_entity", "At the user's explicit request, permanently delete an entity and all its relations. Refuses when notes or captures still point to it unless notes is reassign_to_oneagent (they are then attached to the default OneAgent entity). For a duplicate, prefer merge_entities. The default oneagent entity, and KPIs with measurements or used by an OKR, cannot be deleted. Irreversible. Respects the active strict context.", {
+    entity, notes: { type: "string", enum: ["reassign_to_oneagent"], description: "Required when notes or captures reference the entity." }
+  }, ["entity"], true, true),
   tool("list_relations", "List existing private-memory graph relations, optionally for an explicit kind:id. Respects the active strict context and relation policy. Paginated; does not modify the graph.", { entity, limit, offset }, []),
   tool("upsert_relation", "At the user's explicit request, connect two existing private-memory entities with an available relation type from get_taxonomy. Use source/target as exact kind:id values; scoped_to goes from the study/discovery/feature to the product. Preserves existing provenance; repeated identical endpoints/type reuse the same relation. No entity is created implicitly. Respects the active strict context and never widens it.", {
     source: entity, target: entity, type: { ...text(100), pattern: "^(?:[a-z][a-z0-9_-]*|custom:[a-z][a-z0-9_-]*)$" }, description: text(4000)
   }, ["source", "target", "type"], true),
+  tool("delete_relation", "At the user's explicit request, permanently delete one graph relation by the id returned by list_relations. The two entities stay. Irreversible. Respects the active strict context.", {
+    relationId: id
+  }, ["relationId"], true, true),
   tool("search_memory", "Search indexed memory with provenance. Explicit scope is mandatory; product scope also requires productId. Portfolio searches the bound memory within any explicitly active strict context. Fresh notes await ingestion/curation: use list_notes for them. This is a query filter, not a session security boundary.", {
     query: text(2000), scope: { type: "string", enum: ["product", "portfolio"] }, productId: id,
     plane: { type: "string", enum: ["sources", "accepted", "signals", "history", "all"] }, limit
@@ -95,6 +112,24 @@ export async function callMemoryTool(configPath: string, name: string, raw: unkn
       if (args.content !== undefined) argv.push("--stdin");
       return { created: true, entity: await run(argv, args.content === undefined ? undefined : String(args.content)) };
     }
+    case "oneagent_update_entity": {
+      const [kind, entityId] = String(args.entity).split(/:(.*)/s);
+      if (kind === "okr" || kind === "kpi") throw new Error(`Entity kind ${kind} requires its structured outcome workflow.`);
+      const argv = ["entity", "upsert", entityId, "--kind", kind, "--require-existing"];
+      for (const field of ["label", "description", "status", "aliases", "tags", "parent"]) if (args[field] !== undefined) argv.push(`--${field}`, String(args[field]));
+      if (args.content !== undefined) argv.push("--stdin");
+      if (argv.length === 6) throw new Error("Give at least one field to change.");
+      return { updated: true, entity: await run(argv, args.content === undefined ? undefined : String(args.content)) };
+    }
+    case "oneagent_merge_entities": {
+      if (args.source === args.target) throw new Error("Source and target must be two different entities.");
+      return { merged: true, ...(await run(["entity", "merge", String(args.source), "--into", String(args.target)]) as object) };
+    }
+    case "oneagent_delete_entity": {
+      const [kind, entityId] = String(args.entity).split(/:(.*)/s);
+      return await run(["entity", "delete", entityId, "--kind", kind, ...(args.notes === "reassign_to_oneagent" ? ["--reassign-oneagent"] : [])]);
+    }
+    case "oneagent_delete_relation": return await run(["relation", "delete", String(args.relationId)]);
     case "oneagent_list_relations": return page(await run(["relation", "list", ...(args.entity ? ["--entity", String(args.entity)] : [])]));
     case "oneagent_upsert_relation": return { relation: await run(["relation", "upsert", "--source", String(args.source), "--target", String(args.target), "--type", String(args.type), ...(args.description !== undefined ? ["--description", String(args.description)] : [])]) };
     case "oneagent_search_memory": {

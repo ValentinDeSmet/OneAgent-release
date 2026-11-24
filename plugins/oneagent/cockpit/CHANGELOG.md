@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.153
+
+- Copilot 0.6.30 : l'agent peut modifier, fusionner et supprimer les entités et supprimer les liens du graphe (`oneagent_update_entity`, `oneagent_merge_entities`, `oneagent_delete_entity`, `oneagent_delete_relation`). La fusion d'un doublon transfère ses liens, notes et pages wiki vers l'entité conservée.
+- Les suppressions et fusions sont signalées comme destructives : l'agent présente le plan et attend l'accord avant de les exécuter. Une entité encore citée par des notes n'est supprimée que si ses notes sont réaffectées à OneAgent.
+
 ## 0.1.152
 
 - Copilot 0.6.29 et VS Code 0.1.152 : le nouveau design des écrans (styles web Vitamin Play, Apache-2.0) arrive dans les deux plugins, avec mise à jour automatique. Composants, couleurs, espacements, icônes, thèmes clair et sombre ; police du système.

@@ -949,11 +949,15 @@ async function entityCommand(argv: string[]): Promise<void> {
             assertWritableEntityInStrictScope(contextScope, { kind: "oneagent", id: "oneagent" });
           }
         }
+        if (!runtime.db.getEntity(kind, entityId)) throw new Error(`Entity does not exist: ${kind}:${entityId}`);
+        const relationsRemoved = runtime.db.listEntityRelations({ kind, id: entityId }).length;
         runtime.db.deleteEntity(kind, entityId, { reassignToDefault: hasFlag(argv, "--reassign-oneagent") });
         if (isOrgEntityKind(kind)) {
           deleteEntityFromConfig(configPath, entityId);
         }
-        console.log(`Deleted entity: ${kind}:${entityId}`);
+        console.log(hasFlag(argv, "--json")
+          ? JSON.stringify({ deleted: `${kind}:${entityId}`, relationsRemoved, notesReassignedToOneagent: hasFlag(argv, "--reassign-oneagent") })
+          : `Deleted entity: ${kind}:${entityId}`);
       } finally {
         runtime.close();
       }
@@ -1165,18 +1169,20 @@ function relationCommand(argv: string[]): void {
     const runtime = createCliRuntime(argv);
     try {
       const contextScope = activeResolvedContextScope(runtime, argv);
+      const relation = runtime.db.listEntityRelations({}).find((candidate) => candidate.id === id);
+      if (!relation) throw new Error(`Entity relation not found: ${id}`);
       if (contextScope?.scope.mode === "strict" && !hasFlag(argv, "--allow-boundary-change")) {
-        const relation = runtime.db.listEntityRelations({}).find((candidate) => candidate.id === id);
-        if (!relation) throw new Error(`Entity relation not found: ${id}`);
         assertWritableEntityInStrictScope(contextScope, { kind: relation.sourceKind, id: relation.sourceId });
         assertWritableEntityInStrictScope(contextScope, { kind: relation.targetKind, id: relation.targetId });
         assertRelationInStrictScope(contextScope, relation.relationType);
       }
       runtime.db.deleteEntityRelation(id);
+      console.log(hasFlag(argv, "--json")
+        ? JSON.stringify({ deleted: id, source: `${relation.sourceKind}:${relation.sourceId}`, target: `${relation.targetKind}:${relation.targetId}`, type: relation.relationType })
+        : `Deleted relation: ${id}`);
     } finally {
       runtime.close();
     }
-    console.log(`Deleted relation: ${id}`);
     return;
   }
 

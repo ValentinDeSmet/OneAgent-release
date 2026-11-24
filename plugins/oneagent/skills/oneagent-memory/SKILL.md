@@ -1,6 +1,6 @@
 ---
 name: oneagent-memory
-description: Configure OneAgent after installation, manage plugin updates, create or connect a private memory, then retrieve professional context, create entities with Markdown and graph relations, and keep notes alongside the company BMAD plugin. Use for "Configurer OneAgent", "Mettre à jour OneAgent", first use, onboarding, memory searches, entity creation, private note capture, and priority/request tracking.
+description: Configure OneAgent after installation, manage plugin updates, create or connect a private memory, then retrieve professional context, create, edit, merge and delete entities with Markdown and graph relations, and keep notes alongside the company BMAD plugin. Use for "Configurer OneAgent", "Mettre à jour OneAgent", first use, onboarding, memory searches, entity creation, private note capture, and priority/request tracking.
 ---
 
 Use the `oneagent` MCP tools for the user's private professional memory. The same
@@ -169,6 +169,36 @@ reviewable through the existing curation workflow. The active strict context sti
 applies: new entities broaden it and are refused until the user changes the context
 (for example Tout/Reset). Never bypass that boundary, invent endpoints, create a second
 memory, write to BMAD's repository, or publish this private content implicitly.
+
+## Editing, merging and deleting entities and relations
+
+Copilot 0.6.30+ can maintain the whole graph: `oneagent_update_entity`,
+`oneagent_merge_entities`, `oneagent_delete_entity` and `oneagent_delete_relation`.
+Use them when the user asks to correct, clean up or deduplicate the memory; do not
+send the user to the cockpit for work these tools cover.
+
+- **Change** an entity: `oneagent_update_entity` with its `entity` (kind:id) and only
+  the fields to change (label, description, status, aliases, tags, parent, or the
+  complete Markdown `content`, which replaces the page). The kind:id itself cannot
+  change: create the right entity, then merge the old one into it.
+- **Duplicates**: find candidates with `oneagent_list_entities` (same or similar
+  labels, aliases, IDs), compare them with `oneagent_get_entity_context` and
+  `oneagent_list_relations`, choose the entity to keep (the richest, most linked or
+  canonical one), then `oneagent_merge_entities` with the duplicate as `source` and
+  the kept entity as `target`. A merge moves relations, notes and wiki pages; never
+  delete a duplicate that still holds links or notes.
+- **Delete** an entity created by mistake: `oneagent_delete_entity`. Its relations go
+  with it; when notes still point to it the call refuses unless
+  `notes: reassign_to_oneagent`, which you pass only after telling the user.
+- **Delete a link**: `oneagent_delete_relation` with the `id` from
+  `oneagent_list_relations`; both entities stay.
+
+These operations are irreversible. Before running them, show the user the exact plan
+(for a large cleanup, a table: duplicate → kept entity, or entity/relation to delete,
+with the reason) and get an explicit go-ahead; the host may also ask to confirm each
+call. Then run the plan entry by entry, report what was done and what failed, and on
+an uncertain result inspect with list/get tools before retrying. Never merge or delete
+on your own initiative, and never widen an active strict context to do it.
 
 
 ## Reviewable Markdown documents
