@@ -1,6 +1,6 @@
 ---
 name: oneagent-memory
-description: Configure OneAgent after installation, manage plugin updates, create or connect a private memory, then retrieve professional context, create, edit, merge and delete entities with Markdown and graph relations, and keep notes alongside the company BMAD plugin. Use for "Configurer OneAgent", "Mettre à jour OneAgent", first use, onboarding, memory searches, entity creation, private note capture, and priority/request tracking.
+description: Configure OneAgent after installation, manage plugin updates, create or connect a private memory, then retrieve professional context, create, edit, merge and delete entities with Markdown and graph relations, run memory maintenance (duplicates, conflicts, lint), and keep notes alongside the company BMAD plugin. Use for "Configurer OneAgent", "Mettre à jour OneAgent", first use, onboarding, memory searches, entity creation, private note capture, and priority/request tracking.
 ---
 
 Use the `oneagent` MCP tools for the user's private professional memory. The same
@@ -169,6 +169,31 @@ reviewable through the existing curation workflow. The active strict context sti
 applies: new entities broaden it and are refused until the user changes the context
 (for example Tout/Reset). Never bypass that boundary, invent endpoints, create a second
 memory, write to BMAD's repository, or publish this private content implicitly.
+
+## Memory maintenance (lint)
+
+When the user asks to check, clean or maintain the memory ("fais la maintenance",
+"vérifie les doublons", "est-ce que ma mémoire est saine ?"), or before a large import:
+
+1. Run `oneagent_memory_health`. It changes nothing and returns, with counts: likely
+   duplicate entities (including across kinds), isolated entities, contradictions between
+   observations, wiki findings (stale pages, broken references, orphans), captures waiting
+   for curation, stale KPIs and at-risk OKRs.
+2. Check before concluding: a candidate pair is not always a duplicate. Compare the two
+   with `oneagent_get_entity_context` and `oneagent_list_relations` (descriptions, links,
+   notes) and drop false positives.
+3. Present a short report and a numbered plan, grouped by kind of action: merges
+   (duplicate → kept entity, and why), links to add for isolated entities, entities to
+   delete, contradictions for the user to arbitrate, pages to refresh, captures to curate,
+   KPI values to ask for.
+4. Apply only what the user approves, with the existing tools (`oneagent_merge_entities`,
+   `oneagent_upsert_relation`, `oneagent_update_entity`, `oneagent_delete_entity`, document
+   proposals, curation tools, `oneagent_career` measure). Never decide a contradiction or
+   invent a KPI value yourself.
+5. Run `oneagent_memory_health` again and report what improved and what is left.
+
+Suggest a maintenance pass when a session reveals duplicates or after many new captures,
+but never run merges or deletions without the user's go-ahead.
 
 ## Curating captures in the conversation
 

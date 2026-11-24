@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.155
+
+- Copilot 0.6.32 : maintenance de la mémoire par l'agent. `oneagent_memory_health` produit, sans rien modifier, un bilan de santé : doublons probables (libellé, identifiant ou alias identiques ou quasi identiques, y compris entre types), entités isolées, contradictions entre observations, pages wiki obsolètes ou références cassées, captures à curer, indicateurs non mesurés. L'agent vérifie, propose un plan, n'applique que ce que l'utilisateur valide, puis relance le bilan.
+
 ## 0.1.154
 
 - Copilot 0.6.31 : la curation des captures se fait par l'agent de la conversation (`oneagent_list_curation_queue`, `oneagent_reingest_capture`, `oneagent_resolve_entities`, `oneagent_propose_observation`, `oneagent_finish_curation`). Dans l'application Copilot, la curation automatique ne peut pas démarrer de moteur séparé : les captures restent « à curer » avec une consigne claire, au lieu d'échouer avec une erreur technique.

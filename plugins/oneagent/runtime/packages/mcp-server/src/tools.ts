@@ -47,6 +47,7 @@ export const mcpTools: Tool[] = [
   tool("upsert_relation", "At the user's explicit request, connect two existing private-memory entities with an available relation type from get_taxonomy. Use source/target as exact kind:id values; scoped_to goes from the study/discovery/feature to the product. Preserves existing provenance; repeated identical endpoints/type reuse the same relation. No entity is created implicitly. Respects the active strict context and never widens it.", {
     source: entity, target: entity, type: { ...text(100), pattern: "^(?:[a-z][a-z0-9_-]*|custom:[a-z][a-z0-9_-]*)$" }, description: text(4000)
   }, ["source", "target", "type"], true),
+  tool("memory_health", "Memory maintenance (lint): one read-only health report so the memory does not degrade over time. Returns likely duplicate entities (same or near-identical label, ID or alias, also across kinds), isolated entities (no relation and no parent), contradictions between observations, wiki findings (stale pages, broken references, orphan pages), captures waiting for curation and stale KPIs, each with the tool that fixes it. Changes nothing: show the user the findings and a plan, then fix only what they approve.", { limit }, []),
   tool("list_curation_queue", "List captures (notes, meetings, documents…) waiting for curation: pending, or failed in an earlier automatic attempt. Each item gives captureId, title, contentType, primaryEntity, curationStatus and ingestionStatus. Curate them with read_note, resolve_entities, propose_observation and finish_curation. Paginated.", { limit, offset }, []),
   tool("reingest_capture", "Index a capture whose ingestionStatus is not 'indexed' (for example not_ingested or failed), so observations can cite it. Does not change its content.", { captureId: id }, ["captureId"], true),
   tool("resolve_entities", "Resolve the entity names a capture mentions, all in one call. For each name: recommendation reuse (use the returned kind:id), review (compare candidates) or create (no match), with candidates. Never creates anything.", {
@@ -142,6 +143,7 @@ export async function callMemoryTool(configPath: string, name: string, raw: unkn
       const [kind, entityId] = String(args.entity).split(/:(.*)/s);
       return await run(["entity", "delete", entityId, "--kind", kind, ...(args.notes === "reassign_to_oneagent" ? ["--reassign-oneagent"] : [])]);
     }
+    case "oneagent_memory_health": return memoryHealth(run, Number(args.limit ?? 50));
     case "oneagent_list_curation_queue": {
       const queue = await run(["curation", "queue"]) as Array<{ curationStatus?: string }>;
       return page(queue.filter((item) => item.curationStatus === "pending" || item.curationStatus === "failed"));
@@ -169,4 +171,75 @@ export async function callMemoryTool(configPath: string, name: string, raw: unkn
     case "oneagent_create_note": return run(["capture", "create", "--content-type", "note", "--title", String(args.title), "--source-kind", "copilot", "--source-origin", "copilot_tool", "--stdin", ...(args.primaryEntity ? ["--primary", String(args.primaryEntity)] : [])], String(args.body));
     default: throw new Error("Unimplemented OneAgent tool.");
   }
+}
+
+type EntityRow = { kind: string; id: string; label?: string; aliases?: string[]; parentId?: string; status?: string };
+type RelationRow = { sourceKind: string; sourceId: string; targetKind: string; targetId: string };
+const normalized = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    for (let j = 1; j <= b.length; j += 1) current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    previous = current;
+  }
+  return previous[b.length];
+}
+
+/** Pairs of entities that probably name the same thing, strongest first. */
+export function duplicateCandidates(entities: EntityRow[], limit: number) {
+  const named = entities.filter((entity) => entity.status !== "archived" && !(entity.kind === "oneagent" && entity.id === "oneagent")).map((entity) => {
+    const label = normalized(entity.label || entity.id), id = normalized(entity.id);
+    return { entity, label, id, names: new Set([label, id, ...(entity.aliases || []).map(normalized)].filter(Boolean)), tokens: new Set(label.split(" ").filter((token) => token.length > 2)) };
+  });
+  const pairs: Array<{ a: string; b: string; labels: [string, string]; score: number; reason: string; sameKind: boolean }> = [];
+  for (let i = 0; i < named.length; i += 1) for (let j = i + 1; j < named.length; j += 1) {
+    const x = named[i], y = named[j];
+    if (x.entity.parentId === y.entity.id || y.entity.parentId === x.entity.id) continue;
+    let score = 0, reason = "";
+    if ([...x.names].some((name) => y.names.has(name))) { score = 1; reason = "same label, ID or alias"; }
+    else {
+      const longest = Math.max(x.label.length, y.label.length);
+      const similarity = longest ? 1 - editDistance(x.label, y.label) / longest : 0;
+      const shared = [...x.tokens].filter((token) => y.tokens.has(token)).length, union = new Set([...x.tokens, ...y.tokens]).size;
+      const overlap = union ? shared / union : 0;
+      if (longest >= 5 && similarity >= 0.85) { score = similarity; reason = "near-identical label"; }
+      else if (shared >= 2 && overlap >= 0.75) { score = overlap * 0.95; reason = "same key words"; }
+      else if (Math.min(x.label.length, y.label.length) >= 6 && x.entity.kind === y.entity.kind && (x.label.includes(y.label) || y.label.includes(x.label))) { score = 0.7; reason = "one label contains the other"; }
+    }
+    if (score) pairs.push({ a: `${x.entity.kind}:${x.entity.id}`, b: `${y.entity.kind}:${y.entity.id}`, labels: [x.entity.label || x.entity.id, y.entity.label || y.entity.id], score: Math.round(score * 100) / 100, reason, sameKind: x.entity.kind === y.entity.kind });
+  }
+  return pairs.sort((left, right) => right.score - left.score).slice(0, limit);
+}
+
+async function memoryHealth(run: (argv: string[]) => Promise<unknown>, limit: number) {
+  const settle = async <T>(work: Promise<unknown>, fallback: T) => { try { return await work as T; } catch (error) { return { error: error instanceof Error ? error.message : String(error), fallback } as unknown as T; } };
+  const [entities, relations, lint, today, queue] = await Promise.all([
+    settle<EntityRow[]>(run(["entity", "list"]), []), settle<RelationRow[]>(run(["relation", "list"]), []),
+    settle<{ findings?: Array<Record<string, unknown>> }>(run(["wiki", "lint"]), {}),
+    settle<{ summary?: Record<string, number>; contradictions?: unknown[] }>(run(["today", "--section", "contradictions"]), {}),
+    settle<Array<{ id: string; title: string; curationStatus?: string; ingestionStatus?: string }>>(run(["curation", "queue"]), [])
+  ]);
+  const list = <T>(value: unknown) => Array.isArray(value) ? value as T[] : [];
+  const linked = new Set<string>();
+  for (const relation of list<RelationRow>(relations)) { linked.add(`${relation.sourceKind}:${relation.sourceId}`); linked.add(`${relation.targetKind}:${relation.targetId}`); }
+  const rows = list<EntityRow>(entities);
+  const isolated = rows.filter((entity) => !linked.has(`${entity.kind}:${entity.id}`) && !entity.parentId && entity.status !== "archived" && !rows.some((other) => other.parentId === entity.id) && entity.kind !== "oneagent")
+    .map((entity) => ({ entity: `${entity.kind}:${entity.id}`, label: entity.label }));
+  const waiting = list<{ id: string; title: string; curationStatus?: string; ingestionStatus?: string }>(queue).filter((item) => item.curationStatus === "pending" || item.curationStatus === "failed");
+  const duplicates = duplicateCandidates(rows, limit);
+  const contradictions = list<unknown>((today as { contradictions?: unknown[] }).contradictions);
+  const wiki = list<Record<string, unknown>>((lint as { findings?: unknown[] }).findings);
+  const summary = (today as { summary?: Record<string, number> }).summary || {};
+  return {
+    summary: { entities: rows.length, relations: list(relations).length, duplicateCandidates: duplicates.length, isolatedEntities: isolated.length, contradictions: contradictions.length,
+      wikiFindings: wiki.length, capturesToCurate: waiting.length, staleKpis: summary.staleKpis ?? 0, atRiskOkrs: summary.atRiskOkrs ?? 0 },
+    duplicates: { items: duplicates, fix: "Compare with get_entity_context and list_relations; merge_entities (duplicate → kept) after the user's go-ahead. Not every pair is a duplicate." },
+    isolatedEntities: { items: isolated.slice(0, limit), fix: "upsert_relation to its product, team or parent; merge_entities if it duplicates another entity; delete_entity only if created by mistake." },
+    contradictions: { items: contradictions.slice(0, limit), fix: "Show both observations with their sources; the user decides which holds (Inbox review)." },
+    wiki: { items: wiki.slice(0, limit), fix: "stale_page: propose an updated page (propose_document); broken_reference: fix the name or the entity (update_entity/merge_entities); orphan_page: ask the user." },
+    capturesToCurate: { items: waiting.slice(0, limit).map((item) => ({ captureId: item.id, title: item.title, curationStatus: item.curationStatus, ingestionStatus: item.ingestionStatus })), fix: "Curate with list_curation_queue, read_note, resolve_entities, propose_observation and finish_curation." },
+    outcomes: { staleKpis: summary.staleKpis ?? 0, atRiskOkrs: summary.atRiskOkrs ?? 0, fix: "Ask the user for current values; record them with oneagent_career measure. Never invent a value." },
+    errors: [entities, relations, lint, today, queue].filter((value) => value && typeof value === "object" && !Array.isArray(value) && "error" in (value as object)).map((value) => (value as { error: string }).error)
+  };
 }
