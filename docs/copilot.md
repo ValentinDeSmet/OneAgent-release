@@ -1,5 +1,7 @@
 # OneAgent pour l’application GitHub Copilot
 
+Version 0.6.30 : l’agent peut modifier, fusionner (doublons) et supprimer les entités, et supprimer les liens du graphe, après accord explicite.
+
 Version 0.6.29 : nouveau design de tous les écrans (styles web Vitamin Play : composants, couleurs, icônes, thèmes clair et sombre).
 
 Version 0.6.28 : republication sans changement fonctionnel, pour valider la publication automatique.
@@ -75,12 +77,12 @@ copilot plugin list --json
 
 ### ZIP de secours
 
-Décompresser `oneagent-copilot-0.6.29.zip` dans un dossier durable. Le paquet inclut
+Décompresser `oneagent-copilot-0.6.30.zip` dans un dossier durable. Le paquet inclut
 un guide `INSTALLATION.md` et le dossier `plugins/oneagent` contenant `plugin.json`.
 Pour une installation locale (par exemple avant publication du catalogue) :
 
 ```sh
-copilot plugin install "/chemin/oneagent-copilot-0.6.29/plugins/oneagent"
+copilot plugin install "/chemin/oneagent-copilot-0.6.30/plugins/oneagent"
 copilot plugin list --json
 ```
 
@@ -377,7 +379,7 @@ mémoire personnelle ni réglages du poste. Le catalogue local `oneagent-local`
 sert au développement ; le catalogue public stable porte le nom `oneagent` et
 épingle chaque version sur un commit précis du dépôt de releases.
 
-`copilot:package` produit aussi `dist/oneagent-copilot-0.6.29.zip` et son `.sha256`.
+`copilot:package` produit aussi `dist/oneagent-copilot-0.6.30.zip` et son `.sha256`.
 Le pipeline de release publie le VSIX et ce ZIP ensemble, ainsi que le catalogue
 installable. Les étapes mainteneur sont décrites dans `docs/copilot-distribution.md`
 du dépôt de développement.
