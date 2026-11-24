@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.154
+
+- Copilot 0.6.31 : la curation des captures se fait par l'agent de la conversation (`oneagent_list_curation_queue`, `oneagent_reingest_capture`, `oneagent_resolve_entities`, `oneagent_propose_observation`, `oneagent_finish_curation`). Dans l'application Copilot, la curation automatique ne peut pas démarrer de moteur séparé : les captures restent « à curer » avec une consigne claire, au lieu d'échouer avec une erreur technique.
+- L'agent gère toute la mission : création et modification de la mission, des entretiens individuels (import d'entretiens passés compris) et du bilan, avec le format exact de chaque opération ; suppression d'un entretien ou d'une contribution (`oneagent_career_delete`).
+
 ## 0.1.153
 
 - Copilot 0.6.30 : l'agent peut modifier, fusionner et supprimer les entités et supprimer les liens du graphe (`oneagent_update_entity`, `oneagent_merge_entities`, `oneagent_delete_entity`, `oneagent_delete_relation`). La fusion d'un doublon transfère ses liens, notes et pages wiki vers l'entité conservée.

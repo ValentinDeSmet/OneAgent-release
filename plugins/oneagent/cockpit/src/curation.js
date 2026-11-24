@@ -218,6 +218,12 @@ async function curateCaptureWithAgent(cli, captureId) {
     if (result.ok) {
       return { ok: true, toolsUsed, attempts: attempt, diagnostics };
     }
+    if (result.unavailable) {
+      // No model runtime in this host (Copilot application): not a failure of the
+      // capture. It stays pending for the conversation agent's MCP curation tools.
+      await markCuration(cli, captureId, "pending", result.reason);
+      return { ok: false, reason: result.reason, toolsUsed, attempts: attempt, diagnostics, unavailable: true };
+    }
     lastReason = result.reason;
     cli.output.appendLine(`Curation attempt ${attempt}/${MAX_ATTEMPTS} for ${captureId} failed: ${lastReason}`);
   }
@@ -259,6 +265,9 @@ async function runCurationAttempt(cli, model, tools, captureId, attempt, previou
     }
     return { ok: true, toolsUsed: loop.toolsUsed, diagnostics: loop.diagnostics };
   } catch (error) {
+    if (error && error.code === "agent_runtime_unavailable") {
+      return { ok: false, unavailable: true, reason: error.message, toolsUsed: [], diagnostics: [{ type: "runtime_unavailable", error: error.message }] };
+    }
     const reason = `language-model transport failed: ${describe(error)}`;
     logCurationDiagnostic(cli, captureId, attempt, { type: "transport_error", error: reason });
     return { ok: false, reason, toolsUsed: [], diagnostics: [{ type: "transport_error", error: reason }] };

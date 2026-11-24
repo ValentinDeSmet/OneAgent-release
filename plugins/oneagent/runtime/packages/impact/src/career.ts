@@ -11,7 +11,7 @@ export const careerSections = {
     liked: 'Ce que j’ai aimé vivre', lessLiked: 'Ce que j’ai moins aimé vivre', feeling: 'Synthèse de mon ressenti',
     learning: 'Dernières décisions et apprentissages', performance: 'Ma performance', next: 'Mes nouvelles décisions', managerFeedback: 'Après l’entretien'
 };
-export const careerOperations = ['list', 'mission-save', 'mission-version', 'interview-save', 'interview-create', 'interview-refresh', 'interview-reopen', 'measure', 'contribution-save', 'context', 'bilan', 'bilan-save', 'decision-task'] as const;
+export const careerOperations = ['list', 'mission-save', 'mission-version', 'interview-save', 'interview-create', 'interview-refresh', 'interview-reopen', 'interview-delete', 'measure', 'contribution-save', 'contribution-delete', 'context', 'bilan', 'bilan-save', 'decision-task'] as const;
 const digest = (text: string) => createHash('sha256').update(text).digest('hex');
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 function obj(v: unknown): Obj { if (!v || typeof v !== 'object' || Array.isArray(v))
@@ -156,6 +156,13 @@ function synchronize(db: WorkMemoryDatabase, m: Obj) {
                 db.upsertEntity({ ...e, metadata: { ...e.metadata, outcome: { ...(e.metadata.outcome as Obj), status: 'closed' } } });
         }
 }
+/** Removes a career document and retires its indexed revision, so search no longer returns it. */
+function remove(db: WorkMemoryDatabase, file: string) {
+    db.runInImmediateTransaction(() => {
+        db.db.prepare("UPDATE sources SET status = 'missing', updated_at = ? WHERE raw_path = ? AND status IN ('indexed', 'indexing')").run(new Date().toISOString(), file);
+        fs.unlinkSync(file);
+    });
+}
 function all(config: WorkMemoryConfig, db: WorkMemoryDatabase) {
     const missions = db.listEntities('mission').map(e => read(location(config, e.id, 'career.md'))).filter(Boolean) as Obj[];
     const interviews: Obj[] = [];
@@ -230,9 +237,14 @@ export function careerCommand(config: WorkMemoryConfig, db: WorkMemoryDatabase, 
             objectiveReviews: applicable.goals.map((g: Obj) => ({ objectiveId: g.id, achievements: '', obstacles: '', comment: '' })), missionSnapshot: withMeasures(db, { ...applicable, measurementSources: m.measurementSources }, end), createdAt: new Date().toISOString() };
         return write(config, db, file, e);
     }
-    if (['interview-save', 'interview-refresh', 'interview-reopen', 'decision-task'].includes(operation)) {
+    if (['interview-save', 'interview-refresh', 'interview-reopen', 'interview-delete', 'decision-task'].includes(operation)) {
         const e = findInterview(config, input.missionId, input.interviewId);
         checked(e.file, input.revision);
+        if (operation === 'interview-delete') {
+            // Tasks created from its decisions are independent and stay.
+            remove(db, e.file);
+            return { deleted: true, missionId: e.missionId, interviewId: e.id, title: e.title, date: e.date };
+        }
         if (operation === 'interview-reopen') {
             if (e.status !== 'realized')
                 throw new Error('Seul un entretien réalisé peut être réouvert.');
@@ -280,6 +292,14 @@ export function careerCommand(config: WorkMemoryConfig, db: WorkMemoryDatabase, 
         const c = contribution(obj(input.contribution));
         const unplanned = [...m.unplanned.filter((old: Obj) => old.id !== c.id), c];
         return write(config, db, m.file, { ...m, unplanned });
+    }
+    if (operation === 'contribution-delete') {
+        const m = findMission(config, input.missionId);
+        checked(m.file, input.revision);
+        const contributionId = id(input.contributionId);
+        if (!m.unplanned.some((c: Obj) => c.id === contributionId))
+            throw new Error('Contribution introuvable.');
+        return write(config, db, m.file, { ...m, unplanned: m.unplanned.filter((c: Obj) => c.id !== contributionId) });
     }
     if (operation === 'context')
         return context(config, db, input);
