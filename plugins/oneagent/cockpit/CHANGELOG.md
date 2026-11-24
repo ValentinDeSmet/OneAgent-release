@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.152
+
+- Copilot 0.6.29 et VS Code 0.1.152 : le nouveau design des écrans (styles web Vitamin Play, Apache-2.0) arrive dans les deux plugins, avec mise à jour automatique. Composants, couleurs, espacements, icônes, thèmes clair et sombre ; police du système.
+- Sans polices ni logos Decathlon, qui ont leurs propres licences, et sans dépendance à un registre privé. La diffusion redevient publique, comme avant 0.1.151.
+
+## 0.1.151
+
+- Toutes les pages suivent Vitamin Play, le design system de Decathlon : composants, couleurs, typographie, icônes et symbole Decathlon officiels, thèmes clair (wonder-light) et sombre (wonder-dark). Cockpit VS Code et Copilot, écran Priorités, fenêtres de détail et lecteur de documents.
+- Diffusion privée uniquement : le VSIX se télécharge depuis les releases du dépôt privé OneAgent. Les polices Decathlon étant sous licence, cette version n'est pas publiée dans le dépôt public de releases.
+
 ## 0.1.150
 
 - Copilot 0.6.28 et VS Code 0.1.150 : la détection de Node.js hors du PATH (Copilot 0.6.27) arrive aussi dans l’extension VS Code. Aucun autre changement fonctionnel.

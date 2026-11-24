@@ -10,7 +10,7 @@ function prioritiesBootstrap() {
   // switches. Standalone canvas defaults must never override those variables.
   const css = read("style.css").replace(/\/\* standalone-theme:start \*\/[\s\S]*?\/\* standalone-theme:end \*\//, "").replace(/\bbody\b/g, ":host");
   const sharedCss = fs.readFileSync(path.join(__dirname, "table-view.css"), "utf8");
-  const html = `<style>${sharedCss}\n${css} :host {display:block;color:var(--text);font:inherit} main{padding:0}</style>${body}`;
+  const html = `<style>@layer oneagent {${sharedCss}\n${css} :host {display:block;color:var(--text);font:inherit} main{padding:0}}</style>${body}`;
   const script = read("app.js")
     .replace('const $ = (selector) => document.querySelector(selector);', 'const $ = (selector) => root.querySelector(selector);')
     .replace('const priorityRoot = document;', 'const priorityRoot = root;')
@@ -28,6 +28,7 @@ function prioritiesBootstrap() {
     prioritiesMounted = true;
     const root = document.querySelector("#priorities").attachShadow({mode:"open"});
     root.innerHTML = ${JSON.stringify(html).replace(/</g, "\\u003c")};
+    window.vitaminPlay?.adopt(root);
     const pending = new Map();
     window.addEventListener("message", (event) => {
       const value = event.data;

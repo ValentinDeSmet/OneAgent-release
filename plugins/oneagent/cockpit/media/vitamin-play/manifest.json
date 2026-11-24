@@ -1,0 +1,11 @@
+{
+  "name": "Vitamin Play web styles (frozen copy)",
+  "license": "Apache-2.0",
+  "packages": {
+    "@vtmn-play/design-tokens": "0.26.11",
+    "@vtmn-play/css": "0.38.0",
+    "@vtmn-play/icons": "0.15.0"
+  },
+  "theme": "wonder",
+  "excluded": ["@vtmn-play/fonts (Decathlon fonts, separate license)", "Decathlon logos and brand assets"]
+}

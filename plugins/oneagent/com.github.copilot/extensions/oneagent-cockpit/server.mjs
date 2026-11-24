@@ -22,13 +22,14 @@ export async function startCockpitServer({ connection, updates, callOnboarding, 
   const assets = new Map([
     ["/bridge.js", [fs.readFileSync(new URL("bridge.js", import.meta.url), "utf8"), "text/javascript"]],
     ["/host.css", [fs.readFileSync(new URL("host.css", import.meta.url), "utf8"), "text/css"]],
-    ["/graph.js", [fs.readFileSync(path.join(cockpitRoot, "media/graph-viewer.bundle.js"), "utf8"), "text/javascript"]]
+    ["/graph.js", [fs.readFileSync(path.join(cockpitRoot, "media/graph-viewer.bundle.js"), "utf8"), "text/javascript"]],
+    ["/vitamin-play.css", [fs.readFileSync(path.join(cockpitRoot, "media/vitamin-play/vitamin-play.css"), "utf8"), "text/css"]]
   ]);
   for (const name of ["reload-ui.js", "reload-ui.css"]) assets.set("/" + name, [fs.readFileSync(new URL(name, import.meta.url), "utf8"), name.endsWith(".js") ? "text/javascript" : "text/css"]);
   const server = createServer(async (req, res) => {
     const headers = {
       "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff",
-      "Content-Security-Policy": `default-src 'none'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-src 'self' about:; base-uri 'none'; form-action 'none'`
+      "Content-Security-Policy": `default-src 'none'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; img-src 'self' data:; frame-src 'self' about:; base-uri 'none'; form-action 'none'`
     };
     const send = (status, value, type = "application/json") => { res.writeHead(status, { ...headers, "Content-Type": `${type}; charset=utf-8` }); res.end(type === "application/json" ? JSON.stringify(value) : value); };
     try {
@@ -46,7 +47,7 @@ export async function startCockpitServer({ connection, updates, callOnboarding, 
         if (status.status === "ready") {
           let state;
           try { state = await host.state(); } catch (error) { state = await host.fallback(error); }
-          html = renderCockpitHtml(state, { nonce, graphViewerScript: `/graph.js?token=${token}`, hostBridgeScript: `/bridge.js?token=${token}` });
+          html = renderCockpitHtml(state, { nonce, graphViewerScript: `/graph.js?token=${token}`, hostBridgeScript: `/bridge.js?token=${token}`, vitaminPlayCss: `/vitamin-play.css?token=${token}` });
         } else {
           html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OneAgent · Bienvenue</title><script src="/bridge.js?token=${token}" defer></script></head><body><main id="onboarding"></main></body></html>`;
         }

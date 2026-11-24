@@ -3,6 +3,8 @@ import { randomBytes } from "node:crypto";
 import { createServer } from "node:http";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
 /** SDK-free loopback surface. The injected caller owns the shared memory binding. */
 export async function startPriorityServer(call) {
@@ -11,12 +13,22 @@ export async function startPriorityServer(call) {
   for (const name of ["table-columns.js", "table-view.css"]) assets.set(name, await readFile(new URL(name, existsSync(new URL(name, import.meta.url)) ? import.meta.url : new URL("../../../../vscode-extension/src/", import.meta.url)), "utf8"));
   const guard = createCanvasGuard();
   for (const name of ["reload-ui.js", "reload-ui.css"]) assets.set(name, await readFile(new URL("../oneagent-cockpit/" + name, import.meta.url), "utf8"));
-  assets.set("index.html", assets.get("index.html").replace("</head>", '<script src="/reload-ui.js?token=__ONEAGENT_TOKEN__" defer></script><link rel="stylesheet" href="/reload-ui.css?token=__ONEAGENT_TOKEN__"></head>'));
+  // Vitamin Play web styles: the bundled stylesheet, the component
+  // enhancer and the semantic colour tokens shared with the VS Code cockpit.
+  const cockpit = existsSync(new URL("../../../cockpit/", import.meta.url)) ? new URL("../../../cockpit/", import.meta.url) : new URL("../../../../vscode-extension/", import.meta.url);
+  const vitaminPlay = createRequire(import.meta.url)(fileURLToPath(new URL("src/vitamin-play-ui.js", cockpit)));
+  assets.set("vitamin-play.css", await readFile(new URL("media/vitamin-play/vitamin-play.css", cockpit), "utf8"));
+  assets.set("vitamin-play.js", vitaminPlay.vitaminPlayEnhancer({ followSystemTheme: true }));
+  assets.set("style.css", `${vitaminPlay.VITAMIN_PLAY_TOKENS}\n@layer oneagent {\n${assets.get("style.css").replace(/\/\* standalone-theme:start \*\/[\s\S]*?\/\* standalone-theme:end \*\//, "")}\n}`);
+  assets.set("index.html", assets.get("index.html")
+    .replace("<head>", '<head><link rel="stylesheet" href="/vitamin-play.css?token=__ONEAGENT_TOKEN__">')
+    .replace("</body>", '<script src="/vitamin-play.js?token=__ONEAGENT_TOKEN__"></script></body>')
+    .replace("</head>", '<script src="/reload-ui.js?token=__ONEAGENT_TOKEN__" defer></script><link rel="stylesheet" href="/reload-ui.css?token=__ONEAGENT_TOKEN__"></head>'));
   let authority;
   const server = createServer(async (req, res) => {
     const send = (status, value, type = "application/json; charset=utf-8") => {
       res.writeHead(status, { "Content-Type": type, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff",
-        "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'" });
+        "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self' data:; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'" });
       res.end(type.startsWith("application/json") ? JSON.stringify(value) : value);
     };
     try {

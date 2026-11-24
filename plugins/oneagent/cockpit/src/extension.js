@@ -2297,6 +2297,7 @@ async function attachCockpitWebview(cli, webview, options = {}) {
   const renderAssets = {
     cspSource: webview.cspSource,
     graphViewerScript: webview.asWebviewUri(vscode.Uri.joinPath(mediaRoot, "graph-viewer.bundle.js")).toString(),
+    vitaminPlayCss: webview.asWebviewUri(vscode.Uri.joinPath(mediaRoot, "vitamin-play", "vitamin-play.css")).toString(),
     nonce: createNonce()
   };
   try {
