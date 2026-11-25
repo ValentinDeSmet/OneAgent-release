@@ -36,3 +36,40 @@ header{align-items:center;margin-bottom:var(--vp-semantic-spacing-s)}header>div:
 
 .priority-tools #view-scope,.priority-tools #attention-filter{min-width:0;max-width:100%}
 .filter-clear:disabled{cursor:default;opacity:.45}
+
+/* Priority sheet: a full-height side panel with its own spacing (the dialog is
+   data-vp-native, so the Vitamin Play modal does not restyle it). */
+dialog.sheet{position:fixed;inset:0 0 0 auto;margin:0;width:min(760px,100%);max-width:100%;height:100%;max-height:100%;padding:0;border:0;border-inline-start:1px solid var(--border);border-radius:0;background:var(--overlay);color:var(--text);box-shadow:-16px 0 48px #0003}
+dialog.sheet[open]{display:flex}
+dialog.sheet::backdrop{background:#0006}
+.sheet-form{display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;gap:0}
+.sheet-head{display:grid;gap:var(--vp-semantic-spacing-xs);padding:var(--vp-semantic-spacing-m) var(--vp-semantic-spacing-l) var(--vp-semantic-spacing-s);border-bottom:1px solid var(--border)}
+.sheet-titlebar{display:flex;align-items:center;gap:var(--vp-semantic-spacing-xs)}
+.sheet-kicker{flex:1;margin:0;font-size:var(--vp-typography-caption-font-size);font-weight:500;color:var(--muted)}
+.sheet .sheet-close:not([class*="vp-icon"]){min-height:32px;width:32px;padding:0;border:0;background:transparent;color:var(--muted);font-size:var(--vp-typography-body-m-font-size)}
+.sheet .vp-input-container:has(> .sheet-title){border:0;background:transparent}
+input.sheet-title{width:100%;min-height:0;padding:var(--vp-semantic-spacing-3xs) 0;border:0;border-bottom:1px dashed transparent;border-radius:0;background:transparent;font-size:var(--vp-typography-subtitle-l-font-size);font-weight:700;line-height:1.3;box-shadow:none}
+input.sheet-title:hover{border-bottom-color:var(--border-strong)}
+input.sheet-title:focus-visible{outline:none;border-bottom:1px solid var(--blue)}
+.sheet-pills{display:flex;flex-wrap:wrap;gap:var(--vp-semantic-spacing-2xs)}
+.sheet-pill{display:inline-flex;align-items:center;gap:var(--vp-semantic-spacing-3xs);min-height:24px;padding:0 var(--vp-semantic-spacing-xs);border:1px solid var(--border);border-radius:var(--vp-semantic-border-radius-full);background:var(--surface-2);color:var(--text);font-size:var(--vp-typography-caption-font-size);font-weight:600;cursor:pointer;white-space:nowrap}
+.sheet .sheet-pill:not([class*="vp-"]){min-height:24px;padding:0 var(--vp-semantic-spacing-xs);border-radius:var(--vp-semantic-border-radius-full)}
+.sheet-pill.critical,.sheet-pill.high{color:var(--red);background:var(--negative-soft-bg);border-color:transparent}
+.sheet-pill.status{color:var(--blue);background:var(--accent-soft-bg);border-color:transparent}
+.sheet-pill.muted{color:var(--muted);font-weight:500;background:transparent}
+.sheet-main{flex:1;min-height:0;overflow:auto;display:grid;align-content:start;gap:var(--vp-semantic-spacing-l);padding:var(--vp-semantic-spacing-l)}
+.sheet-section{display:grid;gap:var(--vp-semantic-spacing-s)}
+.sheet-eyebrow{margin:0;font-size:var(--vp-typography-caption-font-size);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:var(--vp-semantic-spacing-s)}
+.trio>.contents{display:contents}
+.next-action-field{padding:var(--vp-semantic-spacing-s);border-radius:var(--vp-semantic-border-radius-s);background:var(--accent-soft-bg)}
+.sheet-description textarea{min-height:200px}
+.sheet .partner-picker{display:grid;gap:var(--vp-semantic-spacing-xs);margin:0;padding:0;border:0}
+.sheet .partner-picker legend{padding:0;margin-bottom:var(--vp-semantic-spacing-xs);font-size:var(--vp-typography-caption-font-size);font-weight:500}
+.sheet .partner-selection{display:flex;flex-wrap:wrap;gap:var(--vp-semantic-spacing-2xs)}
+.sheet .partner-options{display:none;max-height:240px;overflow:auto;padding:var(--vp-semantic-spacing-2xs);border:1px solid var(--border);border-radius:var(--vp-semantic-border-radius-s);background:var(--overlay)}
+.sheet .partner-picker:focus-within .partner-options{display:grid;gap:var(--vp-semantic-spacing-3xs)}
+.sheet-foot{display:flex;flex-wrap:wrap;align-items:center;gap:var(--vp-semantic-spacing-xs);padding:var(--vp-semantic-spacing-s) var(--vp-semantic-spacing-l);border-top:1px solid var(--border);background:var(--overlay)}
+.sheet-foot .sheet-spacer{flex:1}
+.sheet-foot #updated{flex-basis:100%;order:9;margin:0}
+@media(max-width:700px){.sheet-head,.sheet-main,.sheet-foot{padding-inline:var(--vp-semantic-spacing-m)}}

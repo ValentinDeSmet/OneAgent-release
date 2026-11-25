@@ -325,6 +325,52 @@ ${VITAMIN_PLAY_TOKENS}
       .graph-filter-panel { position: absolute; inset-inline-start: 18px; top: 18px; bottom: 18px; z-index: 3; width: min(380px, calc(100% - 36px)); min-height: 0; display: flex; flex-direction: column; gap: var(--vp-semantic-spacing-xs); padding: var(--vp-semantic-spacing-xs); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-main); background: var(--overlay); box-shadow: none; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
       .graph-filter-panel.collapsed { bottom: auto; width: min(260px, calc(100% - 36px)); max-height: none; overflow: hidden; }
       .graph-filter-panel.collapsed .filter-head { cursor: pointer; }
+      /* Filter drawer: opens from the Filtres button, over the right of the graph. */
+      .graph-filter-panel.filter-drawer { inset: 0 0 0 auto; top: 0; bottom: 0; width: min(400px, 100%); max-height: none; z-index: 6; display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden; border: 0; border-inline-start: 1px solid var(--border); border-radius: 0; background: var(--overlay); box-shadow: -12px 0 40px rgba(0,0,0,0.18); }
+      .graph-filter-panel.filter-drawer[hidden] { display: none; }
+      .filter-drawer-head { display: flex; align-items: center; gap: var(--vp-semantic-spacing-xs); padding: var(--vp-semantic-spacing-s) var(--vp-semantic-spacing-m); border-bottom: 1px solid var(--border); }
+      .filter-drawer-head strong { flex: 1; font-size: var(--vp-typography-body-m-font-size); }
+      .filter-drawer-search { flex: none; padding: var(--vp-semantic-spacing-s) var(--vp-semantic-spacing-m); border-bottom: 1px solid var(--border); }
+      .filter-drawer-search .control, .filter-values-page .control { width: 100%; }
+      .filter-drawer-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; display: grid; align-content: start; gap: var(--vp-semantic-spacing-m); padding: var(--vp-semantic-spacing-s) var(--vp-semantic-spacing-m) var(--vp-semantic-spacing-l); }
+      .filter-drawer-foot { display: flex; align-items: center; gap: var(--vp-semantic-spacing-xs); padding: var(--vp-semantic-spacing-s) var(--vp-semantic-spacing-m); border-top: 1px solid var(--border); color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .filter-drawer-foot span { flex: 1; }
+      .filter-link { border: 0; background: transparent; padding: 0; color: var(--blue); font: inherit; font-size: var(--vp-typography-caption-font-size); cursor: pointer; }
+      .filter-link:hover { text-decoration: underline; }
+      .filter-presets { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-2xs); }
+      .filter-preset { height: 28px; padding: 0 var(--vp-semantic-spacing-s); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-full); background: var(--panel); color: var(--muted); font: inherit; font-size: var(--vp-typography-caption-font-size); cursor: pointer; }
+      .filter-preset.active { border-color: var(--blue); background: var(--accent-soft-bg); color: var(--blue); font-weight: 700; }
+      .filter-preset-help { margin: 0; padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-s); border-radius: var(--vp-semantic-border-radius-main); background: var(--accent-soft-bg); font-size: var(--vp-typography-caption-font-size); line-height: 1.5; }
+      .filter-group { display: grid; gap: var(--vp-semantic-spacing-xs); }
+      .filter-group-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0; color: var(--muted); font-size: var(--vp-typography-caption-font-size); font-weight: 700; }
+      .filter-group-links { font-weight: 400; }
+      .type-chips { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-2xs); }
+      .type-chip { display: inline-flex; align-items: stretch; height: 30px; border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-full); background: var(--panel); overflow: hidden; }
+      .type-chip.on { border-color: var(--blue); background: var(--accent-soft-bg); }
+      .type-chip.partial { border-style: dashed; background: var(--panel); }
+      .type-chip.partial small { color: var(--blue); font-weight: 700; }
+      .type-chip.off .type-chip-main span { color: var(--muted); text-decoration: line-through; }
+      .type-chip-main { display: inline-flex; align-items: center; gap: var(--vp-semantic-spacing-2xs); padding: 0 var(--vp-semantic-spacing-xs) 0 var(--vp-semantic-spacing-s); border: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--vp-typography-caption-font-size); cursor: pointer; }
+      .type-chip-main small { color: var(--muted); }
+      .type-chip-more { padding: 0 var(--vp-semantic-spacing-xs); border: 0; border-inline-start: 1px solid var(--border); background: transparent; color: var(--blue); font: inherit; font-weight: 700; cursor: pointer; }
+      .type-chip-more:hover, .type-chip-main:hover { background: var(--hover); }
+      .type-chip mark, .filter-group-head mark, .filter-value-row mark { background: var(--warning-soft-bg); color: inherit; border-radius: 2px; }
+      .filter-open-values { justify-self: start; border: 0; background: transparent; padding: 0; color: var(--blue); font: inherit; font-size: var(--vp-typography-caption-font-size); font-weight: 600; cursor: pointer; }
+      .filter-values-page { display: grid; gap: var(--vp-semantic-spacing-s); }
+      .filter-back { justify-self: start; border: 0; background: transparent; padding: 0; color: var(--blue); font: inherit; font-weight: 600; cursor: pointer; }
+      .filter-values-title { display: flex; align-items: center; gap: var(--vp-semantic-spacing-xs); margin: 0; font-weight: 700; font-size: var(--vp-typography-body-m-font-size); }
+      .filter-values-title small { color: var(--muted); font-weight: 400; font-size: var(--vp-typography-caption-font-size); }
+      .filter-bulk { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-s); }
+      .filter-values-list { display: grid; gap: 2px; }
+      .filter-value-row { display: flex; align-items: center; gap: var(--vp-semantic-spacing-xs); min-height: 30px; padding: 0 var(--vp-semantic-spacing-2xs); border-radius: var(--vp-semantic-border-radius-main); font-size: var(--vp-typography-caption-font-size); cursor: pointer; }
+      .filter-value-row:hover { background: var(--hover); }
+      .filter-value-row > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+      .filter-value-kind { display: inline-flex; align-items: center; gap: var(--vp-semantic-spacing-2xs); min-width: 110px; color: var(--muted); }
+      .filter-empty { margin: 0; color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .filter-adv { border-top: 1px solid var(--border); padding-top: var(--vp-semantic-spacing-s); }
+      .filter-adv > summary { cursor: pointer; font-weight: 600; font-size: var(--vp-typography-caption-font-size); }
+      .filter-adv > summary small { color: var(--muted); font-weight: 400; margin-inline-start: var(--vp-semantic-spacing-2xs); }
+      .filter-adv[open] > summary { margin-bottom: var(--vp-semantic-spacing-s); }
       .graph-context-panel {
         position: absolute;
         top: 18px;
@@ -774,6 +820,56 @@ ${VITAMIN_PLAY_TOKENS}
       .ep-editbar { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: var(--vp-semantic-spacing-xs); padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-s); border-top: 1px solid var(--border); background: var(--overlay); }
       .ep-edit-fields { display: grid; gap: var(--vp-semantic-spacing-xs); padding: var(--vp-semantic-spacing-s); }
       .ep-doc-wrap { position: relative; overflow: hidden; }
+      /* Entity card: header, synthesis per kind, tabs, counters. */
+      .ec-card { display: flex; flex-direction: column; min-height: 100%; }
+      .ec-head { display: grid; gap: var(--vp-semantic-spacing-xs); padding: var(--vp-semantic-spacing-s) var(--vp-semantic-spacing-m) var(--vp-semantic-spacing-s); border-bottom: 1px solid var(--border); }
+      .ec-top { display: flex; align-items: center; gap: var(--vp-semantic-spacing-2xs); min-width: 0; }
+      .ec-grow { flex: 1; }
+      .ec-icon { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--vp-semantic-border-radius-main); background: transparent; color: var(--muted); cursor: pointer; list-style: none; }
+      .ec-icon::-webkit-details-marker { display: none; }
+      .ec-icon:hover { background: var(--hover); color: var(--text); }
+      .ec-more-menu { position: relative; }
+      .ec-menu { position: absolute; z-index: 20; inset-inline-end: 0; top: calc(100% + 4px); display: grid; min-width: 200px; padding: var(--vp-semantic-spacing-2xs); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-s); background: var(--overlay); box-shadow: 0 10px 30px rgba(0,0,0,0.18); }
+      .ec-menu-item { min-height: 32px; padding: 0 var(--vp-semantic-spacing-xs); border: 0; border-radius: var(--vp-semantic-border-radius-main); background: transparent; color: var(--text); font: inherit; text-align: start; cursor: pointer; }
+      .ec-menu-item:hover { background: var(--hover); }
+      .ec-title { margin: 0; font-size: var(--vp-typography-subtitle-l-font-size); line-height: 1.3; }
+      .ec-lead { margin: 0; color: var(--text); font-size: var(--vp-typography-body-s-font-size); line-height: 1.55; white-space: pre-wrap; }
+      .ec-lead.clamped { display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+      .ec-facts { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-2xs); }
+      .ec-facts:empty { display: none; }
+      .ec-fact { padding: 2px var(--vp-semantic-spacing-xs); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-full); color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .ec-tabs { padding-inline: var(--vp-semantic-spacing-m); }
+      .ec-body { flex: 1; display: grid; align-content: start; gap: var(--vp-semantic-spacing-m); padding: var(--vp-semantic-spacing-m); }
+      .ec-body > .ep-sec { padding: 0; border: 0; }
+      .ec-sec { display: grid; gap: var(--vp-semantic-spacing-xs); }
+      .ec-sec .ep-sec-title { margin: 0; }
+      .ec-chips { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-2xs); align-items: center; }
+      .ec-ent { display: inline-flex; align-items: center; gap: var(--vp-semantic-spacing-2xs); max-width: 100%; min-height: 28px; padding: 0 var(--vp-semantic-spacing-xs); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-full); background: var(--surface); color: var(--text); font: inherit; font-size: var(--vp-typography-caption-font-size); cursor: pointer; }
+      .ec-ent span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ec-ent:hover { border-color: var(--accent-soft-border); background: var(--accent-soft-bg); color: var(--blue); }
+      .ec-more { color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .ec-rel { display: grid; gap: var(--vp-semantic-spacing-3xs); }
+      .ec-rel > span { color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .ec-row { display: flex; gap: var(--vp-semantic-spacing-xs); align-items: flex-start; padding: var(--vp-semantic-spacing-2xs) 0; border-bottom: 1px solid var(--border); }
+      .ec-row:last-of-type { border-bottom: 0; }
+      .ec-row strong { display: block; font-size: var(--vp-typography-caption-font-size); font-weight: 600; }
+      .ec-row small { color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .ec-row-icon { flex: none; width: 16px; color: var(--muted); text-align: center; }
+      .ec-row-icon.risk { color: var(--red); }
+      .ec-note { margin: 0; color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .ec-kr { display: grid; gap: var(--vp-semantic-spacing-2xs); padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-s); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-s); }
+      .ec-kr-top { display: flex; align-items: baseline; gap: var(--vp-semantic-spacing-xs); }
+      .ec-kr-top strong, .ec-kr-top .ec-linkish { flex: 1; font-size: var(--vp-typography-caption-font-size); }
+      .ec-kr small { color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .ec-bar { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
+      .ec-bar i { display: block; height: 100%; border-radius: 3px; background: var(--blue); }
+      .ec-kpi { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--vp-semantic-spacing-xs); }
+      .ec-kpi strong { font-size: var(--vp-typography-subtitle-l-font-size); }
+      .ec-kpi span { color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .ec-excerpt { padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-s); border-inline-start: 3px solid var(--border-strong); background: var(--surface); border-radius: 0 var(--vp-semantic-border-radius-s) var(--vp-semantic-border-radius-s) 0; }
+      .ec-linkish { justify-self: start; padding: 0; border: 0; background: transparent; color: var(--blue); font: inherit; font-size: var(--vp-typography-caption-font-size); font-weight: 600; text-align: start; cursor: pointer; }
+      .ec-linkish:hover { text-decoration: underline; }
+      .ec-foot { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-s); padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-m); border-top: 1px solid var(--border); color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
       .ep-doc-wrap.clamped { max-height: 300px; }
       .ep-doc-wrap.clamped::after { content: ""; position: absolute; inset-inline-start: 0; inset-inline-end: 0; bottom: 0; height: 52px; background: linear-gradient(transparent, var(--panel)); pointer-events: none; }
       .ep-doc { font-size: var(--vp-typography-caption-font-size); line-height: 1.6; color: var(--text-soft); overflow-wrap: anywhere; }
@@ -1971,6 +2067,10 @@ ${VITAMIN_PLAY_TOKENS}
         renderGraphSearchResults();
       });
       document.querySelector("#filter").addEventListener("focus", renderGraphSearchResults);
+      document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || !graphFilterPanelOpen || event.defaultPrevented) return;
+        if (document.querySelector("#graphFilterPanel")?.contains(event.target) || !document.querySelector("dialog[open]")) toggleGraphFilterPanel(false);
+      });
       document.querySelectorAll("[data-hidden-mode]").forEach((button) => {
         button.addEventListener("click", () => setGraphHiddenMode(button.dataset.hiddenMode));
       });
@@ -2756,6 +2856,8 @@ ${VITAMIN_PLAY_TOKENS}
           faded: ghostCount,
           capLimit: visibility.capLimit
         };
+        const drawerCount = document.querySelector("#graphFilterPanel .filter-drawer-foot span");
+        if (drawerCount) drawerCount.textContent = lastGraphVisibility.shown + (lastGraphVisibility.shown > 1 ? " nœuds affichés" : " nœud affiché");
         if (selectedNodeId && !nodeIds.has(selectedNodeId)) resetNodeDetail();
         if (selectedRelationId && !edges.some((edge) => String(edge.id || graphRelationMenuTitle(edge)) === selectedRelationId)) resetNodeDetail();
         renderGraphViewControls();
@@ -3691,6 +3793,8 @@ ${VITAMIN_PLAY_TOKENS}
           renderEntityContext(ref);
         } else {
           setDetailLegacyVisible(true);
+          const detailTag = document.querySelector("#detailType"), detailHead = typeof detailTag?.closest === "function" ? detailTag.closest(".side-head") : null;
+          if (detailHead) detailHead.hidden = false;
           document.querySelector("#detailTitle").textContent = node.label;
           document.querySelector("#detailStatus").textContent = node.status || "";
           document.querySelector("#detailSummary").textContent = node.meta?.description || node.meta?.body || node.path || node.id;
@@ -4368,57 +4472,302 @@ ${VITAMIN_PLAY_TOKENS}
             : '<p class="summary" style="margin:0" role="status">Loading entity context…</p>') + '</div></div>';
       }
 
+      // Entity card (prototypes/ui-proposals.html, screen 3): one structure for
+      // every kind (header, Synthèse, Liens, Activité, Document, counters) and a
+      // block specific to the kind at the top of the synthesis.
+      const CARD_KIND_LABELS = { domain: "Domaine", subdomain: "Sous-domaine", team: "Équipe", person: "Personne", product: "Produit", repository: "Dépôt", project: "Projet", discovery: "Découverte", initiative: "Initiative", feature: "Fonctionnalité", feature_request: "Demande", practice: "Pratique", mission: "Mission", okr: "OKR", kpi: "KPI", insight: "Insight", oneagent: "OneAgent" };
+      const CARD_STATUS_LABELS = { active: "Actif", inactive: "Inactif", candidate: "À valider", archived: "Archivé" };
+      const CARD_BLOCKS = {
+        domain: [["Organisation", ["subdomain", "team"]], ["Produits", ["product"]]],
+        subdomain: [["Équipes", ["team"]], ["Produits", ["product"]]],
+        team: [["Porte", ["product", "project", "feature", "initiative", "repository"]], ["Membres", ["person"]]],
+        person: [["Équipes", ["team", "subdomain", "domain"]], ["Sujets", ["product", "project", "feature", "initiative", "okr", "mission", "discovery"]]],
+        product: [["Équipe", ["team"]], ["Dépôts", ["repository"]], ["Fonctionnalités", ["feature"]], ["Projets", ["project", "initiative"]], ["Demandes", ["feature_request"]]],
+        repository: [["Produit", ["product"]], ["Fonctionnalités", ["feature"]]],
+        project: [["Équipe", ["team"]], ["Concerne", ["product", "feature", "feature_request"]], ["Personnes", ["person"]]],
+        initiative: [["Projets", ["project"]], ["Objectifs", ["okr", "kpi", "mission"]]],
+        feature: [["Produit", ["product"]], ["Demandes traitées", ["feature_request"]], ["Projet", ["project", "initiative"]]],
+        feature_request: [["Produit", ["product"]], ["Demandée par", ["person", "team"]], ["Traitée par", ["feature", "project"]]],
+        mission: [["KPI", ["kpi"]]],
+        okr: [["Mission", ["mission"]], ["KPI", ["kpi"]]],
+        kpi: [["Mesure", ["okr", "product", "project", "feature"]]],
+        practice: [["Appliquée par", ["team", "product", "project", "person"]]],
+        insight: [["Éclaire", ["product", "feature", "feature_request"]], ["Rapporté par", ["person"]]],
+        oneagent: []
+      };
+      const CARD_RELATIONS = { part_of: ["Fait partie de", "Contient"], contains: ["Contient", "Fait partie de"], owns: ["Possède", "Possédé par"], owned_by: ["Possédé par", "Possède"], depends_on: ["Dépend de", "Requis par"], related_to: ["Lié à", "Lié à"], measured_by: ["Mesuré par", "Mesure"], contributes_to: ["Contribue à", "Contributions"], implements: ["Implémente", "Implémenté par"], requested_by: ["Demandé par", "A demandé"], reported_by: ["Rapporté par", "A rapporté"], scoped_to: ["Rattaché à", "Regroupe"], has_okr: ["OKR", "OKR de"], has_repository: ["Dépôts", "Dépôt de"], supports: ["Soutient", "Soutenu par"], blocks: ["Bloque", "Bloqué par"], impacts: ["Impacte", "Impacté par"], drives: ["Pilote", "Piloté par"], informs: ["Éclaire", "Éclairé par"], informs_mission: ["Éclaire la mission", "Éclairé par"], owner: ["Responsable de", "Responsable"], manager: ["Manage", "Manager"], reviewer: ["Relit", "Relecteurs"], stakeholder_of: ["Partie prenante de", "Parties prenantes"], contributor_to: ["Contribue à", "Contributeurs"], expert_on: ["Expert de", "Experts"], contact_for: ["Contact pour", "Contacts"], decision_maker_for: ["Décide pour", "Décideurs"], validates: ["Valide", "Validé par"], supersedes: ["Remplace", "Remplacé par"], applies_practice: ["Applique", "Appliquée par"], tracks_progress_for: ["Suit", "Suivi par"], discussed_in: ["Discuté dans", "Discute"], subject: ["Sujet de", "Sujet"] };
+      const NL = String.fromCharCode(10);
+      const cardKindLabel = (kind) => CARD_KIND_LABELS[kind] || (customEntityKinds().find((entry) => entry.id === kind) || {}).label || String(kind || "").replace(/_/g, " ");
+      const cardDate = (value) => { const date = value ? new Date(String(value).length === 10 ? value + "T00:00:00" : value) : null; return date && !isNaN(date) ? date.toLocaleDateString("fr-FR") : ""; };
+      const cardNumber = (value) => typeof value === "number" && isFinite(value) ? (Math.round(value * 100) / 100).toLocaleString("fr-FR") : "";
+
+      function cardRelationLabel(entry) {
+        if (entry.direction === "capture") return "Mentionné dans";
+        const pair = CARD_RELATIONS[entry.relation];
+        if (!pair) return String(entry.relation || "Lié à").replace(/_/g, " ");
+        return entry.direction === "incoming" ? pair[1] : pair[0];
+      }
+
+      function cardEntityChip(entry) {
+        const ref = entry.kind + ":" + entry.id;
+        return '<button type="button" class="ec-ent" data-ec="openEntity" data-target="' + escapeAttr(ref) + '" title="' + escapeAttr(cardKindLabel(entry.kind) + " · ouvrir la fiche") + '"><i class="ep-dot" style="background:' + escapeAttr(entityKindColor(entry.kind)) + '"></i><span>' + escapeHtml(entry.label || entry.id) + '</span></button>';
+      }
+
+      function cardChips(entries, limit = 8) {
+        return '<div class="ec-chips">' + entries.slice(0, limit).map(cardEntityChip).join("") + (entries.length > limit ? '<span class="ec-more">+ ' + (entries.length - limit) + '</span>' : "") + '</div>';
+      }
+
+      function cardRelated(ctx) {
+        const seen = new Set();
+        return (Array.isArray(ctx.relatedEntities) ? ctx.relatedEntities : []).concat(Array.isArray(ctx.relatedPeople) ? ctx.relatedPeople : []).filter((entry) => {
+          const key = entry.kind + ":" + entry.id + ":" + (entry.relation || "") + ":" + (entry.direction || "");
+          if (seen.has(key) || !entry.kind || !entry.id) return false;
+          seen.add(key);
+          return true;
+        });
+      }
+
+      function cardEntityLabel(kind, id) {
+        const entity = (state.entities || []).find((candidate) => candidate.id === id && (!kind || candidate.kind === kind));
+        return entity ? entity.label || entity.id : id;
+      }
+
+      function cardFacts(ctx) {
+        const entity = ctx.entity;
+        const facts = [];
+        const byId = new Map((state.entities || []).map((candidate) => [candidate.kind + ":" + candidate.id, candidate]));
+        const record = byId.get(entity.kind + ":" + entity.id);
+        const chain = [];
+        let parent = record?.parentId;
+        for (let level = 0; parent && level < 5; level += 1) {
+          const next = (state.entities || []).find((candidate) => candidate.id === parent && ["domain", "subdomain", "team"].includes(candidate.kind));
+          if (!next) break;
+          chain.unshift(next.label || next.id);
+          parent = next.parentId;
+        }
+        if (chain.length) facts.push(chain.join(" › "));
+        const outcome = entity.metadata?.outcome || {};
+        if (outcome.periodStart || outcome.periodEnd) facts.push(cardDate(outcome.periodStart) + " → " + cardDate(outcome.periodEnd));
+        if (entity.kind === "kpi" && outcome.unit) facts.push("Unité : " + outcome.unit + (typeof outcome.targetValue === "number" ? " · cible " + cardNumber(outcome.targetValue) : ""));
+        const owners = (entity.ownerIds || []).map((id) => cardEntityLabel("person", id));
+        if (owners.length) facts.push("Responsable : " + owners.join(", "));
+        if (entity.focusLevel === "primary") facts.push("Focus principal");
+        return facts;
+      }
+
+      function cardOkrSummary(ctx) {
+        const outcomes = ctx.outcomes || {};
+        const okrs = (outcomes.missions || []).flatMap((mission) => mission.okrs || []).concat(outcomes.standaloneOkrs || []);
+        return okrs.find((okr) => okr.id === ctx.entity.id);
+      }
+
+      function cardKeyResultsHtml(ctx) {
+        const summary = cardOkrSummary(ctx);
+        const results = (summary && summary.keyResults) || (ctx.entity.metadata?.outcome?.keyResults) || [];
+        if (!results.length) return "";
+        const statusLabels = { not_started: ["Pas démarré", "dim"], on_track: ["En bonne voie", "ok"], at_risk: ["À risque", "warn"], off_track: ["En retard", "bad"], achieved: ["Atteint", "ok"] };
+        const achieved = results.filter((result) => result.status === "achieved").length;
+        return '<div class="ec-sec"><p class="ep-sec-title">Résultats clés · ' + achieved + ' / ' + results.length + ' atteints</p>' + results.map((result) => {
+          const span = typeof result.targetValue === "number" && typeof result.baselineValue === "number" ? result.targetValue - result.baselineValue : undefined;
+          const progress = typeof result.progress === "number" ? result.progress
+            : span && typeof result.currentValue === "number" ? (result.currentValue - result.baselineValue) / span
+            : typeof result.currentValue === "number" && typeof result.targetValue === "number" && result.targetValue ? result.currentValue / result.targetValue : undefined;
+          const percent = typeof progress === "number" ? Math.max(0, Math.min(100, Math.round(progress * 100))) : undefined;
+          const status = statusLabels[result.status] || [String(result.status || ""), "dim"];
+          const values = typeof result.targetValue === "number" ? cardNumber(typeof result.currentValue === "number" ? result.currentValue : result.baselineValue || 0) + " / " + cardNumber(result.targetValue) + (result.unit ? " " + result.unit : "") : "";
+          return '<div class="ec-kr"><div class="ec-kr-top"><strong>' + escapeHtml(result.title || "") + '</strong><span class="ep-pill ' + status[1] + '">' + escapeHtml(status[0]) + '</span></div>' +
+            (percent === undefined ? "" : '<div class="ec-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + percent + '"><i style="width:' + percent + '%"></i></div>') +
+            '<small>' + escapeHtml([values, result.dueDate ? "échéance " + cardDate(result.dueDate) : ""].filter(Boolean).join(" · ")) + '</small></div>';
+        }).join("") + '</div>';
+      }
+
+      function cardKpiHtml(ctx) {
+        const kpi = ((ctx.outcomes || {}).kpis || []).find((entry) => entry.id === ctx.entity.id);
+        if (!kpi) return "";
+        const unit = kpi.definition?.unit ? " " + kpi.definition.unit : "";
+        const trend = { improving: "en amélioration", worsening: "en dégradation", stable: "stable", unknown: "" }[kpi.trend] || "";
+        return '<div class="ec-sec"><p class="ep-sec-title">Dernière mesure</p><div class="ec-kpi"><strong>' + (kpi.latest ? escapeHtml(cardNumber(kpi.latest.value) + unit) : "Aucune mesure") + '</strong>' +
+          '<span>' + escapeHtml([kpi.latest ? "le " + cardDate(kpi.latest.measuredAt) : "", typeof kpi.changePercent === "number" ? (kpi.changePercent > 0 ? "+" : "") + cardNumber(kpi.changePercent) + " %" : "", trend, kpi.targetMet === true ? "cible atteinte" : kpi.targetMet === false ? "cible non atteinte" : "", kpi.stale ? "mesure ancienne" : ""].filter(Boolean).join(" · ")) + '</span></div></div>';
+      }
+
+      function cardMissionHtml(ctx) {
+        const mission = ((ctx.outcomes || {}).missions || []).find((entry) => entry.id === ctx.entity.id);
+        if (!mission || !(mission.okrs || []).length) return "";
+        return '<div class="ec-sec"><p class="ep-sec-title">OKR · ' + mission.okrs.length + '</p>' + mission.okrs.map((okr) => {
+          const percent = typeof okr.progress === "number" ? Math.round(Math.max(0, Math.min(1, okr.progress)) * 100) : undefined;
+          return '<div class="ec-kr"><div class="ec-kr-top"><button type="button" class="ec-linkish" data-ec="openEntity" data-target="okr:' + escapeAttr(okr.id) + '">' + escapeHtml(okr.label) + '</button>' + (okr.atRisk ? '<span class="ep-pill warn">À risque</span>' : "") + '</div>' +
+            (percent === undefined ? "" : '<div class="ec-bar"><i style="width:' + percent + '%"></i></div><small>' + percent + ' %</small>') + '</div>';
+        }).join("") + '</div>';
+      }
+
+      function cardDocBody(content) {
+        let text = String(content || "");
+        if (text.startsWith("---")) {
+          const close = text.indexOf(NL + "---", 3);
+          if (close >= 0) text = text.slice(close + 4);
+        }
+        return text.trim();
+      }
+
+      // The first section titled like a need, a problem or a context, from the main page.
+      function cardNeedHtml(wikiPages) {
+        const page = wikiPages.find((candidate) => candidate.content);
+        if (!page) return "";
+        const lines = cardDocBody(page.content).split(NL);
+        const start = lines.findIndex((line) => line.startsWith("#") && /besoin|need|probl|contexte|context|pourquoi|why/i.test(line));
+        if (start < 0) return "";
+        const level = lines[start].indexOf(" ");
+        const body = [];
+        for (const line of lines.slice(start + 1)) {
+          const hashes = line.startsWith("#") ? line.indexOf(" ") : 0;
+          if (hashes > 0 && hashes <= level) break;
+          body.push(line);
+          if (body.length > 14) break;
+        }
+        const markdown = body.join(NL).trim();
+        if (!markdown) return "";
+        return '<div class="ec-sec"><p class="ep-sec-title">' + escapeHtml(lines[start].replace(/^#+ /, "")) + '</p><div class="ec-excerpt ep-doc">' + mdToHtml(markdown) + '</div><button type="button" class="ec-linkish" data-ep-tab="content" data-ref="' + escapeAttr(entityPanelUi.ref || "") + '">Lire toute la page →</button></div>';
+      }
+
+      // The start of the main page (YAML header and repeated title removed), so
+      // the card says what the page says without opening it.
+      function cardPageExcerptHtml(ref, ctx, wikiPages) {
+        const page = wikiPages.find((candidate) => candidate.content);
+        if (!page) return "";
+        const lines = cardDocBody(page.content).split(NL);
+        if (lines[0] && lines[0].startsWith("# ") && lines[0].slice(2).trim().toLowerCase() === String(ctx.entity.label || "").trim().toLowerCase()) lines.shift();
+        const body = [];
+        let headings = 0;
+        for (const line of lines) {
+          if (line.startsWith("#") && body.some((entry) => entry.trim())) { headings += 1; if (headings > 1) break; }
+          body.push(line);
+          if (body.length > 16) break;
+        }
+        const markdown = body.join(NL).trim();
+        if (!markdown || markdown === String(ctx.entity.description || "").trim()) return "";
+        return '<div class="ec-sec"><p class="ep-sec-title">Extrait de la page</p><div class="ec-excerpt ep-doc">' + mdToHtml(markdown) + '</div><button type="button" class="ec-linkish" data-ep-tab="content" data-ref="' + escapeAttr(ref) + '">Lire toute la page →</button></div>';
+      }
+
+      function cardTypeBlocks(ref, ctx, wikiPages, related, used) {
+        const kind = ctx.entity.kind;
+        let html = "";
+        if (kind === "discovery") html += discoveryPanelHtml(ref, ctx, []);
+        if (kind === "okr") html += cardKeyResultsHtml(ctx);
+        if (kind === "kpi") html += cardKpiHtml(ctx);
+        if (kind === "mission") html += cardMissionHtml(ctx);
+        if (["feature_request", "feature", "project", "discovery", "insight", "initiative"].includes(kind)) html += cardNeedHtml(wikiPages);
+        for (const [title, kinds] of CARD_BLOCKS[kind] || []) {
+          const entries = related.filter((entry) => kinds.includes(entry.kind) && !used.has(entry.kind + ":" + entry.id));
+          if (!entries.length) continue;
+          entries.forEach((entry) => used.add(entry.kind + ":" + entry.id));
+          html += '<div class="ec-sec"><p class="ep-sec-title">' + escapeHtml(title) + ' · ' + entries.length + '</p>' + cardChips(entries, 10) + '</div>';
+        }
+        return html;
+      }
+
+      function cardSynthesisHtml(ref, ctx, wikiPages) {
+        const related = cardRelated(ctx);
+        const used = new Set();
+        let html = cardTypeBlocks(ref, ctx, wikiPages, related, used);
+        if (!html.includes('class="ec-excerpt') && ctx.entity.kind !== "discovery") html += cardPageExcerptHtml(ref, ctx, wikiPages);
+        const groups = new Map();
+        for (const entry of related) {
+          if (used.has(entry.kind + ":" + entry.id)) continue;
+          const label = cardRelationLabel(entry);
+          if (!groups.has(label)) groups.set(label, []);
+          if (!groups.get(label).some((other) => other.kind === entry.kind && other.id === entry.id)) groups.get(label).push(entry);
+        }
+        if (groups.size) {
+          const sorted = [...groups].sort((a, b) => b[1].length - a[1].length).slice(0, 6);
+          html += '<div class="ec-sec"><p class="ep-sec-title">Lié à</p>' + sorted.map(([label, entries]) => '<div class="ec-rel"><span>' + escapeHtml(label) + '</span>' + cardChips(entries) + '</div>').join("") +
+            (groups.size > 6 ? '<button type="button" class="ec-linkish" data-ep-tab="relations" data-ref="' + escapeAttr(ref) + '">Voir tous les liens →</button>' : "") + '</div>';
+        }
+        const tasks = (Array.isArray(ctx.tasks) ? ctx.tasks : []).filter((task) => task.status !== "done");
+        if (tasks.length) {
+          html += '<div class="ec-sec"><p class="ep-sec-title">À faire · ' + tasks.length + '</p>' + tasks.slice(0, 3).map((task) =>
+            '<div class="ec-row"><span class="ec-row-icon">○</span><div><strong>' + escapeHtml(task.title || "") + '</strong><small>' + escapeHtml([taskStatusLabel(task.status), task.priority && task.priority !== "medium" ? ({ critical: "Critique", high: "Haute", low: "Basse" }[task.priority] || task.priority) : "", task.deadline ? cardDate(task.deadline) : ""].filter(Boolean).join(" · ")) + '</small></div></div>').join("") +
+            (tasks.length > 3 ? '<p class="ec-note">+ ' + (tasks.length - 3) + ' autres tâches ouvertes</p>' : "") + '</div>';
+        }
+        const attention = [...(Array.isArray(ctx.risks) ? ctx.risks : []).map((item) => ["▲", "Risque", item]), ...(Array.isArray(ctx.questions) ? ctx.questions : []).map((item) => ["?", "Question", item])];
+        if (attention.length) {
+          html += '<div class="ec-sec"><p class="ep-sec-title">Points d’attention · ' + attention.length + '</p>' + attention.slice(0, 4).map(([icon, label, item]) =>
+            '<div class="ec-row"><span class="ec-row-icon' + (icon === "▲" ? " risk" : "") + '">' + icon + '</span><div><strong>' + escapeHtml(item.title || "") + '</strong><small>' + escapeHtml(label + (item.createdAt ? " · " + cardDate(item.createdAt) : "")) + '</small></div></div>').join("") + '</div>';
+        }
+        const decisions = Array.isArray(ctx.decisions) ? ctx.decisions : [];
+        if (decisions.length) {
+          html += '<div class="ec-sec"><p class="ep-sec-title">Dernières décisions</p>' + decisions.slice(0, 2).map((item) =>
+            '<div class="ec-row"><span class="ec-row-icon">◆</span><div><strong>' + escapeHtml(item.title || "") + '</strong><small>' + escapeHtml(cardDate(item.createdAt)) + '</small></div></div>').join("") + '</div>';
+        }
+        return html || '<div class="ec-sec"><p class="ec-note">Rien d’autre pour l’instant. Ajoute une note ou une capture pour enrichir cette fiche.</p></div>';
+      }
+
+      function cardActivityHtml(ref, ctx) {
+        const observations = Array.isArray(ctx.observations) ? ctx.observations : [];
+        const captures = Array.isArray(ctx.captures) ? ctx.captures : [];
+        let html = "";
+        if (observations.length) {
+          html += '<div class="ec-sec"><p class="ep-sec-title">Observations · ' + observations.length + '</p>' + observations.slice(0, 8).map((observation) =>
+            '<div class="ep-capture"><b>' + escapeHtml(observation.title) + '</b><span>' + escapeHtml([observation.validationStatus, observation.sourceTitle || observation.sourceId].filter(Boolean).join(" · ")) + '</span>' + (observation.excerpt ? '<blockquote>“' + escapeHtml(String(observation.excerpt).slice(0, 280)) + '”</blockquote>' : "") + '</div>').join("") + '</div>';
+        }
+        if (captures.length) {
+          html += '<div class="ec-sec"><p class="ep-sec-title">Captures · ' + captures.length + '</p>' + captures.slice(0, 8).map((capture) =>
+            '<div class="ep-capture"><b>' + escapeHtml(capture.title) + '</b><span>' + escapeHtml([capture.contentType, cardDate(capture.createdAt)].filter(Boolean).join(" · ")) + '</span>' + (capture.path ? '<button type="button" class="ec-linkish" data-ec="openCapture" data-path="' + escapeAttr(capture.path) + '">Ouvrir ↗</button>' : "") + '</div>').join("") + '</div>';
+        }
+        return html || '<div class="ec-sec"><p class="ec-note">Aucune observation ni capture rattachée.</p></div>';
+      }
+
+      const TASK_STATUS_FR = { open: "À faire", ready: "Prête à démarrer", in_progress: "En cours", pending: "À clarifier", candidate: "À valider", blocked: "En attente", done: "Terminée" };
+      const taskStatusLabel = (status) => TASK_STATUS_FR[status] || String(status || "");
+      function setMemoryLayoutGraph() { memoryExplorer?.setLayout?.("graph"); }
+
+      /** Opens another entity's card from a card (related chips, OKR lists). */
+      function openEntityCard(ref) {
+        if (!ref || !ref.includes(":")) return;
+        const kind = ref.split(":")[0], id = ref.split(":").slice(1).join(":");
+        const node = (state.graph?.nodes || []).find((candidate) => entityRefForNode(candidate) === ref)
+          || { id: "entity:" + ref, type: kind, label: cardEntityLabel(kind, id), status: "active", meta: { kind, entityId: id } };
+        selectNode(node, { restore: true });
+      }
+
       function entityPanelReadHtml(ref, ctx, wikiPages) {
         const ui = entityPanelUi;
         const entity = ctx.entity;
         const primaryWikiPage = wikiPages.find((page) => page.absolutePath);
         const s = ctx.summary || {};
-        const status = entity.status || "unknown";
+        const status = entity.status || "";
         const statusClass = status === "active" ? "ok" : status === "candidate" ? "warn" : "dim";
-        const description = String(entity.description || "");
+        const description = String(entity.description || (entity.kind === "okr" ? cardOkrSummary(ctx)?.objective : "") || "");
         const relations = Array.isArray(ctx.relations) ? ctx.relations : [];
-
-        let html = '<div class="ep">';
-        html += '<div class="ep-head">' +
-          '<div class="ep-kindrow"><span class="ep-kind"><i class="ep-dot" style="background:' + escapeAttr(entityKindColor(entity.kind)) + '"></i>' + escapeHtml(String(entity.kind).replace(/_/g, " ")) + '</span>' +
-          '<button class="ep-iconbtn" data-ec="edit" data-ref="' + escapeAttr(ref) + '" title="Edit name, status, focus, owners and description">✎</button></div>' +
-          '<h3 class="ep-name">' + escapeHtml(entity.label || entity.id) + '</h3>' +
-          '<div class="ep-pills"><span class="ep-pill ' + statusClass + '"><i></i>' + escapeHtml(status) + '</span>' +
-          '<span class="ep-pill dim">focus · ' + escapeHtml(entity.focusLevel || "informational") + '</span></div>' +
+        const activityCount = (s.observations || 0) + (s.captures || 0);
+        const long = description.length > 600;
+        let html = '<div class="ep ec-card">';
+        html += '<div class="ec-head">' +
+          '<div class="ec-top"><span class="ep-kind"><i class="ep-dot" style="background:' + escapeAttr(entityKindColor(entity.kind)) + '"></i>' + escapeHtml(cardKindLabel(entity.kind)) + '</span>' +
+          (status ? '<span class="ep-pill ' + statusClass + '"><i></i>' + escapeHtml(CARD_STATUS_LABELS[status] || status) + '</span>' : "") + '<span class="ec-grow"></span>' +
+          '<button type="button" class="ec-icon" data-ec="edit" data-ref="' + escapeAttr(ref) + '" title="Modifier" aria-label="Modifier">✎</button>' +
+          '<button type="button" class="ec-icon" data-ec="focus" data-ref="' + escapeAttr(ref) + '" title="Voir dans le graphe" aria-label="Voir dans le graphe">◎</button>' +
+          '<button type="button" class="ec-icon" data-ec="perimeter" data-ref="' + escapeAttr(ref) + '" title="Afficher le périmètre dans le graphe" aria-label="Afficher le périmètre">⊙</button>' +
+          (primaryWikiPage ? '<button type="button" class="ec-icon" data-ec="openWikiPage" data-path="' + escapeAttr(primaryWikiPage.absolutePath) + '" title="Ouvrir la page Markdown" aria-label="Ouvrir la page Markdown">↗</button>' : "") +
+          '<details class="ec-more-menu"><summary class="ec-icon" title="Plus d’actions" aria-label="Plus d’actions">⋯</summary><div class="ec-menu">' +
+          '<button type="button" class="ec-menu-item" data-ec="workspace" data-ref="' + escapeAttr(ref) + '">Espace de travail</button>' +
+          '<button type="button" class="ec-menu-item" data-ec="note" data-ref="' + escapeAttr(ref) + '">Ajouter une note</button>' +
+          '<button type="button" class="ec-menu-item" data-ec="capture" data-ref="' + escapeAttr(ref) + '">Ajouter une capture</button></div></details></div>' +
+          '<h3 class="ec-title">' + escapeHtml(entity.label || entity.id) + '</h3>' +
+          (description ? '<p class="ec-lead' + (long && !ui.descExpanded ? " clamped" : "") + '">' + escapeHtml(description) + '</p>' + (long ? '<button type="button" class="ec-linkish" data-ec="toggleDesc" data-ref="' + escapeAttr(ref) + '">' + (ui.descExpanded ? "Afficher moins" : "Afficher plus") + '</button>' : "") : "") +
+          '<div class="ec-facts">' + cardFacts(ctx).map((fact) => '<span class="ec-fact">' + escapeHtml(fact) + '</span>').join("") + '</div>' +
           '</div>';
-        html += '<div class="ep-actions">' +
-          '<button data-ec="workspace" data-ref="' + escapeAttr(ref) + '" title="Open the full entity workspace"><span>▦</span>Workspace</button>' +
-          (primaryWikiPage ? '<button data-ec="openWikiPage" data-path="' + escapeAttr(primaryWikiPage.absolutePath) + '" title="Open ' + escapeAttr(primaryWikiPage.relativePath) + ' in the editor"><span>↗</span>Open Markdown</button>' : "") +
-          '<button data-ec="note" data-ref="' + escapeAttr(ref) + '" title="Write a note linked to this entity"><span>✎</span>Add note</button>' +
-          '<button data-ec="capture" data-ref="' + escapeAttr(ref) + '" title="Capture a note attached to this entity"><span>✚</span>Capture</button>' +
-          '<button data-ec="focus" data-ref="' + escapeAttr(ref) + '" title="Focus the graph on this entity"><span>◎</span>Focus graph</button>' +
-          '</div>';
-        if (description) {
-          const long = description.length > 180;
-          html += '<div class="ep-desc"><p class="' + (long && !ui.descExpanded ? "clamped" : "") + '">' + escapeHtml(description) + '</p>' +
-            (long ? '<button class="ep-linkish" data-ec="toggleDesc" data-ref="' + escapeAttr(ref) + '">' + (ui.descExpanded ? "Show less" : "Show more") + '</button>' : "") +
-            '</div>';
-        }
-        const stats = [["Obs.", s.observations], ["Capt.", s.captures], ["Linked", s.relatedEntities], ["Obj.", s.objectives], ["Decis.", s.decisions], ["Quest.", s.openQuestions], ["Risks", s.risks]];
-        html += '<div class="ep-stats">' + stats.map((stat) =>
-          '<div class="ep-stat' + (stat[1] ? "" : " zero") + '"><b>' + escapeHtml(String(stat[1] || 0)) + '</b><span>' + escapeHtml(stat[0]) + '</span></div>'
-        ).join("") + '</div>';
-        const tabs = [];
-        if (entity.kind === "discovery") tabs.push(["discovery", "Discovery", undefined]);
-        if (wikiPages.length > 0) tabs.push(["content", "Content", wikiPages.length > 1 ? wikiPages.length : undefined]);
-        tabs.push(["overview", "Overview", undefined]);
-        tabs.push(["relations", "Relations", relations.length || undefined]);
-        html += '<div class="ep-tabs">' + tabs.map((tab) =>
-          '<button class="ep-tab' + (ui.tab === tab[0] ? " active" : "") + '" data-ep-tab="' + escapeAttr(tab[0]) + '" data-ref="' + escapeAttr(ref) + '">' + escapeHtml(tab[1]) +
-          (tab[2] == null ? "" : '<span class="ep-count">' + escapeHtml(String(tab[2])) + '</span>') + '</button>'
-        ).join("") + '</div>';
-        if (ui.tab === "discovery") html += discoveryPanelHtml(ref, ctx, wikiPages);
-        else if (ui.tab === "content") html += entityPanelContentHtml(ref, wikiPages);
+        const tabs = [["synthesis", "Synthèse"], ["relations", "Liens", relations.length], ["activity", "Activité", activityCount]];
+        if (wikiPages.length) tabs.push(["content", "Document", wikiPages.length > 1 ? wikiPages.length : undefined]);
+        html += '<div class="ep-tabs ec-tabs" role="tablist">' + tabs.map((tab) =>
+          '<button class="ep-tab' + (ui.tab === tab[0] ? " active" : "") + '" role="tab" aria-selected="' + (ui.tab === tab[0]) + '" data-ep-tab="' + escapeAttr(tab[0]) + '" data-ref="' + escapeAttr(ref) + '">' + escapeHtml(tab[1]) +
+          (tab[2] ? '<span class="ep-count">' + escapeHtml(String(tab[2])) + '</span>' : "") + '</button>').join("") + '</div>';
+        html += '<div class="ec-body">';
+        if (ui.tab === "content") html += entityPanelContentHtml(ref, wikiPages);
         else if (ui.tab === "relations") html += entityPanelRelationsHtml(ref, relations);
-        else html += entityPanelOverviewHtml(ref, ctx);
-        const node = (state.graph?.nodes || []).find((candidate) => entityRefForNode(candidate) === ref);
-        const confidence = node && node.confidence != null ? Number(node.confidence).toFixed(2) : "—";
-        html += '<div class="ep-foot"><span>' + escapeHtml(node?.provider || "work-memory") + '</span><span>confidence ' + escapeHtml(confidence) + '</span><span>' + escapeHtml(ref) + '</span></div>';
+        else if (ui.tab === "activity") html += cardActivityHtml(ref, ctx);
+        else html += cardSynthesisHtml(ref, ctx, wikiPages);
+        html += '</div>';
+        html += '<div class="ec-foot"><span>' + (s.relatedEntities || 0) + ' liens</span><span>' + (s.observations || 0) + ' observations</span><span>' + (s.captures || 0) + ' captures</span>' + (s.tasks ? '<span>' + s.tasks + ' tâches</span>' : "") + '</div>';
         html += '</div>';
         return html;
       }
@@ -4573,8 +4922,8 @@ ${VITAMIN_PLAY_TOKENS}
             '<div class="ep-doc-meta"><span>' + escapeHtml(key + (page.updatedAt ? " · " + String(page.updatedAt).slice(0, 10) : "")) + '</span>' +
             (page.absolutePath ? '<button class="ep-linkish" data-ec="openWikiPage" data-path="' + escapeAttr(page.absolutePath) + '" title="Open the Markdown file in the editor">Open ↗</button>' : "") +
             '</div>' +
-            '<div class="ep-doc-wrap' + (long && !expanded ? " clamped" : "") + '"><div class="ep-doc">' + mdToHtml(page.content) + '</div></div>' +
-            (long ? '<button class="ep-linkish" data-ec="toggleDoc" data-doc="' + escapeAttr(key) + '" data-ref="' + escapeAttr(ref) + '">' + (expanded ? "Collapse" : "Show all") + '</button>' : "") +
+            '<div class="ep-doc-wrap' + (long && !expanded ? " clamped" : "") + '"><div class="ep-doc">' + mdToHtml(cardDocBody(page.content)) + '</div></div>' +
+            (long ? '<button class="ep-linkish" data-ec="toggleDoc" data-doc="' + escapeAttr(key) + '" data-ref="' + escapeAttr(ref) + '">' + (expanded ? "Réduire" : "Tout afficher") + '</button>' : "") +
             (page.truncated ? '<p class="summary" style="margin:4px 0 0">Content truncated — open the file for the full page.</p>' : "") +
             '</div>';
         }).join("") + '</div>';
@@ -4674,9 +5023,12 @@ ${VITAMIN_PLAY_TOKENS}
         }
         const ui = entityPanelUi;
         const wikiPages = Array.isArray(ctx.wikiPages) ? ctx.wikiPages : [];
-        if (!ui.tab || (ui.tab === "content" && wikiPages.length === 0)) {
-          ui.tab = ctx.entity.kind === "discovery" ? "discovery" : wikiPages.length > 0 ? "content" : "overview";
+        if (!["synthesis", "relations", "activity", "content"].includes(ui.tab) || (ui.tab === "content" && wikiPages.length === 0)) {
+          ui.tab = "synthesis";
         }
+        // The card shows its own kind and status: the window's generic tag would repeat it.
+        const detailTag = document.querySelector("#detailType"), detailHead = typeof detailTag?.closest === "function" ? detailTag.closest(".side-head") : null;
+        if (detailHead) detailHead.hidden = true;
         const extra = document.querySelector("#detailExtra");
         extra.innerHTML = ui.editing ? entityPanelEditHtml(ref, ctx) : entityPanelReadHtml(ref, ctx, wikiPages);
         bindEntityContextActions(extra);
@@ -4747,6 +5099,13 @@ ${VITAMIN_PLAY_TOKENS}
             renderCaptureForm(ref);
           } else if (button.dataset.ec === "focus") {
             focusGraphOnEntity(ref);
+          } else if (button.dataset.ec === "perimeter") {
+            const ctx = entityContextCache[ref];
+            document.querySelector("#detailWindowClose")?.click();
+            if (memoryExplorer?.isList()) setMemoryLayoutGraph();
+            showGraphSearch(memoryExplorer.perimeterSearch(ref.split(":")[0], ctx?.entity?.label || ref.split(":").slice(1).join(":")));
+          } else if (button.dataset.ec === "openEntity") {
+            openEntityCard(button.dataset.target);
           } else if (button.dataset.ec === "focusLevel") {
             vscode?.postMessage({ type: "updateEntityFocus", ref, focusLevel: button.dataset.focusLevel });
           } else if (button.dataset.ec === "createRelation") {
@@ -5052,98 +5411,227 @@ ${VITAMIN_PLAY_TOKENS}
         });
       }
 
+      // Filter drawer (prototypes/ui-proposals.html, screen 2): search over
+      // groups, types and values; presets; types as chips grouped by family,
+      // with › to pick values; relations and focus folded away.
+      const FILTER_GROUPS = [
+        ["Organisation", ["domain", "subdomain", "team", "person", "oneagent"]],
+        ["Produit & delivery", ["product", "repository", "feature", "feature_request", "project", "discovery"]],
+        ["Pilotage", ["initiative", "okr", "kpi", "mission", "practice"]],
+        ["Connaissance & suivi", null]
+      ];
+      const FILTER_TYPE_LABELS = { domain: "Domaines", subdomain: "Sous-domaines", team: "Équipes", person: "Personnes", oneagent: "OneAgent", product: "Produits", repository: "Dépôts", feature: "Fonctionnalités", feature_request: "Demandes", project: "Projets", discovery: "Découvertes", initiative: "Initiatives", okr: "OKR", kpi: "KPI", mission: "Missions", practice: "Pratiques", insight: "Insights", concept: "Concepts", decision: "Décisions", question: "Questions", risk: "Risques", task: "Tâches", source: "Sources et captures" };
+      const QUIET_FILTER_TYPES = ["source", "question", "concept", "discovery"];
+      let graphFilterQuery = "";
+      let graphFilterValuesType = "";
+      const graphFilterOpenDetails = new Set();
+      const filterTypeLabel = (type) => FILTER_TYPE_LABELS[type] || typeLabel(type);
+      const normalizeFilterText = (value) => String(value || "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase();
+
+      function graphFilterGroups(types) {
+        const known = new Set(FILTER_GROUPS.flatMap((entry) => entry[1] || []));
+        return FILTER_GROUPS.map(([name, members]) => [name, types.filter((type) => members ? members.includes(type) : !known.has(type))]).filter((entry) => entry[1].length);
+      }
+
+      function graphFilterChipHtml(type, counts, query) {
+        const total = counts.get(type) || 0;
+        const checked = graphCheckedCountForType(type);
+        const on = activeGraphTypes.has(type) && checked > 0;
+        const partial = on && checked < total;
+        const name = filterTypeLabel(type);
+        const label = query ? highlightFilterText(name, query) : escapeHtml(name);
+        return '<span class="type-chip' + (on ? " on" : " off") + (partial ? " partial" : "") + '">' +
+          '<button type="button" class="type-chip-main" data-type-toggle="' + escapeAttr(type) + '" aria-pressed="' + on + '" title="' + (on ? "Masquer " : "Afficher ") + escapeAttr(name) + '"><i class="dot" style="background:' + escapeAttr(graphFilterSectionColor(type)) + '"></i><span>' + label + '</span><small>' + (partial ? checked + "/" + total : total) + '</small></button>' +
+          '<button type="button" class="type-chip-more" data-type-open="' + escapeAttr(type) + '" aria-label="Choisir des ' + escapeAttr(name.toLowerCase()) + '" title="Choisir des valeurs">›</button></span>';
+      }
+
+      function highlightFilterText(text, query) {
+        const at = normalizeFilterText(text).indexOf(query);
+        if (!query || at < 0) return escapeHtml(text);
+        return escapeHtml(text.slice(0, at)) + "<mark>" + escapeHtml(text.slice(at, at + query.length)) + "</mark>" + escapeHtml(text.slice(at + query.length));
+      }
+
+      function graphFilterPresetState(types) {
+        const pinned = memoryExplorer?.pinnedSearch?.() || "";
+        const allOn = types.every((type) => activeGraphTypes.has(type) && !graphExcludedValues[type]?.size);
+        const onlyGroup = (members) => types.every((type) => members.includes(type) === (activeGraphTypes.has(type) && !graphExcludedValues[type]?.size));
+        return {
+          all: allOn,
+          me: pinned.trim().toLowerCase() === "moi:",
+          org: onlyGroup(FILTER_GROUPS[0][1]),
+          product: onlyGroup(FILTER_GROUPS[1][1]),
+          steer: onlyGroup(FILTER_GROUPS[2][1]),
+          calm: types.every((type) => QUIET_FILTER_TYPES.includes(type) !== activeGraphTypes.has(type)) && types.some((type) => QUIET_FILTER_TYPES.includes(type))
+        };
+      }
+
+      function applyGraphFilterPreset(name, types) {
+        const state = graphFilterPresetState(types);
+        const showOnly = (keep) => { for (const type of types) { delete graphExcludedValues[type]; keep(type) ? activeGraphTypes.add(type) : activeGraphTypes.delete(type); } };
+        if (name === "me") {
+          memoryExplorer?.setPinnedSearch?.(state.me ? "" : "moi:");
+          renderGraphFilterPanel();
+          return;
+        }
+        if (name === "all") showOnly(() => !state.all);
+        else if (state[name]) showOnly(() => true);
+        else if (name === "calm") showOnly((type) => !QUIET_FILTER_TYPES.includes(type));
+        else { const members = FILTER_GROUPS[{ org: 0, product: 1, steer: 2 }[name]][1]; showOnly((type) => members.includes(type)); }
+        renderGraphFilterSurfaces();
+      }
+
+      function renderGraphFilterValuesPage(type) {
+        const values = graphValuesForType(type);
+        const excluded = graphExcludedValues[type] || new Set();
+        const search = normalizeFilterText(graphFilterSearches[type] || "");
+        const shown = values.filter((value) => !search || normalizeFilterText(value.label).includes(search));
+        const checked = graphCheckedCountForType(type);
+        const name = filterTypeLabel(type);
+        return '<div class="filter-values-page">' +
+          '<button type="button" class="filter-back" data-filter-back>‹ Tous les filtres</button>' +
+          '<p class="filter-values-title"><i class="dot" style="background:' + escapeAttr(graphFilterSectionColor(type)) + '"></i>' + escapeHtml(name) + ' <small>' + checked + ' / ' + values.length + ' affichés</small></p>' +
+          '<input class="control" type="search" data-filter-search="' + escapeAttr(type) + '" placeholder="Chercher dans ' + escapeAttr(name.toLowerCase()) + '…" value="' + escapeAttr(graphFilterSearches[type] || "") + '" aria-label="Chercher dans ' + escapeAttr(name.toLowerCase()) + '">' +
+          '<div class="filter-bulk"><button type="button" class="filter-link" data-filter-bulk="all" data-type="' + escapeAttr(type) + '">Tout cocher</button><button type="button" class="filter-link" data-filter-bulk="none" data-type="' + escapeAttr(type) + '">Tout décocher</button>' + (search ? '<button type="button" class="filter-link" data-filter-bulk="only" data-type="' + escapeAttr(type) + '">Seulement la recherche</button>' : "") + '</div>' +
+          '<div class="filter-values-list">' + (shown.slice(0, 400).map((value) =>
+            '<label class="filter-value-row"><input type="checkbox" data-filter-type="' + escapeAttr(type) + '" data-filter-node="' + escapeAttr(value.id) + '"' + (activeGraphTypes.has(type) && !excluded.has(value.id) ? " checked" : "") + '><span>' + escapeHtml(value.label) + '</span></label>').join("") || '<p class="filter-empty">Aucune valeur</p>') +
+          (shown.length > 400 ? '<p class="filter-empty">… ' + (shown.length - 400) + ' autres : affine la recherche</p>' : "") + '</div></div>';
+      }
+
+      function renderGraphFilterSearchResults(types, counts, query) {
+        let html = "";
+        for (const [group, members] of graphFilterGroups(types)) {
+          const groupHit = normalizeFilterText(group).includes(query);
+          const typeHits = members.filter((type) => groupHit || normalizeFilterText(filterTypeLabel(type)).includes(query) || normalizeFilterText(type).includes(query));
+          if (!typeHits.length) continue;
+          html += '<div class="filter-group"><p class="filter-group-head"><span>' + highlightFilterText(group, groupHit ? query : "") + '</span></p><div class="type-chips">' + typeHits.map((type) => graphFilterChipHtml(type, counts, groupHit ? "" : query)).join("") + '</div>' +
+            (!groupHit ? typeHits.map((type) => '<button type="button" class="filter-open-values" data-type-open="' + escapeAttr(type) + '">Choisir parmi les ' + (counts.get(type) || 0) + ' ' + escapeHtml(filterTypeLabel(type).toLowerCase()) + ' ›</button>').join("") : "") + '</div>';
+        }
+        const hits = [];
+        for (const type of types) for (const value of graphValuesForType(type)) {
+          const at = normalizeFilterText(value.label).indexOf(query);
+          if (at >= 0) hits.push({ type, value, exact: normalizeFilterText(value.label) === query, at });
+        }
+        hits.sort((a, b) => (b.exact - a.exact) || (a.at - b.at) || a.value.label.localeCompare(b.value.label));
+        if (hits.length) {
+          html = '<div class="filter-group"><p class="filter-group-head"><span>Valeurs · ' + hits.length + '</span></p>' + hits.slice(0, 80).map((hit) => {
+            const checked = activeGraphTypes.has(hit.type) && !(graphExcludedValues[hit.type] || new Set()).has(hit.value.id);
+            return '<label class="filter-value-row filter-value-hit"><input type="checkbox" data-filter-type="' + escapeAttr(hit.type) + '" data-filter-node="' + escapeAttr(hit.value.id) + '"' + (checked ? " checked" : "") + '><span class="filter-value-kind"><i class="dot" style="background:' + escapeAttr(graphFilterSectionColor(hit.type)) + '"></i>' + escapeHtml(filterTypeLabel(hit.type)) + '</span><span>' + highlightFilterText(hit.value.label, query) + '</span></label>';
+          }).join("") + (hits.length > 80 ? '<p class="filter-empty">… ' + (hits.length - 80) + ' autres : affine la recherche</p>' : "") + '</div>' + html;
+        }
+        return html || '<p class="filter-empty">Aucun groupe, type ni valeur ne correspond.</p>';
+      }
+
       function renderGraphFilterPanel() {
         const panel = document.querySelector("#graphFilterPanel");
         if (!panel) return;
         renderGraphFilterToggle();
+        memoryExplorer?.syncFilterToggle?.();
+        panel.classList.add("filter-drawer");
         panel.classList.toggle("collapsed", !graphFilterPanelOpen);
+        panel.hidden = !graphFilterPanelOpen;
+        panel.setAttribute("role", "dialog");
+        panel.setAttribute("aria-label", "Filtres du graphe");
+        if (!graphFilterPanelOpen) { panel.innerHTML = ""; return; }
         const counts = graphTypeCounts();
-        const visibleTypes = graphFilterSectionOrder(counts);
-        if (!visibleTypes.includes(selectedGraphFilterType)) {
-          selectedGraphFilterType = visibleTypes[0] || "product";
-        }
-        const totalActive = visibleTypes.filter((type) => graphFilterSectionActive(type) && graphCheckedCountForType(type) > 0).length;
-        const headHtml = '<div class="filter-head" id="graphFilterHead"><div><strong>Filters</strong><span> ' + escapeHtml(String(totalActive)) + '/' + escapeHtml(String(visibleTypes.length)) + ' categories</span></div><div class="filter-head-actions">' +
-          (graphFilterPanelOpen ? '<button class="filter-action" id="resetGraphFilters">Reset</button>' : "") +
-          '<button class="filter-toggle-caret" id="collapseGraphFilters" title="' + (graphFilterPanelOpen ? "Collapse filters" : "Expand filters") + '">' + (graphFilterPanelOpen ? "▲" : "▼") + '</button></div></div>';
-        if (!graphFilterPanelOpen) {
-          panel.innerHTML = headHtml;
-          bindGraphFilterPanelToggle();
-          return;
-        }
+        const types = graphFilterSectionOrder(counts).filter((type) => type !== RELATION_FILTER_TYPE && ((counts.get(type) || 0) > 0 || graphExcludedValues[type]?.size));
+        const query = normalizeFilterText(graphFilterQuery.trim());
+        const presets = graphFilterPresetState(types);
+        const anyOn = types.some((type) => activeGraphTypes.has(type) && graphCheckedCountForType(type) > 0);
+        const valuesType = graphFilterValuesType && types.includes(graphFilterValuesType) ? graphFilterValuesType : "";
+        const presetButtons = [["all", presets.all ? "Tout ✓" : "Tout"], ["me", "Moi"], ["org", "Organisation"], ["product", "Produit & delivery"], ["steer", "Pilotage"], ["calm", "Sans le bruit"]]
+          .map(([id, label]) => '<button type="button" class="filter-preset' + (presets[id] && (id !== "all" || !Object.entries(presets).some(([key, on]) => key !== "all" && on)) ? " active" : "") + '" data-filter-preset="' + id + '" aria-pressed="' + Boolean(presets[id]) + '"' + (id === "all" ? ' title="Tout afficher ; un second clic masque tout"' : "") + '>' + label + '</button>').join("");
+        const presetHelp = presets.me ? '<p class="filter-preset-help"><strong>Ce qui me concerne</strong> : ton périmètre, ce dont tu es responsable ou contributeur, ta mission, tes tâches et tes notes. Même chose que la recherche <code>moi:</code>.</p>'
+          : presets.calm ? '<p class="filter-preset-help">Masque les sources et captures, questions, concepts et découvertes.</p>' : "";
+        const groups = graphFilterGroups(types).map(([group, members]) =>
+          '<div class="filter-group"><p class="filter-group-head"><span>' + escapeHtml(group) + '</span><span class="filter-group-links"><button type="button" class="filter-link" data-filter-group-all="' + escapeAttr(group) + '">tout</button> · <button type="button" class="filter-link" data-filter-group-none="' + escapeAttr(group) + '">rien</button></span></p>' +
+          '<div class="type-chips">' + members.map((type) => graphFilterChipHtml(type, counts, "")).join("") + '</div></div>').join("");
+        const relationCount = graphRelationValues().length;
+        const advanced =
+          (relationCount ? '<details class="filter-adv" data-filter-details="relations"' + (graphFilterOpenDetails.has("relations") ? " open" : "") + '><summary>Relations <small>' + escapeHtml(graphRelationQuickMode === "all" ? "toutes" : graphRelationQuickMode === "important" ? "importantes" : "personnalisées") + '</small></summary>' +
+            '<div class="relation-quick"><span>Préréglage</span>' + [["important", "Importantes"], ["all", "Toutes"], ["custom", "Personnalisées"]].map((entry) => '<button type="button" data-relation-quick="' + entry[0] + '"' + (graphRelationQuickMode === entry[0] ? ' class="active"' : "") + '>' + entry[1] + '</button>').join("") + '</div>' +
+            renderRelationCategoryFilters() + '</details>' : "") +
+          '<details class="filter-adv" data-filter-details="focus"' + (graphFilterOpenDetails.has("focus") ? " open" : "") + '><summary>Focus et niveau <small>' + (focusedNodeId ? "actif" : "aucun") + '</small></summary>' + renderGraphFocusSection() + '</details>';
+        const body = valuesType ? renderGraphFilterValuesPage(valuesType)
+          : query ? renderGraphFilterSearchResults(types, counts, query)
+          : '<div class="filter-presets">' + presetButtons + '</div>' + presetHelp + (groups || '<p class="filter-empty">Aucun nœud dans ce graphe.</p>') + advanced;
+        const shown = lastGraphVisibility?.shown;
+        const searchFocused = document.activeElement?.id === "graphFilterSearch";
+        const caret = searchFocused ? document.activeElement.selectionStart : null;
         panel.innerHTML =
-          headHtml +
-          '<div class="filter-sections">' + renderGraphFocusSection() + (visibleTypes.length ? visibleTypes.map((type) => renderGraphFilterSection(type, counts.get(type) || 0)).join("") : '<div class="filter-value"><span>No filter categories</span><small></small></div>') + '</div>';
+          '<div class="filter-drawer-head"><strong>Filtres</strong><button type="button" class="filter-link" data-filter-toggle-all>' + (anyOn ? "Tout masquer" : "Tout réafficher") + '</button><button type="button" class="filter-close" data-filter-close aria-label="Fermer les filtres">✕</button></div>' +
+          (valuesType ? "" : '<div class="filter-drawer-search"><input class="control" type="search" id="graphFilterSearch" placeholder="Filtrer : organisation, personne, OneFF…" value="' + escapeAttr(graphFilterQuery) + '" aria-label="Filtrer les groupes, types et valeurs" autocomplete="off"></div>') +
+          '<div class="filter-drawer-body">' + body + '</div>' +
+          '<div class="filter-drawer-foot"><span>' + (typeof shown === "number" ? shown + (shown > 1 ? " nœuds affichés" : " nœud affiché") : "") + '</span><button type="button" class="primary filter-apply" data-filter-close>Voir le graphe</button></div>';
+        if (searchFocused) { const field = panel.querySelector("#graphFilterSearch"); field?.focus(); if (caret !== null) field?.setSelectionRange(caret, caret); }
+        bindGraphFilterDrawer(panel, types);
+      }
 
-        bindGraphFilterPanelToggle();
-        document.querySelector("#graphFocusEntity")?.addEventListener("change", (event) => {
-          const id = event.target.value || undefined;
-          if (!id) {
-            clearGraphFocus();
+      function bindGraphFilterDrawer(panel, types) {
+        panel.querySelectorAll("[data-filter-close]").forEach((button) => button.addEventListener("click", () => toggleGraphFilterPanel(false)));
+        panel.querySelector("[data-filter-toggle-all]")?.addEventListener("click", () => {
+          const anyOn = types.some((type) => activeGraphTypes.has(type) && graphCheckedCountForType(type) > 0);
+          for (const type of types) { delete graphExcludedValues[type]; anyOn ? activeGraphTypes.delete(type) : activeGraphTypes.add(type); }
+          renderGraphFilterSurfaces();
+        });
+        panel.querySelector("#graphFilterSearch")?.addEventListener("input", (event) => { graphFilterQuery = event.target.value; renderGraphFilterPanel(); });
+        panel.querySelectorAll("[data-filter-preset]").forEach((button) => button.addEventListener("click", () => applyGraphFilterPreset(button.dataset.filterPreset, types)));
+        panel.querySelectorAll("[data-type-toggle]").forEach((button) => button.addEventListener("click", () => {
+          const type = button.dataset.typeToggle;
+          const on = activeGraphTypes.has(type) && graphCheckedCountForType(type) > 0;
+          if (on) applyGraphFilterAction("hide-type", type);
+          else { if (!graphCheckedCountForType(type)) delete graphExcludedValues[type]; applyGraphFilterAction("show-type", type); }
+        }));
+        panel.querySelectorAll("[data-type-open]").forEach((button) => button.addEventListener("click", () => { graphFilterValuesType = button.dataset.typeOpen; renderGraphFilterPanel(); panel.querySelector("[data-filter-search]")?.focus(); }));
+        panel.querySelector("[data-filter-back]")?.addEventListener("click", () => { graphFilterValuesType = ""; renderGraphFilterPanel(); });
+        panel.querySelectorAll("[data-filter-group-all],[data-filter-group-none]").forEach((button) => button.addEventListener("click", () => {
+          const show = button.hasAttribute("data-filter-group-all");
+          const group = (graphFilterGroups(types).find((entry) => entry[0] === (button.dataset.filterGroupAll || button.dataset.filterGroupNone)) || [])[1] || [];
+          for (const type of group) { delete graphExcludedValues[type]; show ? activeGraphTypes.add(type) : activeGraphTypes.delete(type); }
+          renderGraphFilterSurfaces();
+        }));
+        panel.querySelectorAll("[data-filter-search]").forEach((input) => input.addEventListener("input", () => {
+          graphFilterSearches[input.dataset.filterSearch] = input.value;
+          const caret = input.selectionStart;
+          renderGraphFilterPanel();
+          const field = panel.querySelector("[data-filter-search]");
+          field?.focus(); field?.setSelectionRange(caret, caret);
+        }));
+        panel.querySelectorAll("[data-filter-bulk]").forEach((button) => button.addEventListener("click", () => {
+          const type = button.dataset.type;
+          if (button.dataset.filterBulk === "all") toggleGraphTypeValues(type, true);
+          else if (button.dataset.filterBulk === "none") toggleGraphTypeValues(type, false);
+          else {
+            const search = normalizeFilterText(graphFilterSearches[type] || "");
+            graphExcludedValues[type] = new Set(graphValuesForType(type).filter((value) => !normalizeFilterText(value.label).includes(search)).map((value) => value.id));
+            if (!graphExcludedValues[type].size) delete graphExcludedValues[type];
+            activeGraphTypes.add(type);
+            renderGraphFilterSurfaces();
+          }
+        }));
+        panel.querySelectorAll("[data-filter-node]").forEach((input) => input.addEventListener("change", () => {
+          const type = input.dataset.filterType;
+          if (input.checked && !activeGraphTypes.has(type)) {
+            // Showing one value of a hidden type shows only that value.
+            graphExcludedValues[type] = new Set(graphValuesForType(type).map((value) => value.id).filter((id) => id !== input.dataset.filterNode));
+            activeGraphTypes.add(type);
+            renderGraphFilterSurfaces();
             return;
           }
+          toggleGraphValue(type, input.dataset.filterNode, input.checked);
+        }));
+        panel.querySelectorAll("[data-filter-details]").forEach((details) => details.addEventListener("toggle", () => { details.open ? graphFilterOpenDetails.add(details.dataset.filterDetails) : graphFilterOpenDetails.delete(details.dataset.filterDetails); }));
+        panel.querySelectorAll("[data-relation-quick]").forEach((button) => button.addEventListener("click", () => setGraphRelationQuickMode(button.dataset.relationQuick)));
+        panel.querySelectorAll("[data-relation-category]").forEach((input) => input.addEventListener("change", () => toggleGraphRelationCategory(input.dataset.relationCategory, input.checked)));
+        panel.querySelector("#graphFocusEntity")?.addEventListener("change", (event) => {
+          const id = event.target.value || undefined;
+          if (!id) { clearGraphFocus(); return; }
           focusedNodeId = id;
           if (graphPerspective === "map") setGraphPerspective("focus");
           renderGraphFilterPanel();
           renderGraph();
         });
-        document.querySelector("#graphDepth")?.addEventListener("change", (event) => {
-          graphDepth = Number(event.target.value) || 0;
-          renderGraph();
-        });
-        document.querySelectorAll("[data-graph-focus]").forEach((button) => {
-          button.addEventListener("click", () => setGraphFocusThreshold(button.dataset.graphFocus));
-        });
-        document.querySelectorAll("[data-relation-quick]").forEach((button) => {
-          button.addEventListener("click", () => setGraphRelationQuickMode(button.dataset.relationQuick));
-        });
-        document.querySelector("#resetGraphFilters").addEventListener("click", () => {
-          resetMemoryView();
-        });
-        document.querySelectorAll("[data-filter-section-row]").forEach((row) => {
-          row.addEventListener("click", (event) => {
-            if (event.target.closest("[data-filter-type-state]")) return;
-            toggleGraphFilterSection(row.dataset.filterSectionRow);
-          });
-        });
-        document.querySelectorAll("[data-filter-section-toggle]").forEach((button) => {
-          button.addEventListener("click", (event) => {
-            event.stopPropagation();
-            toggleGraphFilterSection(button.dataset.filterSectionToggle);
-          });
-        });
-        document.querySelectorAll("[data-filter-type-state]").forEach((button) => {
-          button.addEventListener("click", (event) => {
-            event.stopPropagation();
-            const type = button.dataset.filterTypeState;
-            applyGraphFilterAction(graphFilterSectionActive(type) ? "hide-type" : "show-type", type);
-          });
-        });
-        document.querySelectorAll("[data-filter-search]").forEach((input) => {
-          input.addEventListener("input", () => {
-            const type = input.dataset.filterSearch;
-            graphFilterSearches[type] = input.value.trim().toLowerCase();
-            renderGraphFilterPanel();
-            const field = document.querySelector('[data-filter-search="' + cssEscape(type) + '"]');
-            field?.focus();
-            field?.setSelectionRange(field.value.length, field.value.length);
-          });
-        });
-        document.querySelectorAll("[data-filter-node]").forEach((input) => {
-          input.addEventListener("change", () => {
-            toggleGraphValue(input.dataset.filterType, input.dataset.filterNode, input.checked);
-          });
-        });
-        document.querySelectorAll("[data-filter-select-all]").forEach((input) => {
-          input.addEventListener("change", () => {
-            toggleGraphTypeValues(input.dataset.filterSelectAll, input.checked);
-          });
-        });
-        document.querySelectorAll("[data-relation-category]").forEach((input) => {
-          input.addEventListener("change", () => {
-            toggleGraphRelationCategory(input.dataset.relationCategory, input.checked);
-          });
-        });
+        panel.querySelector("#graphDepth")?.addEventListener("change", (event) => { graphDepth = Number(event.target.value) || 0; renderGraph(); });
+        panel.querySelectorAll("[data-graph-focus]").forEach((button) => button.addEventListener("click", () => setGraphFocusThreshold(button.dataset.graphFocus)));
       }
 
       function bindGraphFilterPanelToggle() {
@@ -5157,10 +5645,25 @@ ${VITAMIN_PLAY_TOKENS}
         });
       }
 
-      function toggleGraphFilterPanel() {
-        graphFilterPanelOpen = !graphFilterPanelOpen;
+      function toggleGraphFilterPanel(open = !graphFilterPanelOpen) {
+        graphFilterPanelOpen = open;
         renderGraphFilterPanel();
+        memoryExplorer?.syncFilterToggle?.();
         scheduleGraphFiltersSave();
+      }
+
+      // Filters that change what the graph shows: hidden or partly filtered
+      // types, a narrowed relation set, a focus level. Shown on the Filtres button.
+      function activeGraphFilterCount() {
+        const counts = graphTypeCounts();
+        let count = 0;
+        for (const type of typeOrder) {
+          if (!(counts.get(type) || 0)) continue;
+          if (!activeGraphTypes.has(type) || graphExcludedValues[type]?.size) count += 1;
+        }
+        if (graphRelationQuickMode !== "all") count += 1;
+        if (graphFocusThreshold !== "informational") count += 1;
+        return count;
       }
 
       function renderGraphFilterToggle() {
@@ -9393,6 +9896,9 @@ ${VITAMIN_PLAY_TOKENS}
         selectView: (id) => { const select = document.querySelector("#graphViewPreset"); select.value = id; select.dispatchEvent(new Event("change")); },
         restoreView: () => { if (activeGraphView()) applyGraphView(activeGraphView()); scheduleGraphFiltersSave(); },
         graphFilters: () => { graphFilterPanelOpen = true; renderGraphFilterPanel(); renderGraphFilterToggle(); },
+        toggleGraphFilters: () => toggleGraphFilterPanel(),
+        graphFiltersOpen: () => graphFilterPanelOpen,
+        graphFilterCount: () => activeGraphFilterCount(),
         open: (entry, action) => vscode?.postMessage({ type: "openMemoryEntry", id: entry.id, action }),
         inspect: (entry) => {
           const node = state.graph.nodes.find(item => item.id === entry.nodeId || (entry.detailRef && entityRefForNode(item) === entry.detailRef)) || {

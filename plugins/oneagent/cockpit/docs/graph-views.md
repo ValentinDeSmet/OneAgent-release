@@ -37,7 +37,9 @@ la recherche, les filtres et le tri portent sur le catalogue complet.
 
 ## Sélectionner et ouvrir
 
-Cliquer sur une ligne la sélectionne. Les cases à cocher et Cmd/Ctrl-clic
+Cliquer sur le **titre** d’une ligne ouvre ce qu’elle représente : sa fiche,
+sa tâche ou sa note, sinon son fichier ou sa source. Cliquer ailleurs sur la
+ligne la sélectionne. Les cases à cocher et Cmd/Ctrl-clic
 permettent une sélection multiple, conservée pendant le tri et le filtrage.
 **Markdown/Fichier** ouvre le document dans l’hôte ; **Source** ouvre son URL.
 **Fiche**, **Note** ou **Tâche** ouvre explicitement les détails correspondants.
@@ -59,11 +61,21 @@ donnée.
 
 ## Créer et enregistrer une vue
 
-**+ Vue** demande un nom et un type **Tableau** ou **Graphe**. La nouvelle vue
-commence sans filtre, avec accès à toute la mémoire. Le menu **…** permet de
-**Dupliquer en tableau** ou **Dupliquer en graphe** une vue existante en conservant
+L’en-tête tient sur une ligne, pour le panneau étroit de Copilot :
+
+- le **sélecteur de vue** (nom de la vue, « ● Modifiée » si besoin) ouvre la liste
+  des vues avec une recherche, **＋ Nouvelle vue**, les actions sur la vue
+  (enregistrer sous, renommer, dupliquer en tableau ou en graphe, comparer,
+  supprimer) et l’accès de l’agent ;
+- **Enregistrer** apparaît seulement quand la vue est modifiée ;
+- la bascule **Tableau / Graphe** change l’affichage de la vue (à enregistrer) ;
+- **⋯** regroupe les colonnes du tableau, ou les réglages d’affichage du graphe ;
+- l’état des opérations et le badge de curation suivent, sans chevaucher les vues.
+
+**＋ Nouvelle vue** demande un nom et un type **Tableau** ou **Graphe**. La nouvelle vue
+commence sans filtre, avec accès à toute la mémoire. **Dupliquer en tableau** ou
+**Dupliquer en graphe** copie une vue existante en conservant
 ses filtres, son tri et son contexte explicite ; la vue d’origine reste intacte.
-Il n’y a plus de bascule Tableau/Graphe permanente dans la barre d’outils.
 
 Chaque vue conserve ses filtres de colonnes, le tri et son sens, le regroupement,
 les colonnes visibles, leur ordre et leur largeur, ainsi que les paramètres du
@@ -71,7 +83,7 @@ graphe et son contexte. Les modifications restent temporaires jusqu’à
 **Enregistrer**. **Rétablir la vue** récupère les réglages sauvegardés. Renommer,
 dupliquer ou supprimer une vue ne supprime pas les éléments de la mémoire.
 
-Les onglets et **Toutes les vues** donnent accès aux vues sauvegardées. Les
+Le sélecteur de vue donne accès aux vues sauvegardées. Les
 anciennes vues conservent leurs réglages et leur type. Une ancienne vue nommée
 « All » ou « Tout » apparaît comme **Vue générale — graphe/tableau** pour la
 distinguer de **Toute la mémoire** ; son nom stocké et son contexte restent intacts.

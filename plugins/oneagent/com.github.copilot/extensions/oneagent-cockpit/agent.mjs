@@ -10,15 +10,33 @@ function unavailable(error) {
     ? Object.assign(new Error(AGENT_RUNTIME_UNAVAILABLE), { code: "agent_runtime_unavailable", cause: error })
     : error;
 }
+
+// Recent Copilot SDKs require an explicit client mode ("mode is required and
+// must be 'coding-agent' or 'empty'"); older ones name the default
+// "copilot-cli". "coding-agent" keeps the user's signed-in Copilot account;
+// "empty" would move COPILOT_HOME and drop the keychain. Each session below
+// still allows only the OneAgent curation tools and rejects every permission.
+const CLIENT_MODES = ["coding-agent", "copilot-cli"];
+export function createCopilotClient(CopilotClient) {
+  let last;
+  for (const mode of CLIENT_MODES) {
+    try { return new CopilotClient({ mode }); } catch (error) {
+      last = error;
+      if (!/\bmode\b/i.test(error?.message || "")) throw error;
+    }
+  }
+  throw last;
+}
+async function defaultClient() {
+  const { CopilotClient } = await import("@github/copilot-sdk");
+  return createCopilotClient(CopilotClient);
+}
 async function startClient(createClient) {
   try { return await createClient(); } catch (error) { throw unavailable(error); }
 }
 
 /** Same prompts, tools and action policy as VS Code, in an isolated SDK session. */
-export async function runAgentLoop(request, createClient = async () => {
-  const { CopilotClient } = await import("@github/copilot-sdk");
-  return new CopilotClient();
-}) {
+export async function runAgentLoop(request, createClient = defaultClient) {
   const client = await startClient(createClient);
   let session, active = true, count = 0;
   let queue = Promise.resolve();
@@ -67,9 +85,7 @@ export async function runAgentLoop(request, createClient = async () => {
 }
 
 /** A separate read-only draft pass; it cannot call tools or mutate the user's memory. */
-export async function runCareerDraft(prompt, model, createClient=async()=>{
-  const {CopilotClient}=await import('@github/copilot-sdk');return new CopilotClient();
-}) {
+export async function runCareerDraft(prompt, model, createClient = defaultClient) {
   const client=await startClient(createClient);let session;
   try {
     session=await client.createSession({...(model?{model}:{}),availableTools:[],tools:[],onPermissionRequest:async()=>({kind:'reject',feedback:'Read-only drafting: no tools or external actions.'})}).catch((error)=>{throw unavailable(error);});

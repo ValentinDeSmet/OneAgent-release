@@ -35,7 +35,20 @@ function createMemoryExplorer(api, createMemoryTable) {
   const topbar = $('.topbar'), stage = $('[data-panel="map"]'), content = $('.content');
   const oldToolbar = $('.map-toolbar'), oldTools = $('.toolbar:last-child', topbar), preset = $('#graphViewControls');
   const head = document.createElement('div'); head.className = 'memory-head';
-  head.innerHTML = '<div class="memory-heading"><strong>Mémoire</strong><span>Retrouver et explorer</span></div><div class="memory-view-row"><div class="memory-view-tabs" role="tablist" aria-label="Vues de la mémoire"></div><label class="memory-view-picker">Toutes les vues <span class="memory-select-slot"></span></label><button type="button" id="memoryNewView" class="memory-button" title="Enregistrer une nouvelle vue">+ Vue</button><details class="memory-menu memory-view-menu"><summary aria-label="Actions sur la vue">…</summary><div class="memory-menu-body memory-view-actions"></div></details><span id="memoryDirty" role="status"></span></div><div class="memory-toolbar"><div class="memory-search-slot"></div><details class="memory-menu" id="memoryFilters"><summary>Filtres <span id="memoryFilterCount"></span></summary><div class="memory-menu-body"><div class="memory-menu-title">Filtrer les résultats</div><input id="memoryFacetSearch" class="control" type="search" placeholder="Chercher un type ou une entité…" aria-label="Rechercher un filtre"><div id="memoryFacets"></div><button class="memory-button" id="memoryResetFilters" type="button">Effacer les filtres</button><button class="memory-button" id="memoryGraphFilters" type="button">Filtres avancés du graphe</button></div></details><details class="memory-menu" id="memoryDisplay"><summary id="memoryDisplayLabel">Colonnes</summary><div class="memory-menu-body"><div class="memory-list-options"><div id="memoryColumnSettings"></div><label>Regrouper par<select id="memoryGroup"><option value="none">Aucun</option><option value="kind">Type</option></select></label></div><div class="memory-graph-options"></div></div></details><div class="memory-context-slot"></div></div><div class="memory-access-row"><span id="memoryAccessStatus" role="status"></span><button type="button" class="memory-button" id="memoryResetAll" title="Effacer les filtres et rétablir l’accès de l’agent à toute la mémoire">Toute la mémoire</button></div><div id="memoryFilterChips" class="memory-filter-chips"></div>';
+  // One row: view picker (views, new view, view actions, agent access), save
+  // when modified, table/graph switch, display menu, status. Then search and
+  // Filtres. Fits the half-screen Copilot panel.
+  head.innerHTML = '<div class="memory-bar">' +
+    '<details class="memory-menu memory-view-menu" id="memoryViewMenu"><summary class="memory-view-current" aria-label="Changer de vue"><span id="memoryViewIcon" class="memory-view-icon" aria-hidden="true">☷</span><span id="memoryViewCurrent" class="memory-view-name">Toute la mémoire</span><span id="memoryDirty" role="status"></span><span class="memory-caret" aria-hidden="true">▾</span></summary>' +
+      '<div class="memory-menu-body memory-view-popover"><input id="memoryViewSearch" class="control" type="search" placeholder="Chercher une vue…" aria-label="Chercher une vue"><div class="memory-view-list" role="listbox" aria-label="Vues de la mémoire"></div><div class="memory-view-sep"></div><button type="button" id="memoryNewView" class="memory-button memory-menu-item">＋ Nouvelle vue</button><div class="memory-view-actions"></div><label class="memory-view-picker" hidden>Toutes les vues <span class="memory-select-slot"></span></label><div class="memory-view-sep"></div><div class="memory-access-row"><span id="memoryAccessStatus" role="status"></span><button type="button" class="memory-button" id="memoryResetAll" title="Effacer les filtres et rétablir l’accès de l’agent à toute la mémoire">Toute la mémoire</button></div></div></details>' +
+    '<button type="button" id="memorySaveView" class="memory-button primary" hidden>Enregistrer</button>' +
+    '<div class="memory-layout-seg" role="group" aria-label="Affichage de la vue"><button type="button" data-memory-layout-switch="list" title="Tableau" aria-label="Tableau">☷</button><button type="button" data-memory-layout-switch="graph" title="Graphe" aria-label="Graphe">⌘</button></div>' +
+    '<details class="memory-menu" id="memoryDisplay"><summary id="memoryDisplayLabel" title="Affichage" aria-label="Affichage">⋯</summary><div class="memory-menu-body"><div class="memory-list-options"><div id="memoryColumnSettings"></div><label>Regrouper par<select id="memoryGroup"><option value="none">Aucun</option><option value="kind">Type</option></select></label></div><div class="memory-graph-options"><div class="memory-context-slot"></div></div></div></details>' +
+    '<div class="memory-status-slot"></div>' +
+  '</div>' +
+  '<div class="memory-toolbar"><div class="memory-search-slot"></div><button type="button" id="memoryFilterToggle" class="memory-button memory-filter-toggle" aria-expanded="false" aria-controls="graphFilterPanel">Filtres<span id="memoryFilterCount" class="memory-filter-count"></span></button>' +
+    '<details class="memory-menu" id="memoryFilters" hidden><summary>Filtres</summary><div class="memory-menu-body"><input id="memoryFacetSearch" class="control" type="search" aria-label="Rechercher un filtre"><div id="memoryFacets"></div><button class="memory-button" id="memoryResetFilters" type="button">Effacer les filtres</button><button class="memory-button" id="memoryGraphFilters" type="button">Filtres du graphe</button></div></details></div>' +
+  '<div id="memoryFilterChips" class="memory-filter-chips"></div>';
   topbar.append(head);
   $('.memory-select-slot', head).append($('#graphViewPreset'));
   $('.memory-view-actions', head).append(preset);
@@ -45,9 +58,21 @@ function createMemoryExplorer(api, createMemoryTable) {
   $('.memory-search-slot', head).append($('.graph-search', oldTools));
   $('#filter').placeholder = 'Rechercher, ou combiner : tag:bcp équipe:1FF type:personne…'; $('#filter').setAttribute('aria-label', 'Rechercher dans la mémoire');
   const contextControls = $('[aria-label="Graph interaction mode"]', oldToolbar);
-  $('.memory-view-actions', head).append(contextControls);
+  $('.memory-context-slot', head).append(contextControls);
+  // Operation status and the curation badge sit at the end of the bar, in the flow.
+  $('.memory-status-slot', head).append(oldTools);
   $('[data-graph-select="navigate"]').textContent = 'Explorer'; $('[data-graph-select="context"]').textContent = 'Contexte';
   $('.memory-graph-options', head).append(oldToolbar);
+  $('#memoryViewSearch').addEventListener('input', () => refreshViews());
+  $('#memorySaveView').addEventListener('click', () => $('#graphViewUpdate').click());
+  head.querySelectorAll('[data-memory-layout-switch]').forEach(button => button.addEventListener('click', () => { if (config.layout === button.dataset.memoryLayoutSwitch) return; config.layout = button.dataset.memoryLayoutSwitch; table.reset?.(); changed(); }));
+  $('#memoryFilterToggle').addEventListener('click', () => { closeMenus(); api.toggleGraphFilters(); syncFilterToggle(); });
+  function syncFilterToggle() {
+    const open = Boolean(api.graphFiltersOpen?.()), button = $('#memoryFilterToggle');
+    button.setAttribute('aria-expanded', String(open)); button.classList.toggle('open', open);
+    const count = api.graphFilterCount?.() || 0;
+    $('#memoryFilterCount').textContent = count ? String(count) : '';
+  }
   $('.memory-graph-options', head).append($('#graphHiddenModeToggle'));
   const list = document.createElement('section'); list.id = 'memoryList'; list.setAttribute('aria-label', 'Tableau de la mémoire'); stage.append(list);
   function closeMenus() { head.querySelectorAll('details[open]').forEach(menu => { menu.open = false; }); }
@@ -188,25 +213,32 @@ function createMemoryExplorer(api, createMemoryTable) {
   }
   function refreshViews() {
     const { views, activeId, dirty } = api.views();
-    const html = '<button class="memory-view-tab'+(!activeId ? ' active' : '')+'" role="tab" aria-selected="'+!activeId+'" data-memory-view="">Toute la mémoire</button>'+views.map(view => '<button class="memory-view-tab'+(view.id === activeId ? ' active' : '')+'" role="tab" aria-selected="'+(view.id === activeId)+'" data-memory-view="'+esc(view.id)+'">'+(view.payload?.memory?.layout === 'list' ? '☷ ' : '⌘ ')+esc(api.viewLabel(view))+'</button>').join('');
-    const tabs = $('.memory-view-tabs');
-    if (tabs.innerHTML !== html) { tabs.innerHTML = html; tabs.querySelectorAll('button').forEach(button => button.addEventListener('click', () => { closeMenus(); api.selectView(button.dataset.memoryView); })); }
-    $('#memoryDirty').innerHTML = activeId && dirty ? 'Modifiée <button type="button" class="memory-button" id="memorySaveChanges">Enregistrer</button>' : '';
-    $('#memorySaveChanges')?.addEventListener('click', () => $('#graphViewUpdate').click());
+    const query = normalize($('#memoryViewSearch')?.value || '');
+    const item = (id, name, layout) => '<button type="button" class="memory-view-item'+(id === (activeId || '') ? ' active' : '')+'" role="option" aria-selected="'+(id === (activeId || ''))+'" data-memory-view="'+esc(id)+'"><span class="memory-view-icon" aria-hidden="true">'+(layout === 'list' ? '☷' : '⌘')+'</span><span>'+esc(name)+'</span><small>'+(layout === 'list' ? 'tableau' : 'graphe')+'</small></button>';
+    const all = [['', 'Toute la mémoire', 'list'], ...views.map(view => [view.id, api.viewLabel(view), view.payload?.memory?.layout === 'list' ? 'list' : 'graph'])];
+    const html = all.filter(([, name]) => !query || normalize(name).includes(query)).map(entry => item(...entry)).join('') || '<p class="memory-view-empty">Aucune vue ne correspond</p>';
+    const tabs = $('.memory-view-list');
+    if (tabs.innerHTML !== html) { tabs.innerHTML = html; tabs.querySelectorAll('button').forEach(button => button.addEventListener('click', () => { closeMenus(); $('#memoryViewSearch').value = ''; api.selectView(button.dataset.memoryView); })); }
+    const active = views.find(view => view.id === activeId);
+    $('#memoryViewCurrent').textContent = active ? api.viewLabel(active) : 'Toute la mémoire';
+    $('#memoryViewIcon').textContent = config.layout === 'list' ? '☷' : '⌘';
+    $('#memoryDirty').textContent = activeId && dirty ? '● Modifiée' : '';
+    $('#memorySaveView').hidden = !activeId || !dirty;
     $('#memoryCancelChanges').hidden = !activeId || !dirty;
+    head.querySelectorAll('[data-memory-layout-switch]').forEach(button => { const on = button.dataset.memoryLayoutSwitch === config.layout; button.classList.toggle('active', on); button.setAttribute('aria-pressed', String(on)); });
   }
   function render() {
     const isTable = config.layout === 'list';
     topbar.classList.toggle('memory-list-active', isTable); stage.classList.toggle('memory-list-active', isTable); content.classList.toggle('memory-table-active', isTable);
-    list.hidden = !isTable; $('#memoryFilters').hidden = isTable;
+    list.hidden = !isTable; $('#memoryFilters').hidden = true;
     $('.memory-list-options').hidden = !isTable; $('.memory-graph-options').hidden = isTable;
-    $('#memoryDisplayLabel').textContent = isTable ? 'Colonnes' : 'Affichage';
+    $('#memoryDisplayLabel').title = isTable ? 'Colonnes et regroupement' : 'Affichage du graphe';
+    $('#memoryFilterToggle').hidden = isTable; syncFilterToggle();
     $('#memoryGroup').value = config.group;
     // The global entry already restores both filters and context. Avoid a second identical action.
     $('#memoryResetAll').hidden = !api.views().activeId;
-    $('#memoryFilterCount').textContent = config.types.length + config.refs.length || '';
     $('#memoryFilterChips').innerHTML = '';
-    const queryChip = config.query ? '<button type="button" class="memory-chip" data-field="query" data-value="'+esc(config.query)+'" title="Recherche enregistrée dans la vue">Recherche : '+esc(config.query)+' ×</button>' : '';
+    const queryChip = config.query ? '<button type="button" class="memory-chip" data-field="query" data-value="'+esc(config.query)+'" title="Recherche enregistrée dans la vue">'+(/^\s*moi:\s*$/i.test(config.query) ? 'Ce qui me concerne' : 'Recherche : '+esc(config.query))+' ×</button>' : '';
     if (isTable && queryChip) {
       $('#memoryFilterChips').innerHTML = queryChip;
       $('#memoryFilterChips button').addEventListener('click', () => { config.query = ''; changed(); });
@@ -240,7 +272,11 @@ function createMemoryExplorer(api, createMemoryTable) {
     perimeterSearch: (kind, title) => api.query.perimeterQuery(kind, title),
     /** Keeps a search in the view as a filter, combined with an existing one. */
     pinSearch(text) { const value = String(text || '').trim(); if (!value) return; config.query = [config.query, value].filter(Boolean).join(' ').slice(0, 2000); changed(); },
-    pinnedSearch: () => config.query
+    pinnedSearch: () => config.query,
+    /** The "Moi" preset: keep what concerns the user, or drop that filter. */
+    setLayout(layout) { if (config.layout === layout) return; config.layout = layout === 'list' ? 'list' : 'graph'; table.reset?.(); changed(); },
+    setPinnedSearch(value) { config.query = String(value || '').slice(0, 2000); changed(); },
+    syncFilterToggle
   };
 }
 module.exports = { createMemoryExplorer };

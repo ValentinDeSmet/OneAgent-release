@@ -749,6 +749,27 @@ taskForm.addEventListener("submit", async event => {
   catch (failure) { error($("#task-error"), failure.message + "\nÉcriture non confirmée. Ferme cette fiche et actualise avant de réessayer, pour éviter un doublon."); }
   finally { saving = false; for (const button of taskForm.querySelectorAll("button")) if (button.id !== "task-save") button.disabled = false; render(); }
 });
+// Summary pills under the subject: priority, progress, deadline, entity. Each
+// one leads to its field.
+function renderEditorSummary() {
+  const text = (name) => { const field = form.elements[name]; return field?.selectedOptions?.[0]?.textContent?.trim() || ""; };
+  const kind = form.elements.deadlineKind.value;
+  const deadline = kind === "exact" && form.elements.deadline.value ? new Date(form.elements.deadline.value + "T00:00:00").toLocaleDateString("fr-FR")
+    : kind === "approximate" && form.elements.deadlineQuarter.value ? form.elements.deadlineQuarter.value + " " + form.elements.deadlineYear.value
+    : "Échéance à préciser";
+  const pills = [
+    ["priority", text("priority"), form.elements.priority.value],
+    ["status", text("status"), "status"],
+    [kind === "approximate" ? "deadlineQuarter" : kind === "exact" ? "deadline" : "deadlineKind", deadline, kind === "unknown" ? "muted" : ""],
+    ["entity", form.elements.entity.value ? text("entity") : "Entité à choisir", form.elements.entity.value ? "" : "muted"]
+  ];
+  $("#editor-summary").replaceChildren(...pills.map(([field, label, tone]) => {
+    const pill = node("button", label, "sheet-pill" + (tone ? " " + tone : ""));
+    pill.type = "button"; pill.title = "Modifier";
+    pill.addEventListener("click", () => form.elements[field]?.focus());
+    return pill;
+  }));
+}
 function deadlineFields() {
   const kind = form.elements.deadlineKind.value;
   $("#deadline-fields").hidden = kind !== "exact";
@@ -788,7 +809,7 @@ function edit(item = null) {
   $("#done").hidden = !item || item.status === "done";
   $("#remove").hidden = !item || item.inPriorities === false;
   $("#restore").hidden = !item || item.inPriorities !== false;
-  deadlineFields(); editor.showModal(); form.elements.title.focus();
+  deadlineFields(); renderEditorSummary(); editor.showModal(); form.elements.title.focus();
 }
 async function save(event) {
   event.preventDefault(); if (saving) return;
@@ -860,6 +881,8 @@ form.elements.entity.addEventListener("change", syncProduct);
 form.elements.productId.addEventListener("change", syncProduct);
 $("#partner-search").addEventListener("input", renderPartnerChoices);
 form.elements.deadlineKind.addEventListener("change", deadlineFields);
+form.addEventListener("change", renderEditorSummary);
+form.addEventListener("input", (event) => { if (event.target.name === "deadline") renderEditorSummary(); });
 for (const id of ["add", "empty-add"]) $("#" + id).addEventListener("click", () => edit());
 for (const id of ["close", "cancel"]) $("#" + id).addEventListener("click", () => editor.close());
 editor.addEventListener("cancel", (event) => { if (saving) event.preventDefault(); });

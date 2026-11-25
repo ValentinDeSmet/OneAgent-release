@@ -60,15 +60,48 @@ Pendant la saisie, la barre propose les tags, types, entités et documents
 existants. **Épingler dans la vue** garde la recherche comme filtre de la vue
 enregistrée ; elle apparaît en pastille « Recherche » et se retire d'un clic.
 
-## Work with the graph
+## Travailler avec le graphe
 
-1. Open **Memory graph**.
-2. Use **Overview** for the wider map, **Focus** around one entity, or **Dependencies** around related products.
-3. Keep **Navigate** selected and click a node.
-4. Read its summary, linked information, tasks, sources, and relationships in the detail window.
-5. Use the search field or filters when the graph is busy.
+1. Ouvre **Mémoire** et choisis une vue en graphe (ou bascule la vue en **Graphe**).
+2. Cherche ou combine des critères dans la barre, ou ouvre **Filtres**.
+3. Clique sur un nœud pour ouvrir sa fiche ; clic droit pour **Afficher le périmètre**.
 
-When the selected entity has a Markdown page, **Open Markdown** opens its main page directly in the VS Code editor. Use the **Content** tab to open a specific page when the entity has several. The button is hidden when there is no page available or the active context does not allow access to its file.
+### Filtres
+
+Le bouton **Filtres** ouvre et referme un tiroir à droite du graphe (Échap ou
+**Voir le graphe** le ferment aussi). Son chiffre indique les filtres actifs.
+
+- **Recherche du tiroir** : un groupe (« organisation ») garde ce groupe, un type
+  (« personne ») propose de choisir parmi ses valeurs, une valeur (« OneFF ») liste
+  directement **Équipes › OneFF**, **Produits › OneFF**… à cocher.
+- **Raccourcis** : **Tout** affiche tout, un second clic masque tout pour ne garder
+  ensuite que quelques types ; **Moi** garde ce qui te concerne (ton périmètre, ce
+  dont tu es responsable ou contributeur, ta mission, tes tâches et tes notes, comme
+  la recherche `moi:`) ; **Organisation**, **Produit & delivery**, **Pilotage** ;
+  **Sans le bruit** masque sources, questions, concepts et découvertes.
+- **Types** : en pastilles groupées. Un clic sur la pastille affiche ou masque le
+  type ; **›** ouvre ses valeurs (recherche, tout cocher, tout décocher,
+  seulement la recherche). Une pastille « 2/6 » en pointillés est filtrée en partie.
+  **tout · rien** agit sur un groupe.
+- **Relations** et **Focus et niveau** sont repliés en bas du tiroir.
+
+### Fiche d’une entité
+
+Toutes les fiches ont la même structure :
+
+- **En-tête** : type, statut, titre, description entière et faits clés (rattachement
+  « BCP › Plateforme », période, responsable). Les icônes modifient la fiche,
+  centrent le graphe, affichent le périmètre, ouvrent la page Markdown ; **⋯**
+  propose l’espace de travail, une note ou une capture.
+- **Synthèse** : d’abord le bloc propre au type (résultats clés d’un OKR avec leur
+  avancement, dernière mesure d’un KPI, OKR d’une mission, besoin d’une demande tiré
+  de sa page, ce que porte une équipe et ses membres, dépôts et fonctionnalités d’un
+  produit, cycle d’une découverte…), sinon un extrait de la page ; puis **Lié à**,
+  regroupé par sens de la relation, chaque entité ouvrant sa propre fiche ; puis
+  **À faire**, **Points d’attention** et **Dernières décisions**.
+- **Liens**, **Activité** (observations et captures) et **Document** (la page
+  Markdown, sans son en-tête technique).
+- Les compteurs (liens, observations, captures, tâches) en bas de la fiche.
 
 You can add or edit entities and relationships from **Settings → Actions et diagnostics → Knowledge**. Deleting or merging can affect several linked items, so read the confirmation carefully.
 

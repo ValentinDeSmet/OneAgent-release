@@ -86,37 +86,51 @@
   <button id="row-career" type="button" role="menuitem">À valoriser dans un EI</button>
   <button id="row-menu-action" type="button" role="menuitem"><span id="row-menu-label">Retirer des priorités</span><small id="row-menu-help">La tâche et ses liens sont conservés.</small></button>
 </div>
-<dialog id="editor" aria-labelledby="editor-title">
-  <form id="form">
-    <div class="dialog-head"><h2 id="editor-title">Nouvelle sollicitation</h2><button id="close" type="button" aria-label="Fermer">✕</button></div>
-    <p id="form-error" class="error" role="alert" hidden></p>
-    <label>Nature<select name="itemType"><option value="subject">Sujet à développer</option><option value="task">Tâche / action</option></select></label>
-    <label>Type de travail<select name="workType"><option value="unspecified">À préciser</option><option value="discovery">Discovery</option><option value="technical_study">Étude technique</option><option value="implementation">Développement / implémentation</option><option value="validation">Validation / recette</option><option value="documentation">Documentation</option><option value="other">Autre</option></select></label>
-    <label>Sujet <span aria-hidden="true">*</span><input name="title" required maxlength="300" placeholder="Ce que tu dois fournir ou faire"></label>
-    <div class="pair"><label>Entité rattachée <span aria-hidden="true">*</span><select name="entity" required><option value="">Choisir une entité…</option></select></label><label>Produit principal<select name="productId"><option value="">Sans produit</option></select></label></div>
-    <p class="hint" id="entity-help">Chaque priorité doit être rattachée à une entité existante.</p>
-    <p class="hint" id="product-help"></p>
-    <fieldset class="partner-picker"><legend>Autres produits / équipes concernés</legend>
-      <label class="sr-only" for="partner-search">Rechercher un partenaire</label><input id="partner-search" type="search" maxlength="256" placeholder="Rechercher un produit ou une équipe…">
-      <div id="partner-selection" class="partner-selection" aria-live="polite"></div>
-      <div id="partner-options" class="partner-options"></div>
-      <p class="hint">Plusieurs choix possibles. Les produits et équipes de toute la mémoire sont proposés, même hors de ton périmètre principal.</p>
-    </fieldset>
-    <div class="pair"><label>Attendu par<input name="requester" maxlength="300" placeholder="Personne ou équipe · peut rester à préciser"></label><label>Priorité<select name="priority"><option value="low">Basse</option><option value="medium" selected>Normale</option><option value="high">Haute</option><option value="critical">Critique</option></select></label></div>
-    <label>Description<textarea name="body" rows="3" maxlength="10000" placeholder="Détails de la demande, origine de la sollicitation…"></textarea></label>
-    <div class="pair"><label>Avancement<select name="status"><option value="open">À faire</option><option value="in_progress">En cours</option><option value="ready">Prête à démarrer</option><option value="pending">À clarifier</option><option value="candidate">À valider</option><option value="blocked">En attente</option><option value="done">Terminée</option></select></label><label>Nature de l’échéance<select name="deadlineKind"><option value="unknown">À préciser</option><option value="exact">Date ferme</option><option value="approximate">Trimestre</option></select></label></div>
-    <div id="deadline-fields" hidden><label><span id="date-label">Date attendue</span><input name="deadline" type="date" min="1900-01-01" max="9999-12-31"></label></div>
-    <div class="pair" id="period-field" hidden><label>Trimestre<select name="deadlineQuarter"><option value="">Choisir un trimestre…</option><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select></label><label>Année<select name="deadlineYear"><option value="">Choisir l’année…</option></select></label></div>
-    <p id="legacy-period" class="hint" hidden></p>
-    <p id="date-help" class="hint">Une échéance inconnue reste visible comme « À préciser ».</p>
-    <div class="pair"><label>URL documentation<input name="url" type="url" maxlength="2048" placeholder="Lien vers les documents du sujet"></label><label>URL source<input name="sourceUrl" type="url" maxlength="2048" placeholder="Lien vers le Google Sheet d’origine"></label></div>
-    <p class="hint">Le lien source sert à retrouver la liste d’origine pour demander à l’agent une actualisation ultérieure.</p>
-    <label>Prochaine action<textarea name="nextAction" rows="2" maxlength="2000" placeholder="Une action concrète pour avancer ou relancer"></textarea></label>
-    <p class="hint" id="updated"></p>
-    <div class="dialog-actions"><button id="remove" type="button" class="subtle" hidden>Retirer des priorités</button><button id="restore" type="button" hidden>Remettre dans mes priorités</button><button id="done" type="button" hidden>Marquer terminée</button><button id="cancel" type="button">Annuler</button><button id="save" type="submit" class="primary">Enregistrer</button></div>
+<dialog id="editor" class="sheet" data-vp-native aria-labelledby="editor-title">
+  <form id="form" class="sheet-form">
+    <div class="sheet-head">
+      <div class="sheet-titlebar"><p id="editor-title" class="sheet-kicker">Nouvelle sollicitation</p><button id="close" type="button" class="sheet-close" aria-label="Fermer">✕</button></div>
+      <input name="title" class="sheet-title" required maxlength="300" placeholder="Ce que tu dois fournir ou faire" aria-label="Sujet (obligatoire)">
+      <div id="editor-summary" class="sheet-pills" aria-label="Résumé"></div>
+    </div>
+    <div class="sheet-main">
+      <p id="form-error" class="error" role="alert" hidden></p>
+      <label class="next-action-field">Prochaine action<textarea name="nextAction" rows="2" maxlength="2000" placeholder="Une action concrète pour avancer ou relancer"></textarea></label>
+      <label class="sheet-description">Description<textarea name="body" rows="8" maxlength="10000" placeholder="Détails de la demande, origine de la sollicitation…"></textarea></label>
+      <section class="sheet-section" aria-labelledby="sheet-plan">
+        <p id="sheet-plan" class="sheet-eyebrow" role="heading" aria-level="3">Planification</p>
+        <div class="trio"><label>Priorité<select name="priority"><option value="low">Basse</option><option value="medium" selected>Normale</option><option value="high">Haute</option><option value="critical">Critique</option></select></label><label>Avancement<select name="status"><option value="open">À faire</option><option value="in_progress">En cours</option><option value="ready">Prête à démarrer</option><option value="pending">À clarifier</option><option value="candidate">À valider</option><option value="blocked">En attente</option><option value="done">Terminée</option></select></label><label>Attendu par<input name="requester" maxlength="300" placeholder="Personne ou équipe"></label></div>
+        <div class="trio"><label>Échéance<select name="deadlineKind"><option value="unknown">À préciser</option><option value="exact">Date ferme</option><option value="approximate">Trimestre</option></select></label><div id="deadline-fields" class="contents" hidden><label><span id="date-label">Date attendue</span><input name="deadline" type="date" min="1900-01-01" max="9999-12-31"></label></div><div id="period-field" class="contents" hidden><label>Trimestre<select name="deadlineQuarter"><option value="">Choisir…</option><option value="Q1">Q1</option><option value="Q2">Q2</option><option value="Q3">Q3</option><option value="Q4">Q4</option></select></label><label>Année<select name="deadlineYear"><option value="">Choisir l’année…</option></select></label></div></div>
+        <p id="legacy-period" class="hint" hidden></p>
+        <p id="date-help" class="hint">Une échéance inconnue reste visible comme « À préciser ».</p>
+        <div class="trio"><label>Nature<select name="itemType"><option value="subject">Sujet à développer</option><option value="task">Tâche / action</option></select></label><label>Type de travail<select name="workType"><option value="unspecified">À préciser</option><option value="discovery">Discovery</option><option value="technical_study">Étude technique</option><option value="implementation">Développement / implémentation</option><option value="validation">Validation / recette</option><option value="documentation">Documentation</option><option value="other">Autre</option></select></label></div>
+      </section>
+      <section class="sheet-section" aria-labelledby="sheet-link">
+        <p id="sheet-link" class="sheet-eyebrow" role="heading" aria-level="3">Rattachement</p>
+        <div class="trio"><label>Entité rattachée <span aria-hidden="true">*</span><select name="entity" required><option value="">Choisir une entité…</option></select></label><label>Produit principal<select name="productId"><option value="">Sans produit</option></select></label></div>
+        <p class="hint" id="entity-help">Chaque priorité doit être rattachée à une entité existante.</p>
+        <p class="hint" id="product-help"></p>
+        <fieldset class="partner-picker"><legend>Autres produits et équipes</legend>
+          <div id="partner-selection" class="partner-selection" aria-live="polite"></div>
+          <label class="sr-only" for="partner-search">Ajouter un produit ou une équipe</label><input id="partner-search" type="search" maxlength="256" placeholder="＋ Ajouter un produit ou une équipe…" autocomplete="off">
+          <div id="partner-options" class="partner-options"></div>
+        </fieldset>
+      </section>
+      <section class="sheet-section" aria-labelledby="sheet-links">
+        <p id="sheet-links" class="sheet-eyebrow" role="heading" aria-level="3">Liens</p>
+        <div class="trio"><label>Documentation<input name="url" type="url" maxlength="2048" placeholder="Lien vers les documents du sujet"></label><label>Source<input name="sourceUrl" type="url" maxlength="2048" placeholder="Lien vers le Google Sheet d’origine"></label></div>
+        <p class="hint">Le lien source sert à retrouver la liste d’origine pour demander à l’agent une actualisation ultérieure.</p>
+      </section>
+    </div>
+    <div class="sheet-foot">
+      <button id="remove" type="button" class="subtle" hidden>Retirer des priorités</button><button id="restore" type="button" hidden>Remettre dans mes priorités</button>
+      <span class="sheet-spacer"></span>
+      <button id="cancel" type="button">Annuler</button><button id="done" type="button" hidden>Marquer terminée</button><button id="save" type="submit" class="primary">Enregistrer</button>
+      <p class="hint" id="updated"></p>
+    </div>
   </form>
 </dialog>
-<dialog id="view-editor" aria-labelledby="view-editor-title">
+<dialog id="view-editor" data-vp-native aria-labelledby="view-editor-title">
   <form id="view-form">
     <div class="dialog-head"><h2 id="view-editor-title">Enregistrer une vue</h2><button id="view-close" type="button" aria-label="Fermer">✕</button></div>
     <p id="view-form-error" class="error" role="alert" hidden></p>
@@ -126,13 +140,13 @@
     <div class="dialog-actions"><button id="view-cancel" type="button">Annuler</button><button id="view-submit" type="submit" class="primary">Enregistrer</button></div>
   </form>
 </dialog>
-<dialog id="view-delete-confirm" aria-labelledby="view-delete-title">
+<dialog id="view-delete-confirm" data-vp-native aria-labelledby="view-delete-title">
   <div class="dialog-head"><h2 id="view-delete-title">Supprimer cette vue ?</h2></div>
   <p id="view-delete-name"></p><p class="hint">Les priorités, les tâches et leur classement seront conservés.</p>
   <p id="view-delete-error" class="error" role="alert" hidden></p>
   <div class="dialog-actions"><button id="view-delete-cancel" type="button">Annuler</button><button id="view-delete-submit" type="button" class="danger">Supprimer la vue</button></div>
 </dialog>
-<dialog id="task-editor" aria-labelledby="task-editor-title">
+<dialog id="task-editor" data-vp-native aria-labelledby="task-editor-title">
   <form id="task-form">
     <div class="dialog-head"><h2 id="task-editor-title">Ajouter une tâche</h2><button id="task-close" type="button" aria-label="Fermer">✕</button></div>
     <p id="task-parent" class="hint"></p><p id="task-error" class="error" role="alert" hidden></p>
@@ -153,7 +167,7 @@
     <div class="dialog-actions"><button id="task-cancel" type="button">Annuler</button><button id="task-save" class="primary" type="submit">Ajouter la tâche</button></div>
   </form>
 </dialog>
-<dialog id="delete-confirm" aria-labelledby="delete-title" aria-describedby="delete-description">
+<dialog id="delete-confirm" data-vp-native aria-labelledby="delete-title" aria-describedby="delete-description">
   <h2 id="delete-title">Retirer cette sollicitation des priorités ?</h2>
   <p id="delete-name"></p>
   <p id="delete-description">Elle ne sera plus affichée dans tes priorités. La tâche restera dans Tâches avec son avancement, ses informations et tous ses liens. Tu pourras la remettre dans les priorités depuis la vue « Retirées des priorités ».</p>

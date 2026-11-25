@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.158
+
+- Copilot 0.6.35 et VS Code 0.1.158 : écrans repensés pour un panneau étroit (la moitié de l'écran dans Copilot).
+- Fiche priorité : panneau latéral pleine hauteur avec de vraies marges, sujet et pastilles de résumé (priorité, avancement, échéance, entité), prochaine action en tête, grande description, champs regroupés (Planification, Rattachement, Liens), autres produits et équipes en pastilles, boutons toujours visibles.
+- Mémoire : en-tête sur une ligne — sélecteur de vue (recherche, nouvelle vue, actions, accès de l'agent), « Enregistrer » seulement si la vue est modifiée, bascule Tableau / Graphe, menu ⋯ ; l'état de curation ne recouvre plus les vues. Le titre d'une ligne du tableau ouvre sa fiche.
+- Filtres du graphe dans un tiroir : le bouton Filtres l'ouvre et le referme (Échap aussi) et compte les filtres actifs ; recherche par groupe, type ou valeur (« OneFF » → Équipes › OneFF, Produits › OneFF) ; raccourcis Tout (un second clic masque tout), Moi, Organisation, Produit & delivery, Pilotage, Sans le bruit ; types en pastilles groupées, › pour choisir des valeurs ; relations et focus repliés.
+- Recherche : nouveau critère `moi:` (ton périmètre, ce dont tu es responsable ou contributeur, ta mission, tes tâches et tes notes).
+- Fiche d'entité : même structure pour tous les types — en-tête (type, statut, description entière, faits clés, actions), Synthèse ouverte par le bloc du type (résultats clés d'un OKR, mesure d'un KPI, besoin d'une demande, ce que porte une équipe…), liens regroupés par sens et cliquables, à faire, points d'attention, décisions ; onglets Liens, Activité, Document (sans l'en-tête YAML) ; compteurs en pied.
+- Les cases à cocher (filtres, listes) affichent de nouveau leur état coché.
+- Copilot : la curation automatique démarre de nouveau ; le SDK de l'application exige désormais un mode explicite (« mode is required »).
+
 ## 0.1.157
 
 - Copilot 0.6.34 et VS Code 0.1.157 : recherche combinée dans la mémoire, pour le tableau comme pour le graphe. Un mot seul cherche aussi dans les tags, les alias, la description et la chaîne des parents (`bcp` trouve tout ce qui est rangé sous BCP). Les critères se combinent et doivent tous être respectés : `tag:`, `type:`, `équipe:`, `projet:`, `domaine:`, `dans:` (n'importe quelle entité), `source:` (ce qui vient d'un document) ; `,` pour « l'un ou l'autre », `-` pour exclure. La barre propose les tags, types, entités et documents existants.

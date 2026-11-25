@@ -152,7 +152,7 @@ function vitaminPlayEnhancerClient(config) {
   const labelIcons = config.labelIcons.map(([source, flags, name]) => [new RegExp(source, flags), name]);
   const VP = /(^|\s)vp-[a-z]/;
   const TABLISTS = '[role="tablist"], .scope-tabs, .memory-view-tabs, .view-tabs';
-  const skipButton = /(^|\s)(graph-menu-item|menu-option|note-card|help-guide|task-link-option|tax-swatch|visibility-cause|md-internal|md-external|chip-x|filter-toggle-caret|filter-section-state|ep-reldel|graph-search-reveal|today-alignment-chip|graph-visibility-chip|graph-context-close)(\s|$)/;
+  const skipButton = /(^|\s)(graph-menu-item|menu-option|note-card|help-guide|task-link-option|tax-swatch|visibility-cause|md-internal|md-external|chip-x|filter-toggle-caret|filter-section-state|ep-reldel|graph-search-reveal|today-alignment-chip|graph-visibility-chip|graph-context-close|sheet-pill|memory-view-item|filter-link|filter-preset|type-chip-main|type-chip-more|filter-back|filter-open-values|view-action|memory-filter-toggle|ec-ent|ec-linkish|ec-menu-item)(\s|$)/;
   const linkButton = /(^|\s)(ep-linkish)(\s|$)/;
   const sectionToggle = /(^|\s)(filter-section-toggle|task-link-section-toggle)(\s|$)/;
   const stickerHost = /(^|\s)(badge|chip|pill|tag|status-pill|kind-pill)(\s|$)/;
@@ -322,6 +322,7 @@ function vitaminPlayEnhancerClient(config) {
     control.className = "vp-checkbox__control";
     control.setAttribute("aria-hidden", "true");
     input.before(control);
+    trackCheckbox(input, control);
     const rest = [...label.childNodes].filter((node) => node !== input && node !== control && !(node.nodeType === 3 && !node.textContent.trim()));
     if (rest.length) {
       const text = document.createElement("span");
@@ -329,6 +330,31 @@ function vitaminPlayEnhancerClient(config) {
       rest.forEach((node) => text.append(node));
       label.append(text);
     }
+  }
+
+  // VpCheckbox shows its state on the control (data-checked, data-indeterminate
+  // and a tick inside), which React sets from the input. Here the input changes
+  // by a click or by code setting .checked / .indeterminate: both update it.
+  const nativeChecked = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "checked");
+  const nativeIndeterminate = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "indeterminate");
+  const checkboxIcons = config.checkboxIcons || {};
+  function syncCheckbox(input, control) {
+    const state = input.indeterminate ? "indeterminate" : input.checked ? "checked" : "";
+    if (control.vpState === state) return;
+    control.vpState = state;
+    control.toggleAttribute("data-checked", state === "checked");
+    control.toggleAttribute("data-indeterminate", state === "indeterminate");
+    control.innerHTML = state === "checked" ? checkboxIcons.check || "" : state === "indeterminate" ? checkboxIcons.subtract || "" : "";
+  }
+  function trackCheckbox(input, control) {
+    const sync = () => syncCheckbox(input, control);
+    for (const [name, native] of [["checked", nativeChecked], ["indeterminate", nativeIndeterminate]]) {
+      if (!native || !native.set) continue;
+      Object.defineProperty(input, name, { configurable: true, enumerable: true, get() { return native.get.call(this); }, set(value) { native.set.call(this, value); sync(); } });
+    }
+    input.addEventListener("change", sync);
+    input.addEventListener("click", sync);
+    sync();
   }
 
   function enhanceSticker(el) {
@@ -351,7 +377,8 @@ function vitaminPlayEnhancerClient(config) {
     if (!root || root.nodeType !== 1) return;
     const all = (selector) => [...(root.matches(selector) ? [root] : []), ...root.querySelectorAll(selector)];
     all(TABLISTS).forEach(enhanceTablist);
-    all("dialog").forEach(enhanceDialog);
+    // data-vp-native: a screen that lays out its own dialog (the priority side sheet).
+    all("dialog").forEach((dialog) => { if (!dialog.hasAttribute("data-vp-native")) enhanceDialog(dialog); });
     all("button").forEach(enhanceButton);
     all("select").forEach(enhanceSelect);
     all("input").forEach(enhanceInput);
@@ -431,7 +458,8 @@ function vitaminPlayEnhancer(options = {}) {
     labelIcons: LABEL_ICONS.map(([re, name]) => [re.source, re.flags, name]),
     navIcons: NAV_ICONS,
     chevron: '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="24" height="24" stroke-width="1.5" aria-hidden="true" class="vp-select-indicator" data-part="indicator"><path d="M6 9L12 15L18 9" stroke="currentColor"></path></svg>',
-    nodeTokens: GRAPH_NODE_TOKENS
+    nodeTokens: GRAPH_NODE_TOKENS,
+    checkboxIcons: iconMarkup(["check", "subtract"], 16)
   };
   const data = JSON.stringify(config).replace(/</g, "\\u003c");
   return `(${vitaminPlayEnhancerClient.toString()})(${data});`;

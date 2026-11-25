@@ -6,6 +6,8 @@
 //   équipe:1FF         in the perimeter of team 1FF (any kind key works:
 //   projet:"Nom"       projet, produit, domaine, personne… or dans: for any kind)
 //   source:"Orga BCP"  extracted from, or linked to, a matching document
+//   moi:               what concerns the user: their own perimeter, what they
+//                      own or contribute to, their mission, tasks and notes
 // A comma means "one of" (team:1ff,2ff), a leading "-" excludes, quotes keep
 // spaces. Free words also search tags, aliases and the parent chain.
 //
@@ -16,7 +18,7 @@
 // Self-contained: the cockpit embeds it in the webview with toString().
 function createMemoryQuery() {
   const normalize = value => String(value ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase().trim();
-  const FIELDS = { tag: 'tag', tags: 'tag', etiquette: 'tag', type: 'type', kind: 'type', source: 'source', doc: 'source', document: 'source', dans: 'in', in: 'in', scope: 'in', perimetre: 'in' };
+  const FIELDS = { tag: 'tag', tags: 'tag', etiquette: 'tag', type: 'type', kind: 'type', source: 'source', doc: 'source', document: 'source', dans: 'in', in: 'in', scope: 'in', perimetre: 'in', moi: 'me', me: 'me' };
   const KINDS = {
     equipe: 'team', team: 'team', projet: 'project', project: 'project', produit: 'product', product: 'product',
     domaine: 'domain', domain: 'domain', 'sous-domaine': 'subdomain', sousdomaine: 'subdomain', subdomain: 'subdomain',
@@ -74,8 +76,8 @@ function createMemoryQuery() {
       const match = /^([^\s:"]+):(.*)$/s.exec(body);
       const field = match && fieldFor(match[1], kinds);
       if (field) {
-        const values = splitValues(match[2]);
-        if (values.length) criteria.push({ ...field, key: match[1], values, display: splitValues(match[2], true), negate });
+        const values = field.field === 'me' ? ['moi'] : splitValues(match[2]);
+        if (values.length) criteria.push({ ...field, key: match[1], values, display: field.field === 'me' ? [] : splitValues(match[2], true), negate });
         continue;
       }
       const value = normalize(body.replace(/"/g, ''));
@@ -93,11 +95,11 @@ function createMemoryQuery() {
   let cached;
   /** Entities, hierarchy, relations and sources from the cockpit state; rebuilt when the state changes. */
   function index(state, entityRef) {
-    const graph = state.graph || {}, entities = state.entities || [], entries = state.memoryIndex?.entries || [];
-    if (cached && cached.graph === graph && cached.entities === entities && cached.entries === entries) return cached;
+    const graph = state.graph || {}, entities = state.entities || [], entries = state.memoryIndex?.entries || [], tasks = state.tasks || [];
+    if (cached && cached.graph === graph && cached.entities === entities && cached.entries === entries && cached.tasks === tasks) return cached;
     const records = new Map();
     const record = (ref, kind) => {
-      if (!records.has(ref)) records.set(ref, { ref, kind: kind || ref.split(':')[0], label: '', aliases: [], tags: [], parentIds: [] });
+      if (!records.has(ref)) records.set(ref, { ref, kind: kind || ref.split(':')[0], label: '', aliases: [], tags: [], parentIds: [], people: [] });
       return records.get(ref);
     };
     const merge = (target, values) => { for (const value of values || []) if (typeof value === 'string' && value && !target.includes(value)) target.push(value); };
@@ -105,14 +107,15 @@ function createMemoryQuery() {
       if (!entity || !entity.kind || !entity.id) continue;
       const item = record(entity.kind + ':' + entity.id, entity.kind);
       item.label = item.label || entity.label || entity.id;
-      merge(item.aliases, entity.aliases); merge(item.tags, entity.tags);
+      merge(item.aliases, entity.aliases); merge(item.tags, entity.tags); merge(item.people, [...(entity.ownerIds || []), ...(entity.contributorIds || [])]);
       if (entity.parentId) merge(item.parentIds, [entity.parentId]);
     }
-    const nodeRefs = new Map();
+    const nodeRefs = new Map(), selfRefs = new Set();
     for (const node of graph.nodes || []) {
       const ref = entityRef(node);
       nodeRefs.set(node.id, ref || 'node:' + node.id);
       if (!ref) continue;
+      if (node.meta?.self) selfRefs.add(ref);
       const item = record(ref, node.meta?.kind);
       item.label = item.label || node.label || ref;
       merge(item.tags, node.meta?.tags);
@@ -152,7 +155,7 @@ function createMemoryQuery() {
       if (sources.some(item => item.id === id)) continue;
       sources.push({ id, title: node.label || '', text: normalize(node.label), refs: new Set([...(links.get(ref) || []), ...(children.get(ref) || []), ...(parents.get(ref) || []), ...(captureLinks.get(id) || [])]) });
     }
-    cached = { graph, entities, entries, records, children, parents, links, sources, perimeters: new Map(), ancestors: new Map(), kinds: new Set([...records.values()].map(item => normalize(item.kind))) };
+    cached = { graph, entities, entries, tasks, selfRefs, records, children, parents, links, sources, perimeters: new Map(), ancestors: new Map(), kinds: new Set([...records.values()].map(item => normalize(item.kind))) };
     return cached;
   }
 
@@ -209,6 +212,22 @@ function createMemoryQuery() {
     return set;
   }
 
+  /** What concerns the user: their perimeter, what they own or contribute to, missions, own tasks and notes. */
+  function meSet(idx) {
+    if (idx.me) return idx.me;
+    const refs = new Set(), entries = new Set();
+    const selfIds = new Set([...idx.selfRefs].map(ref => ref.split(':').slice(1).join(':')));
+    for (const self of idx.selfRefs) for (const ref of perimeter(idx, self).all) refs.add(ref);
+    for (const item of idx.records.values()) {
+      if (item.kind === 'mission') for (const ref of perimeter(idx, item.ref).all) refs.add(ref);
+      if (item.people.some(id => selfIds.has(id) || idx.selfRefs.has(id))) refs.add(item.ref);
+    }
+    for (const task of idx.tasks) if (task.assignee === 'me') entries.add('task:' + task.id);
+    for (const entry of idx.entries) if (entry.category === 'note') entries.add(entry.id);
+    idx.me = { refs, entries };
+    return idx.me;
+  }
+
   function sourceSet(idx, value) {
     const key = 'source\u0000' + value;
     if (idx.perimeters.has(key)) return idx.perimeters.get(key);
@@ -234,6 +253,7 @@ function createMemoryQuery() {
       if (criterion.field === 'type') return (entry.kinds || [entry.kind]).some(kind => kind && kindMatches(kind, value, label));
       if (criterion.field === 'tag') return refs.some(ref => (idx.records.get(ref)?.tags || []).some(tag => normalize(tag).includes(value)));
       if (criterion.field === 'in') { const set = perimeterSet(idx, criterion.kind, value); return refs.some(ref => set.has(ref)); }
+      if (criterion.field === 'me') { const me = meSet(idx); return me.entries.has(entry.id) || (entry.representations || []).some(item => me.entries.has(item.id)) || refs.some(ref => me.refs.has(ref)); }
       if (criterion.field === 'source') { const set = sourceSet(idx, value); return set.has(entry.id) || (entry.representations || []).some(item => set.has(item.id)) || refs.some(ref => set.has(ref)); }
       return false;
     });
@@ -263,14 +283,14 @@ function createMemoryQuery() {
 
   /** Readable criteria, for the chips above the results. */
   function describe(query, label) {
-    const fieldNames = { tag: 'Tag', type: 'Type', source: 'Source', in: 'Périmètre' };
+    const fieldNames = { tag: 'Tag', type: 'Type', source: 'Source', in: 'Périmètre', me: 'Ce qui me concerne' };
     return [
-      ...query.criteria.map(criterion => ({ negate: criterion.negate, text: (criterion.field === 'in' && criterion.kind ? label(criterion.kind) : fieldNames[criterion.field]) + ' : ' + (criterion.display || criterion.values).join(' ou ') })),
+      ...query.criteria.map(criterion => ({ negate: criterion.negate, text: criterion.field === 'me' ? fieldNames.me : (criterion.field === 'in' && criterion.kind ? label(criterion.kind) : fieldNames[criterion.field]) + ' : ' + (criterion.display || criterion.values).join(' ou ') })),
       ...query.words.map(word => ({ negate: word.negate, text: '« ' + (word.display || word.value) + ' »' }))
     ];
   }
 
-  const KEY_HINTS = [['tag:', 'un tag'], ['type:', 'un type d’entité'], ['équipe:', 'le périmètre d’une équipe'], ['projet:', 'le périmètre d’un projet'], ['produit:', 'le périmètre d’un produit'], ['domaine:', 'le périmètre d’un domaine'], ['personne:', 'ce qui touche une personne'], ['source:', 'ce qui vient d’un document'], ['dans:', 'le périmètre de n’importe quelle entité']];
+  const KEY_HINTS = [['tag:', 'un tag'], ['type:', 'un type d’entité'], ['équipe:', 'le périmètre d’une équipe'], ['projet:', 'le périmètre d’un projet'], ['produit:', 'le périmètre d’un produit'], ['domaine:', 'le périmètre d’un domaine'], ['personne:', 'ce qui touche une personne'], ['source:', 'ce qui vient d’un document'], ['moi:', 'ce qui me concerne'], ['dans:', 'le périmètre de n’importe quelle entité']];
 
   /** Completions for the token being typed (the last one), replacing it when picked. */
   function suggest(text, idx, label) {
@@ -290,6 +310,7 @@ function createMemoryQuery() {
       for (const [key, hint] of KEY_HINTS) if (normalize(key).startsWith(partial) && normalize(key) !== partial + ':') result.push({ label: key, hint, text: prefix + key });
       return result.slice(0, 4);
     }
+    if (field.field === 'me') return [];
     const partial = splitValues(match[2]).at(-1) || '';
     const head = match[2].includes(',') ? match[2].slice(0, match[2].lastIndexOf(',') + 1) : '';
     const counts = new Map();
