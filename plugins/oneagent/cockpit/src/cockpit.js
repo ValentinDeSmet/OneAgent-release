@@ -571,6 +571,22 @@ ${VITAMIN_PLAY_TOKENS}
       #inbox .proposal { grid-template-columns: minmax(0, 1fr) auto; cursor: pointer; }
       #inbox .proposal > div { min-width: 0; overflow-wrap: anywhere; }
       #inbox .proposal > div > span:not(.badge) { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      /* Inbox list: kind, title, two-line summary, meta line, decisions at hand. */
+      #inbox .ib-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--vp-semantic-spacing-s); padding: var(--vp-semantic-spacing-s) var(--vp-semantic-spacing-m); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-s); background: var(--panel); margin-bottom: var(--vp-semantic-spacing-xs); cursor: pointer; }
+      #inbox .ib-card:hover { border-color: var(--border-strong); }
+      #inbox .ib-card.busy { opacity: 0.6; }
+      .ib-main { display: grid; gap: var(--vp-semantic-spacing-3xs); min-width: 0; }
+      .ib-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vp-semantic-spacing-xs); }
+      .ib-progress { color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .ib-title { font-size: var(--vp-typography-body-s-font-size); line-height: 1.4; overflow-wrap: anywhere; }
+      #inbox .ib-body { margin: 0; color: var(--muted); font-size: var(--vp-typography-caption-font-size); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+      .ib-meta { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-2xs); color: var(--dim); font-size: var(--vp-typography-caption-font-size); min-width: 0; }
+      .ib-path { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--vp-typography-code-font-family, monospace); }
+      .ib-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--vp-semantic-spacing-xs); }
+      .ib-open { border: 0; background: transparent; padding: 0 var(--vp-semantic-spacing-2xs); color: var(--blue); font: inherit; font-size: var(--vp-typography-caption-font-size); font-weight: 600; cursor: pointer; white-space: nowrap; }
+      .ib-open:hover { text-decoration: underline; }
+      .ib-busy { color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      @media (max-width: 720px) { #inbox .ib-card { grid-template-columns: minmax(0, 1fr); } .ib-actions { justify-content: flex-start; } }
       .inbox-history { margin-top: var(--vp-semantic-spacing-xl); border-top: 1px solid var(--border); padding-top: var(--vp-semantic-spacing-m); }
       .inbox-history > summary { cursor: pointer; color: var(--muted); font-size: var(--vp-typography-body-s-font-size); }
       .inbox-review-dialog { width: min(1040px, calc(100vw - 48px)); max-width: none; height: min(900px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); padding: 0; border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-s); background: var(--overlay); color: var(--text); box-shadow: 0 24px 80px rgba(0,0,0,.3); overflow: hidden; }
@@ -917,6 +933,7 @@ ${VITAMIN_PLAY_TOKENS}
       .lk-row small { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
       .lk-del { padding: 0 var(--vp-semantic-spacing-2xs); border: 0; background: transparent; color: var(--muted); cursor: pointer; opacity: 0; }
       .lk-row:hover .lk-del, .lk-del:focus-visible { opacity: 1; color: var(--red); }
+      .pending-detail { display: block; margin: var(--vp-semantic-spacing-xs) 0; padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-s); border: 1px solid var(--accent-soft-border); border-radius: var(--vp-semantic-border-radius-main); background: var(--accent-soft-bg); color: var(--text); font-size: var(--vp-typography-caption-font-size); }
       .ec-foot { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-s); padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-m); border-top: 1px solid var(--border); color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
       .ep-doc-wrap.clamped { max-height: 300px; }
       .ep-doc-wrap.clamped::after { content: ""; position: absolute; inset-inline-start: 0; inset-inline-end: 0; bottom: 0; height: 52px; background: linear-gradient(transparent, var(--panel)); pointer-events: none; }
@@ -1520,6 +1537,7 @@ ${VITAMIN_PLAY_TOKENS}
       const pendingManualNoteDetailIds = new Set();
       let inboxHistoryExpanded = false;
       let selectedInboxId = undefined;
+      const inboxQuickBusy = new Map();
       let selectedCurationPackageId = undefined;
       let selectedObservationReviewIds = new Set();
       let pendingInboxDetailId = undefined;
@@ -8006,6 +8024,8 @@ ${VITAMIN_PLAY_TOKENS}
       }
 
       function renderInbox() {
+        const pendingIds = new Set((state.inbox || []).filter((item) => item.status === "pending").map((item) => item.id));
+        for (const id of [...inboxQuickBusy.keys()]) if (!pendingIds.has(id)) inboxQuickBusy.delete(id);
         const inbox = state.inbox || [];
         const graphHistory = state.graphChangeHistory || [];
         const graphHistoryState = state.graphChangeHistoryState || {};
@@ -8018,19 +8038,19 @@ ${VITAMIN_PLAY_TOKENS}
           ...packages.map(detail => ({ id: 'package:' + detail.package.id, createdAt: detail.package.createdAt, html: renderCurationPackageCard(detail, false) })),
           ...pendingItems.map(item => ({ id: 'item:' + item.id, createdAt: item.createdAt, html: renderInboxCard(item, false) }))
         ].sort((left, right) => (Date.parse(right.createdAt) || 0) - (Date.parse(left.createdAt) || 0) || left.id.localeCompare(right.id));
-        const packageHtml = '<section id="inboxToReview" aria-labelledby="inboxQueueTitle"><div class="inbox-section-head"><strong id="inboxQueueTitle">To review</strong><span>' + queue.length + ' proposition(s) en attente</span></div>' +
+        const packageHtml = '<section id="inboxToReview" aria-labelledby="inboxQueueTitle"><div class="inbox-section-head"><strong id="inboxQueueTitle">À relire · ' + queue.length + '</strong><span>Valide directement, ou relis le détail</span></div>' +
           (queue.length ? queue.map(entry => entry.html).join("") : '<div class="inbox-history-empty">Aucune proposition en attente de relecture.</div>') + '</section>';
         const historyNotice = historyState.available === false
           ? '<div class="inbox-problems"><strong>Review history unavailable</strong><span>' + escapeHtml(historyState.error || "The installed runtime cannot load accepted and rejected packages. Cached details remain read-only; no action is available until the backend is updated.") + '</span></div>'
           : historyState.partial === true
             ? '<div class="inbox-problems"><strong>Recent history only</strong><span>The snapshot reached its 500-package safety cap. Current results remain reviewable, but older packages are not loaded in this Cockpit snapshot.</span></div>'
             : '';
-        const historyHtml = '<div class="inbox-section-head"><strong>Review history</strong><span>' + history.length + ' reviewed package(s)</span></div>' +
+        const historyHtml = '<div class="inbox-section-head"><strong>Informations relues</strong><span>' + history.length + '</span></div>' +
           (history.length
             ? history.map((detail) => renderCurationPackageCard(detail, true)).join("")
-            : '<div class="inbox-history-empty">No reviewed sourced-information package yet.</div>') + historyNotice;
+            : '<div class="inbox-history-empty">Aucune information sourcée relue pour l’instant.</div>') + historyNotice;
         const graphHistoryHtml = graphHistory.length
-          ? '<div class="inbox-section-head"><strong>Graph transaction history</strong><span>' + graphHistory.length + ' accepted or rejected transaction(s)</span></div>' + graphHistory.map((item) => renderInboxCard(item, true)).join("")
+          ? '<div class="inbox-section-head"><strong>Changements du graphe décidés</strong><span>' + graphHistory.length + '</span></div>' + graphHistory.map((item) => renderInboxCard(item, true)).join("")
           : '';
         const graphHistoryNotice = graphHistoryState.available === false
           ? '<div class="inbox-problems"><strong>Graph history partially unavailable</strong><span>' + escapeHtml(graphHistoryState.error || "Some reviewed graph transactions could not be loaded.") + '</span></div>'
@@ -8050,6 +8070,9 @@ ${VITAMIN_PLAY_TOKENS}
         document.querySelectorAll("[data-inspect]").forEach((button) => button.addEventListener("click", () => inspectInboxItem(button.dataset.inspect)));
         document.querySelectorAll("[data-preview]").forEach((button) => button.addEventListener("click", () => runInboxAction("previewInbox", button.dataset.preview)));
         document.querySelectorAll("[data-accept]").forEach((button) => button.addEventListener("click", () => runInboxAction("acceptInbox", button.dataset.accept)));
+        document.querySelectorAll("[data-quick-accept]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); quickInboxDecision("acceptInbox", button.dataset.quickAccept); }));
+        document.querySelectorAll("[data-quick-reject]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); quickInboxDecision("rejectInbox", button.dataset.quickReject); }));
+        document.querySelectorAll("[data-open-curation-package]").forEach((button) => button.addEventListener("click", (event) => { event.stopPropagation(); selectCurationPackage(button.dataset.openCurationPackage); }));
         document.querySelectorAll("[data-reject]").forEach((button) => button.addEventListener("click", () => rejectInboxItem(button.dataset.reject)));
       }
 
@@ -8059,32 +8082,28 @@ ${VITAMIN_PLAY_TOKENS}
         const source = detail.source || {};
         const capture = detail.capture || {};
         const pending = Number(counts.proposed || 0) + Number(counts.captured || 0);
-        const progress = Number(counts.accepted || 0) + ' accepted · ' + Number(counts.rejected || 0) + ' rejected · ' + pending + ' pending';
-        const wiki = item.wikiDecision === "suggested" ? "Wiki suggested" : "Wiki not needed";
-        const reviewed = historical ? relativeTime(item.reviewedAt || item.updatedAt) : "";
-        return '<article class="proposal curation-package-card' + (historical ? " history" : "") + (item.id === selectedCurationPackageId ? " selected" : "") + '" data-curation-package-card="' + escapeAttr(item.id) + '">' +
-          '<div><strong>' + escapeHtml(item.title || source.title || item.id) + '</strong>' +
-          '<span class="package-progress">' + escapeHtml(item.summary || progress) + '</span>' +
-          '<div class="proposal-meta"><span class="badge inbox-kind">Sourced information</span><span class="badge">' + escapeHtml(item.status || "pending") + '</span>' +
-          '<span class="badge">' + escapeHtml(progress) + '</span>' +
-          (reviewed ? '<span class="badge" title="' + escapeAttr(item.reviewedAt || item.updatedAt) + '">Reviewed ' + escapeHtml(reviewed) + '</span>' : '') +
-          (source.revision ? '<span class="badge">Source revision ' + escapeHtml(source.revision) + '</span>' : '') +
-          (capture.title ? '<span class="badge">Capture: ' + escapeHtml(capture.title) + '</span>' : '') +
-          '<span class="badge">' + escapeHtml(wiki) + '</span></div></div>' +
-          '<div class="proposal-actions"><button class="action" data-open-curation-package="' + escapeAttr(item.id) + '">' + (historical ? 'Inspect' : 'Review') + '</button></div></article>';
+        const progress = Number(counts.accepted || 0) + " acceptée(s) · " + Number(counts.rejected || 0) + " refusée(s) · " + pending + " à décider";
+        const reviewed = historical ? relativeTime(item.reviewedAt || item.updatedAt) : relativeTime(item.createdAt);
+        const meta = [reviewed ? '<span>' + escapeHtml(historical ? "Relu " + reviewed : reviewed) + '</span>' : "", capture.title ? '<span>Capture : ' + escapeHtml(capture.title) + '</span>' : "", source.revision ? '<span>Révision de la source ' + escapeHtml(source.revision) + '</span>' : "", item.wikiDecision === "suggested" ? '<span>Page wiki suggérée</span>' : ""].filter(Boolean).join('<span aria-hidden="true">·</span>');
+        return '<article class="proposal ib-card curation-package-card' + (historical ? " history" : "") + (item.id === selectedCurationPackageId ? " selected" : "") + '" data-curation-package-card="' + escapeAttr(item.id) + '">' +
+          '<div class="ib-main"><div class="ib-top"><span class="badge inbox-kind">Informations sourcées</span><span class="ib-progress">' + escapeHtml(progress) + '</span></div>' +
+          '<strong class="ib-title">' + escapeHtml(item.title || source.title || item.id) + '</strong>' +
+          (item.summary ? '<p class="ib-body">' + escapeHtml(item.summary) + '</p>' : "") +
+          (meta ? '<div class="ib-meta">' + meta + '</div>' : "") + '</div>' +
+          '<div class="proposal-actions ib-actions"><button type="button" class="ib-open" data-open-curation-package="' + escapeAttr(item.id) + '">' + (historical ? "Consulter" : "Relire") + ' →</button></div></article>';
       }
 
       function relativeTime(iso) {
         const time = Date.parse(iso || "");
         if (!Number.isFinite(time)) return "";
         const minutes = Math.round((Date.now() - time) / 60000);
-        if (minutes < 1) return "just now";
-        if (minutes < 60) return minutes + " min ago";
+        if (minutes < 1) return "à l’instant";
+        if (minutes < 60) return "il y a " + minutes + " min";
         const hours = Math.round(minutes / 60);
-        if (hours < 24) return hours + " h ago";
+        if (hours < 24) return "il y a " + hours + " h";
         const days = Math.round(hours / 24);
-        if (days < 7) return days + " d ago";
-        return new Date(time).toISOString().slice(0, 10);
+        if (days < 7) return "il y a " + days + " j";
+        return new Date(time).toLocaleDateString("fr-FR");
       }
 
       function inboxEntityRefLabel(ref) {
@@ -8096,21 +8115,63 @@ ${VITAMIN_PLAY_TOKENS}
         return entity ? (entity.label || entity.id) + " (" + parsed.kind + ")" : ref;
       }
 
+      // What can be decided from the list without opening the proposal. The
+      // extension still confirms publishing a document or applying graph changes.
+      function inboxQuickActions(item) {
+        const payload = item.payload || {};
+        const kind = String(payload.proposalKind || "");
+        const violations = Array.isArray(payload.violations) ? payload.violations : [];
+        if (kind === "curation_review" && violations.length) return { dismiss: true };
+        const document = item.type === "wiki_proposal" && ["markdown_document_review", "wiki_write_review"].includes(kind);
+        return {
+          accept: !document || item.documentEditable === true,
+          reject: true,
+          rejectNeedsReason: kind === "graph_change"
+        };
+      }
+
       function renderInboxCard(item, historical = false) {
         const kind = inboxProposalKind(item);
         const captureLabel = inboxCaptureLabel(item);
         const body = inboxDisplayBody(item);
         const when = relativeTime(item.createdAt);
-        return '<article class="proposal' + (historical ? " history" : "") + (item.id === selectedInboxId ? " selected" : "") + '" data-inbox-card="' + escapeAttr(item.id) + '">' +
-          '<div><strong>' + escapeHtml(item.title) + '</strong><span>' + escapeHtml(body || "No description.") + '</span>' +
-          '<div class="proposal-meta"><span class="badge inbox-kind ' + escapeAttr(kind.className) + '">' + escapeHtml(kind.label) + '</span>' +
-          (when ? '<span class="badge" title="' + escapeAttr(item.createdAt) + '">' + escapeHtml(when) + '</span>' : '') +
-          '<span class="badge">' + escapeHtml(item.type) + '</span>' +
-          (historical ? '<span class="badge">' + escapeHtml(item.status || "reviewed") + '</span>' : '') +
-          (captureLabel ? '<span class="badge">Capture: ' + escapeHtml(captureLabel) + '</span>' : '') +
-          (item.productId ? '<span class="badge">' + escapeHtml(item.productId) + '</span>' : '') +
-          '</div></div>' +
-          '<div class="proposal-actions"><button class="action" data-inspect="' + escapeAttr(item.id) + '">' + (historical ? 'Consulter' : 'Relire') + '</button></div></article>';
+        const payload = item.payload || {};
+        const target = payload.targetPath || payload.reviewPath;
+        const busy = inboxQuickBusy.get(item.id);
+        const quick = historical ? {} : inboxQuickActions(item);
+        const meta = [
+          when ? '<span title="' + escapeAttr(item.createdAt) + '">' + escapeHtml(when) + '</span>' : "",
+          historical ? '<span>' + escapeHtml({ accepted: "Validée", rejected: "Refusée", applied: "Appliquée" }[item.status] || item.status || "") + '</span>' : "",
+          captureLabel ? '<span>Capture : ' + escapeHtml(captureLabel) + '</span>' : "",
+          target ? '<span class="ib-path" title="' + escapeAttr(target) + '">' + escapeHtml(target) + '</span>' : "",
+          typeof payload.primaryEntity === "string" && payload.primaryEntity ? '<span>' + escapeHtml(inboxEntityRefLabel(payload.primaryEntity)) + '</span>' : ""
+        ].filter(Boolean).join('<span aria-hidden="true">·</span>');
+        const actions = busy
+          ? '<span class="ib-busy" role="status">' + escapeHtml(busy) + '</span>'
+          : (quick.accept ? '<button type="button" class="action primary ib-accept" data-quick-accept="' + escapeAttr(item.id) + '">Valider</button>' : "") +
+            (quick.reject ? '<button type="button" class="action ib-reject" data-quick-reject="' + escapeAttr(item.id) + '"' + (quick.rejectNeedsReason ? ' title="Un motif est demandé : la relecture s’ouvre"' : "") + '>Refuser</button>' : "") +
+            (quick.dismiss ? '<button type="button" class="action ib-reject" data-quick-reject="' + escapeAttr(item.id) + '" title="Retirer cet avertissement de la liste">Écarter</button>' : "") +
+            '<button type="button" class="ib-open" data-inspect="' + escapeAttr(item.id) + '">' + (historical ? "Consulter" : "Relire") + ' →</button>';
+        return '<article class="proposal ib-card' + (historical ? " history" : "") + (item.id === selectedInboxId ? " selected" : "") + (busy ? " busy" : "") + '" data-inbox-card="' + escapeAttr(item.id) + '">' +
+          '<div class="ib-main"><div class="ib-top"><span class="badge inbox-kind ' + escapeAttr(kind.className) + '">' + escapeHtml(kind.label) + '</span></div>' +
+          '<strong class="ib-title">' + escapeHtml(item.title) + '</strong>' +
+          (body ? '<p class="ib-body">' + escapeHtml(body) + '</p>' : "") +
+          (meta ? '<div class="ib-meta">' + meta + '</div>' : "") + '</div>' +
+          '<div class="proposal-actions ib-actions">' + actions + '</div></article>';
+      }
+
+      // Decides straight from the list. Graph changes need a reason: their
+      // rejection opens the review, where the reason is written.
+      function quickInboxDecision(type, id) {
+        const item = findInboxItem(id);
+        if (!item) return;
+        if (type === "rejectInbox" && item.payload?.proposalKind === "graph_change") { inspectInboxItem(id); document.querySelector("#inboxFeedback")?.focus(); return; }
+        if (!documentReview.allowAction(type, item)) { inspectInboxItem(id); return; }
+        inboxQuickBusy.set(id, type === "acceptInbox" ? "Validation…" : "Refus…");
+        renderInbox();
+        vscode?.postMessage(type === "acceptInbox" ? { type, id, revision: documentReview.revision(item) } : { type, id, feedback: "" });
+        // The refreshed state removes the decided card; a declined confirmation leaves it.
+        window.setTimeout(() => { if (inboxQuickBusy.delete(id)) renderInbox(); }, 20000);
       }
 
       function selectInboxItem(id) { inspectInboxItem(id); }
@@ -8179,7 +8240,7 @@ ${VITAMIN_PLAY_TOKENS}
           return;
         }
         const item = findInboxItem(selectedInboxId);
-        document.querySelector("#inboxDetailStatus").textContent = item ? item.type : "none";
+        document.querySelector("#inboxDetailStatus").textContent = item ? inboxProposalKind(item, inboxDetailCache[item.id]).label : "";
         if (!item) {
           document.querySelector("#inboxDetail").innerHTML = '<p class="summary">Cette proposition n’est plus en attente. Vous pouvez fermer cette fenêtre pour revenir à la liste.</p>';
           return;
@@ -8194,11 +8255,11 @@ ${VITAMIN_PLAY_TOKENS}
         const reviewPath = payload.targetPath || payload.reviewPath;
         const explainer = inboxKindExplainer(payload);
         const metrics = [];
-        if (item.status) metrics.push({ label: "Decision", value: item.status });
-        if (item.createdAt) metrics.push({ label: "Proposed", value: relativeTime(item.createdAt) || item.createdAt, title: item.createdAt });
-        if (item.updatedAt && item.updatedAt !== item.createdAt) metrics.push({ label: "Updated", value: relativeTime(item.updatedAt) || item.updatedAt, title: item.updatedAt });
-        if (typeof payload.primaryEntity === "string" && payload.primaryEntity) metrics.push({ label: "Primary entity", value: inboxEntityRefLabel(payload.primaryEntity) });
-        if (item.productId) metrics.push({ label: "Product", value: item.productId });
+        if (item.status) metrics.push({ label: "Statut", value: { pending: "En attente", accepted: "Validée", rejected: "Refusée", applied: "Appliquée" }[item.status] || item.status });
+        if (item.createdAt) metrics.push({ label: "Proposée", value: relativeTime(item.createdAt) || item.createdAt, title: item.createdAt });
+        if (item.updatedAt && item.updatedAt !== item.createdAt) metrics.push({ label: "Modifiée", value: relativeTime(item.updatedAt) || item.updatedAt, title: item.updatedAt });
+        if (typeof payload.primaryEntity === "string" && payload.primaryEntity) metrics.push({ label: "Entité principale", value: inboxEntityRefLabel(payload.primaryEntity) });
+        if (item.productId) metrics.push({ label: "Produit", value: item.productId });
         if (sourceLabel) metrics.push({ label: "Source", value: sourceLabel });
         if (captureLabel) metrics.push({ label: "Capture", value: captureLabel });
         const metricsHtml = metrics.map((metric) =>
@@ -8209,15 +8270,15 @@ ${VITAMIN_PLAY_TOKENS}
           '<div class="detail-title"><b>' + escapeHtml(item.title) + '</b><span class="badge inbox-kind ' + escapeAttr(kind.className) + '">' + escapeHtml(kind.label) + '</span></div>' +
           (explainer ? '<p class="inbox-explainer">' + escapeHtml(explainer) + '</p>' : '') +
           renderInboxProblems(payload) +
-          '<p class="summary">' + escapeHtml(item.body || "No description.") + '</p>' +
+          (item.body ? '<p class="summary">' + escapeHtml(item.body) + '</p>' : '') +
           '<div class="metrics">' + metricsHtml + '</div>' +
-          (reviewPath ? '<div class="field"><label>' + escapeHtml(payload.targetPath ? "Target path" : "Review path") + '</label><input readonly value="' + escapeAttr(reviewPath) + '"></div>' : '') +
+          (reviewPath ? '<div class="field"><label>' + escapeHtml(payload.targetPath ? "Chemin du document" : "Chemin de relecture") + '</label><input readonly value="' + escapeAttr(reviewPath) + '"></div>' : '') +
           renderInboxProposedContent(item) +
           renderInboxDecision(item) +
           renderInboxDetailEvidence(detail, loading) +
-          '<details class="field"><summary>Technical payload</summary><textarea readonly>' + escapeHtml(JSON.stringify(payload, null, 2)) + '</textarea></details>' +
-          (isPending ? '<div class="field"><label>Correction instructions for the agent</label><textarea id="inboxFeedback" maxlength="2000" placeholder="Explain what is wrong and what the agent should correct before proposing again.">' + escapeHtml(payload.rejectionFeedback?.message || "") + '</textarea></div>' : '') +
-          '<div class="detail-actions"><button class="action" data-side-inspect="' + escapeAttr(item.id) + '">Inspect</button>' + (hasPreviewPatch(item) ? '<button class="action" data-side-preview="' + escapeAttr(item.id) + '">' + escapeHtml(payload.proposalKind === "graph_change" ? "Preview graph" : "Preview patch") + '</button>' : '') + (isPending ? '<button class="action" data-side-accept="' + escapeAttr(item.id) + '">Accept</button><button class="action" data-side-reject="' + escapeAttr(item.id) + '">Reject with instructions</button>' : '') + '</div>' +
+          '<details class="field"><summary>Données techniques</summary><textarea readonly>' + escapeHtml(JSON.stringify(payload, null, 2)) + '</textarea></details>' +
+          (isPending ? '<div class="field"><label>Instructions de correction pour l’agent</label><textarea id="inboxFeedback" maxlength="2000" placeholder="Ce qui ne va pas et ce que l’agent doit corriger avant de reproposer (obligatoire pour refuser un changement du graphe).">' + escapeHtml(payload.rejectionFeedback?.message || "") + '</textarea></div>' : '') +
+          '<div class="detail-actions">' + (hasPreviewPatch(item) ? '<button class="action" data-side-preview="' + escapeAttr(item.id) + '">' + escapeHtml(payload.proposalKind === "graph_change" ? "Prévisualiser le graphe" : "Prévisualiser le changement") + '</button>' : '') + (isPending ? '<button class="action" data-side-reject="' + escapeAttr(item.id) + '">Refuser avec instructions</button><button class="action primary" data-side-accept="' + escapeAttr(item.id) + '">Valider</button>' : '') + '</div>' +
           '</div>';
         document.querySelectorAll("[data-inbox-open]").forEach((button) => button.addEventListener("click", () => vscode?.postMessage({ type: "openFile", path: button.dataset.inboxOpen })));
         document.querySelectorAll("[data-side-inspect]").forEach((button) => button.addEventListener("click", () => inspectInboxItem(button.dataset.sideInspect)));
@@ -8870,30 +8931,30 @@ ${VITAMIN_PLAY_TOKENS}
         const payload = item?.payload || {};
         const proposalKind = String(payload.proposalKind || "");
         const previewAction = String(detail?.preview?.action || item?.previewAction || "");
-        if (proposalKind === "graph_change") return { label: "Graph change", className: "link" };
-        if (proposalKind === "entity_created") return { label: "Entity creation", className: "create" };
-        if (proposalKind === "relation_created") return { label: "Relation creation", className: "link" };
-        if (proposalKind === "organization_link_created") return { label: "Org link creation", className: "link" };
+        if (proposalKind === "graph_change") return { label: "Changement du graphe", className: "link" };
+        if (proposalKind === "entity_created") return { label: "Création d’entité", className: "create" };
+        if (proposalKind === "relation_created") return { label: "Création de lien", className: "link" };
+        if (proposalKind === "organization_link_created") return { label: "Lien d’organisation", className: "link" };
         if (proposalKind === "curation_review") {
           // A run that reported violations did NOT deliver clean knowledge —
           // surface it as a problem, not as a routine memory update.
           const violations = Array.isArray(payload.violations) ? payload.violations : [];
-          if (violations.length > 0) return { label: "Curation needs attention", className: "attention" };
-          return { label: "Existing memory update", className: "update" };
+          if (violations.length > 0) return { label: "Curation à corriger", className: "attention" };
+          return { label: "Mise à jour de la mémoire", className: "update" };
         }
-        if (proposalKind === "wiki_lint") return { label: "Wiki maintenance", className: "update" };
-        if (proposalKind === "wiki_write_review") return { label: "Wiki write proposal", className: "update" };
+        if (proposalKind === "wiki_lint") return { label: "Entretien du wiki", className: "update" };
+        if (proposalKind === "wiki_write_review") return { label: "Page wiki à valider", className: "update" };
         if (proposalKind === "markdown_document_review") return { label: "Document à valider", className: "update" };
-        if (proposalKind === "external_wiki_change") return { label: "External wiki change", className: "update" };
-        if (previewAction === "create") return { label: "Page creation", className: "create" };
-        if (previewAction === "replace") return { label: "Existing page replacement", className: "update" };
-        if (previewAction === "append") return { label: "Existing page update", className: "update" };
-        if (typeof payload.targetPath === "string" && payload.targetPath.length > 0) return { label: "Page proposal", className: "" };
-        if (item?.type === "task") return { label: "Task proposal", className: "" };
-        if (item?.type === "open_question") return { label: "Question proposal", className: "" };
-        if (item?.type === "risk") return { label: "Risk proposal", className: "" };
-        if (item?.type === "decision_candidate") return { label: "Decision proposal", className: "" };
-        return { label: "Review proposal", className: "" };
+        if (proposalKind === "external_wiki_change") return { label: "Changement externe du wiki", className: "update" };
+        if (previewAction === "create") return { label: "Nouvelle page", className: "create" };
+        if (previewAction === "replace") return { label: "Page remplacée", className: "update" };
+        if (previewAction === "append") return { label: "Page complétée", className: "update" };
+        if (typeof payload.targetPath === "string" && payload.targetPath.length > 0) return { label: "Proposition de page", className: "" };
+        if (item?.type === "task") return { label: "Tâche proposée", className: "" };
+        if (item?.type === "open_question") return { label: "Question proposée", className: "" };
+        if (item?.type === "risk") return { label: "Risque proposé", className: "" };
+        if (item?.type === "decision_candidate") return { label: "Décision proposée", className: "" };
+        return { label: "Proposition", className: "" };
       }
 
       function inboxCaptureLabel(item) {
@@ -9155,6 +9216,7 @@ ${VITAMIN_PLAY_TOKENS}
             (relatedSummary ? '<span>related: ' + escapeHtml(relatedSummary) + '</span>' : '') +
             (capture.error ? '<span>ingestion error: ' + escapeHtml(capture.error) + '</span>' : '') +
             (capture.curationStatus === "failed" && capture.curationSummary ? '<span class="failure-detail">Curation failed: ' + escapeHtml(capture.curationSummary) + '</span>' : '') +
+            ((capture.curationStatus || "pending") === "pending" && capture.curationSummary ? '<span class="pending-detail">' + escapeHtml(capture.curationSummary) + '</span>' : '') +
             '<div class="proposal-actions"><span class="badge ingestion-' + escapeAttr(capture.ingestionStatus || "not_ingested") + '">' + escapeHtml(capture.ingestionStatus || "not_ingested") + '</span>' +
             '<span class="badge curation-' + escapeAttr(capture.curationStatus || "pending") + '" title="Agent curation status of this capture">curation: ' + escapeHtml(capture.curationStatus || "pending") + '</span>' +
             '<span class="badge">' + escapeHtml(capture.status || "captured") + '</span>' +

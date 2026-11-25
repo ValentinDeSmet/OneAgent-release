@@ -156,7 +156,7 @@ function vitaminPlayEnhancerClient(config) {
   const labelIcons = config.labelIcons.map(([source, flags, name]) => [new RegExp(source, flags), name]);
   const VP = /(^|\s)vp-[a-z]/;
   const TABLISTS = '[role="tablist"], .scope-tabs, .memory-view-tabs, .view-tabs';
-  const skipButton = /(^|\s)(graph-menu-item|menu-option|note-card|help-guide|task-link-option|tax-swatch|visibility-cause|md-internal|md-external|chip-x|filter-toggle-caret|filter-section-state|ep-reldel|graph-search-reveal|today-alignment-chip|graph-visibility-chip|graph-context-close|sheet-pill|memory-view-item|filter-link|filter-preset|type-chip-main|type-chip-more|filter-back|filter-open-values|view-action|memory-filter-toggle|ec-ent|ec-linkish|ec-menu-item|lk-rel|lk-ent|lk-kind|lk-result|lk-relchip|lk-del)(\s|$)/;
+  const skipButton = /(^|\s)(graph-menu-item|menu-option|note-card|help-guide|task-link-option|tax-swatch|visibility-cause|md-internal|md-external|chip-x|filter-toggle-caret|filter-section-state|ep-reldel|graph-search-reveal|today-alignment-chip|graph-visibility-chip|graph-context-close|sheet-pill|memory-view-item|filter-link|filter-preset|type-chip-main|type-chip-more|filter-back|filter-open-values|view-action|memory-filter-toggle|ec-ent|ec-linkish|ec-menu-item|lk-rel|lk-ent|lk-kind|lk-result|lk-relchip|lk-del|ib-open)(\s|$)/;
   const linkButton = /(^|\s)(ep-linkish)(\s|$)/;
   const sectionToggle = /(^|\s)(filter-section-toggle|task-link-section-toggle)(\s|$)/;
   const stickerHost = /(^|\s)(badge|chip|pill|tag|status-pill|kind-pill)(\s|$)/;
@@ -172,10 +172,10 @@ function vitaminPlayEnhancerClient(config) {
 
   function stickerVariant(el) {
     const text = (el.className + " " + (el.textContent || "")).toLowerCase();
-    if (/critical|high|fail|error|danger|blocked|overdue|risk|reject|negative|stale/.test(text)) return "negative";
-    if (/medium|pending|warn|waiting|soon|clarify|draft|at_risk|partial/.test(text)) return "warning";
-    if (/done|curated|success|accepted|achieved|positive|healthy|\bok\b/.test(text)) return "positive";
-    if (/agent|curating|in_progress|in progress|info|active|ready|open/.test(text)) return "info";
+    if (/critical|high|fail|error|danger|blocked|overdue|risk|reject|negative|stale|attention|corriger/.test(text)) return "negative";
+    if (/medium|pending|warn|waiting|soon|clarify|draft|at_risk|partial|\bupdate\b/.test(text)) return "warning";
+    if (/done|curated|success|accepted|achieved|positive|healthy|\bok\b|\bcreate\b/.test(text)) return "positive";
+    if (/agent|curating|in_progress|in progress|info|active|ready|open|\blink\b/.test(text)) return "info";
     return "neutral";
   }
 

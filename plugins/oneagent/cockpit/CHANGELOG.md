@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.160
+
+- Copilot 0.6.37 : dans l'application Copilot, « Curate » sur une capture confie la curation à l'agent de la conversation (un message est envoyé dans le chat) au lieu de la remettre silencieusement en attente ; la carte l'indique. Le badge « N to curate » envoie une seule demande pour toutes les captures en attente.
+- Inbox refondue : chaque proposition montre son type en clair et en couleur, son titre, un résumé, la date et le document concerné. Valider ou refuser directement depuis la liste (la publication d'un document et l'application d'un changement du graphe restent confirmées) ; un changement du graphe ne se refuse qu'avec un motif ; une curation bloquée s'écarte d'un clic.
+- Relecture d'une proposition en français, sans l'en-tête YAML du document, avec « Valider » et « Refuser avec instructions ».
+
 ## 0.1.159
 
 - Copilot 0.6.36 et VS Code 0.1.159 : fiche d'entité — une fiche longue défile de nouveau jusqu'à ses boutons, et la croix la ferme même quand un lien est en cours de saisie (l'avertissement des vraies modifications reste visible).

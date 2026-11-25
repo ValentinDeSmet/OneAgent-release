@@ -30,7 +30,7 @@ const session = joinSession({ tools: [reloadTool(reload)], canvases: [createCanv
     releases.set(ctx.instanceId, handoff.register(ctx));
     let entry = instances.get(ctx.instanceId);
     if (!entry) {
-      entry = startCockpitServer({ connection, updates, manageUpdate: () => reload.install(), retryUpdate: () => reload.request(), openFile: (file) => openFile(ctx.extensionId, file), callOnboarding: (name, input) => callSetupTool(connection, name, input) });
+      entry = startCockpitServer({ connection, updates, manageUpdate: () => reload.install(), retryUpdate: () => reload.request(), openFile: (file) => openFile(ctx.extensionId, file), askAgent: async (prompt) => (await joined).send({ prompt }), callOnboarding: (name, input) => callSetupTool(connection, name, input) });
       instances.set(ctx.instanceId, entry); entry.catch(() => instances.delete(ctx.instanceId));
     }
     return { title: "OneAgent · Cockpit", url: (await entry).url };

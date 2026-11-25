@@ -2165,7 +2165,7 @@ async function curatePendingCaptures(cli) {
     await vscode.window.showInformationMessage("OneAgent: the curation queue is empty.");
     return;
   }
-  let curated = 0;
+  let curated = 0, handedOff = false;
   await vscode.window.withProgress(
     { location: vscode.ProgressLocation.Notification, title: "OneAgent: curating pending captures" },
     async (progress) => {
@@ -2174,12 +2174,21 @@ async function curatePendingCaptures(cli) {
         const result = await curateCaptureWithAgent(cli, item.id);
         if (result.ok) {
           curated += 1;
+        } else if (result.unavailable) {
+          // No runtime of its own here: one request to the chat agent for the whole queue.
+          handedOff = await handOffCurationToChat(cli, queue.slice(index).map((entry) => entry.id));
+          if (handedOff) break;
+          cli.output.appendLine(`Backfill: curation pending for ${item.id}: ${result.reason}`);
         } else {
           cli.output.appendLine(`Backfill: curation failed for ${item.id}: ${result.reason}`);
         }
       }
     }
   );
+  if (handedOff) {
+    await vscode.window.showInformationMessage(`OneAgent : curation de ${queue.length - curated} capture(s) confiée à l’agent du chat. Suis-la dans la conversation.`);
+    return;
+  }
   await vscode.window.showInformationMessage(
     `OneAgent: curated ${curated}/${queue.length} queued capture(s).${curated < queue.length ? " See the OneAgent output channel for failures." : ""}`
   );
@@ -4625,14 +4634,48 @@ async function maybeCurateCapture(cli, webview, captureId) {
   await runCuration(cli, webview, captureId);
 }
 
+/**
+ * Copilot application: plugins cannot start their own model runtime, but they
+ * can write to the conversation they run in. Curation is then handed to that
+ * chat agent, which curates with the OneAgent tools and presents the
+ * observations for review. Returns false when this host has no chat to ask.
+ */
+async function handOffCurationToChat(cli, captureIds) {
+  if (typeof vscode.oneagentAskAgent !== "function" || !captureIds.length) return false;
+  let queue = [];
+  try { queue = await cli.json(["curation", "queue", "--json"]) || []; } catch { queue = []; }
+  const title = (id) => queue.find((item) => item.id === id)?.title;
+  const list = captureIds.map((id) => "- " + (title(id) ? "« " + title(id) + " » " : "") + "(" + id + ")").join("\n");
+  const prompt = (captureIds.length === 1
+    ? "Cure la capture OneAgent suivante"
+    : "Cure ces " + captureIds.length + " captures OneAgent en attente, une par une") +
+    " avec les outils OneAgent (oneagent_list_curation_queue, oneagent_read_note, oneagent_resolve_entities, oneagent_propose_observation, oneagent_finish_curation), puis présente-moi les observations proposées pour que je les valide :\n" + list;
+  try {
+    await vscode.oneagentAskAgent(prompt);
+  } catch (error) {
+    cli.output?.appendLine?.(`Curation hand-off to the chat failed: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+  for (const id of captureIds) {
+    try { await cli.run(["capture", "curate", id, "--status", "pending", "--summary", "Confiée à l’agent de la conversation : suis la curation dans le chat.", "--context-scope", "active"]); }
+    catch (error) { cli.output?.appendLine?.(`Curation: failed to mark ${id} as handed to the chat: ${error instanceof Error ? error.message : String(error)}`); }
+  }
+  return true;
+}
+
 async function runCuration(cli, webview, captureId) {
   await postOperation(webview, "running", `Copilot is extracting sourced observations from ${captureId}...`);
   const result = await curateCaptureWithAgent(cli, captureId);
   if (result.ok) {
     await postOperation(webview, "success", `Observation package prepared for ${captureId} (${(result.toolsUsed || []).length} tool calls). Review it in Inbox.`);
   } else if (result.unavailable) {
-    // Not an error of the capture: this host has no separate model runtime (Copilot application).
-    await postOperation(webview, "success", `Capture ${captureId} indexée et en attente de curation. ${result.reason}`);
+    // Not an error of the capture: this host has no separate model runtime
+    // (Copilot application). Its chat agent curates instead.
+    if (await handOffCurationToChat(cli, [captureId])) {
+      await postOperation(webview, "success", `Curation de ${captureId} confiée à l’agent du chat : suis-la dans la conversation, il te présentera les observations à valider.`);
+    } else {
+      await postOperation(webview, "success", `Capture ${captureId} indexée et en attente de curation. ${result.reason}`);
+    }
   } else {
     const message = `Curation failed for ${captureId}: ${result.reason}`;
     cli.output.appendLine(`${message} (${result.attempts || 0} attempt(s), ${(result.toolsUsed || []).length} tool call(s)).`);

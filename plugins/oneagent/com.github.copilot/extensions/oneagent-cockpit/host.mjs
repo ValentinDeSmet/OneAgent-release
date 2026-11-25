@@ -16,7 +16,7 @@ const { runMemoryTextCommand } = await import(pathToFileURL(path.join(pluginRoot
 const digest = (value) => createHash("sha256").update(value).digest("hex");
 
 /** One UI instance, one injected host. No VS Code module or real workspace activation. */
-export function createCockpitHost({ connection, updates, emit, runAgentLoop, openFile, manageUpdate, draftCareer = runCareerDraft, runCommand = runMemoryTextCommand }) {
+export function createCockpitHost({ connection, updates, emit, runAgentLoop, openFile, manageUpdate, askAgent, draftCareer = runCareerDraft, runCommand = runMemoryTextCommand }) {
   const tracked = (operation) => updates.run ? updates.run(operation) : operation();
   const pending = new Map(), tools = new Map(), draftRequests = new Set();
   let closed = false, cli, controller;
@@ -141,6 +141,9 @@ export function createCockpitHost({ connection, updates, emit, runAgentLoop, ope
     LanguageModelToolResult: class { constructor(content) { this.content = content; } },
     MarkdownString: class { constructor(value) { this.value = value; } },
     oneagentCareerDraft: prompt => draftCareer(prompt, state["setting.agentModel"]),
+    // Sends a request to the conversation the plugin runs in (the chat the user
+    // sees), so its agent can do what this host cannot run on its own.
+    ...(askAgent ? { oneagentAskAgent: (prompt) => { updates.assertSessionCurrent(); return askAgent(prompt); } } : {}),
     oneagentAgentLoop: (request) => runAgentLoop({ ...request, model: state["setting.agentModel"], invoke: async (name, args) => {
       updates.assertSessionCurrent(); connection.requireConfig();
       const registered = tools.get(name);

@@ -89,7 +89,7 @@ function createDocumentReview({ postMessage, render, format, escape, schedule = 
 }
 
 function documentReviewBootstrap() {
-  return 'const documentReview = (' + createDocumentReview.toString() + ')({ postMessage: (message) => vscode?.postMessage(message), render: renderInboxDetail, format: mdToHtml, escape: escapeHtml });';
+  return 'const documentReview = (' + createDocumentReview.toString() + ')({ postMessage: (message) => vscode?.postMessage(message), render: renderInboxDetail, format: (content) => mdToHtml(cardDocBody(content)), escape: escapeHtml });';
 }
 
 module.exports = { createDocumentReview, documentReviewBootstrap };
