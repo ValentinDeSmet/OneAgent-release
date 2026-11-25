@@ -31,6 +31,35 @@ type ou entité liée. Le bouton **Markdown** ouvre directement la page locale.
 La liste reste complète même lorsque le graphe limite ses nœuds visibles.
 Voir les [vues enregistrées de la mémoire](graph-views.md).
 
+### Combiner des critères dans la recherche
+
+La même barre de recherche sert au tableau et au graphe. Un mot seul cherche
+dans le nom, les alias, la description, les tags et la chaîne des parents :
+`bcp` trouve aussi les équipes et projets rangés sous BCP. Les critères se
+combinent, et un résultat doit tous les respecter :
+
+| Critère | Garde |
+|---|---|
+| `tag:bcp` | les entités dont un tag contient « bcp » |
+| `type:personne` | un type d'entité (équipe, projet, personne, tâche…) |
+| `équipe:1FF`, `projet:"Refonte checkout"`, `domaine:BCP`… | le périmètre de cette entité |
+| `dans:X` | le périmètre de n'importe quelle entité nommée X |
+| `source:"Organigramme BCP"` | ce qui vient de ce document ou y est lié |
+
+Une virgule veut dire « l'un ou l'autre » (`équipe:1FF,2FF`), un `-` exclut
+(`-type:tâche`), les guillemets gardent les espaces. Exemple :
+`type:personne tag:bcp équipe:1FF`.
+
+Le **périmètre** d'une entité, c'est tout ce qui est rangé sous elle, à toute
+profondeur (contient, fait partie de, possède, rattaché à, parent), puis ce qui
+est directement relié à cet ensemble : personnes, décisions, risques, tâches.
+Dans le graphe, un clic droit sur un nœud propose **Afficher le périmètre**,
+et sur une capture **Afficher ce qui vient de ce document**.
+
+Pendant la saisie, la barre propose les tags, types, entités et documents
+existants. **Épingler dans la vue** garde la recherche comme filtre de la vue
+enregistrée ; elle apparaît en pastille « Recherche » et se retire d'un clic.
+
 ## Work with the graph
 
 1. Open **Memory graph**.

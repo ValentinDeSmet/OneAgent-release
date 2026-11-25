@@ -1,6 +1,6 @@
 {
   "name": "@work-memory/mcp-server",
-  "version": "0.6.33",
+  "version": "0.6.34",
   "private": true,
   "type": "module",
   "exports": {

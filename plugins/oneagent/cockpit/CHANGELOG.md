@@ -1,6 +1,14 @@
 # Changelog
 
+## 0.1.157
+
+- Copilot 0.6.34 et VS Code 0.1.157 : recherche combinée dans la mémoire, pour le tableau comme pour le graphe. Un mot seul cherche aussi dans les tags, les alias, la description et la chaîne des parents (`bcp` trouve tout ce qui est rangé sous BCP). Les critères se combinent et doivent tous être respectés : `tag:`, `type:`, `équipe:`, `projet:`, `domaine:`, `dans:` (n'importe quelle entité), `source:` (ce qui vient d'un document) ; `,` pour « l'un ou l'autre », `-` pour exclure. La barre propose les tags, types, entités et documents existants.
+- Périmètre d'une entité : tout ce qui est rangé sous elle à toute profondeur, puis ce qui y est directement relié (personnes, décisions, tâches…). Clic droit sur un nœud : **Afficher le périmètre** ; sur une capture : **Afficher ce qui vient de ce document**.
+- **Épingler dans la vue** garde une recherche comme filtre d'une vue enregistrée, pour retrouver un périmètre en un clic.
+
 ## 0.1.156
+
+- Graphe : les nœuds se sélectionnent et se déplacent de nouveau ; des fenêtres fermées (détail, revue Inbox) restaient invisibles au-dessus du graphe et captaient les clics.
 
 - Copilot 0.6.33 : validation des observations dans la conversation. Après une curation, l'agent présente ses propositions (extrait exact, entité, date) et applique ta décision : accepter, refuser ou corriger puis accepter (`oneagent_review_observation`, `oneagent_list_observations`). Il ne décide jamais seul ; ce qui n'est pas tranché reste dans l'Inbox, qui devient le reste à traiter et l'historique. Le bilan de santé compte les propositions en attente.
 - Copilot 0.6.33 : « Reingest » sur une capture affiche « indexée et en attente de curation » au lieu d'une erreur quand la curation automatique n'est pas disponible dans l'application Copilot ; la capture quitte l'état d'échec.

@@ -9,7 +9,7 @@ function createMemoryExplorer(api, createMemoryTable) {
     createdAt: { label: 'Création', width: 150 }, status: { label: 'Statut', field: 'statuses', width: 150 },
     location: { label: 'Emplacement / source', width: 280 }, open: { label: 'Ouvrir', width: 230 }
   };
-  const defaults = () => ({ layout: 'list', types: [], refs: [], statuses: [], sort: 'title', direction: 'asc', group: 'none', columns: ['kind', 'labels', 'updatedAt'], columnOrder: Object.keys(columns), widths: {}, titleQuery: '', locationQuery: '', createdAtFrom: '', createdAtTo: '', updatedAtFrom: '', updatedAtTo: '' });
+  const defaults = () => ({ layout: 'list', types: [], refs: [], statuses: [], sort: 'title', direction: 'asc', group: 'none', columns: ['kind', 'labels', 'updatedAt'], columnOrder: Object.keys(columns), widths: {}, titleQuery: '', locationQuery: '', query: '', createdAtFrom: '', createdAtTo: '', updatedAtFrom: '', updatedAtTo: '' });
   const sanitize = value => {
     const v = value && typeof value === 'object' ? value : {}, clean = defaults();
     // Missing layout in a saved legacy view means graph; the global view is explicitly a table.
@@ -20,7 +20,7 @@ function createMemoryExplorer(api, createMemoryTable) {
     clean.columns = Array.isArray(v.columns) ? [...new Set(v.columns.filter(key => columns[key] && !['title', 'open'].includes(key)))] : clean.columns;
     clean.columnOrder = [...new Set([...(Array.isArray(v.columnOrder) ? v.columnOrder.filter(key => columns[key]) : []), ...Object.keys(columns)])];
     for (const key of Object.keys(columns)) if (Number.isFinite(v.widths?.[key])) clean.widths[key] = Math.max(100, Math.min(900, Math.round(v.widths[key])));
-    for (const key of ['titleQuery', 'locationQuery']) clean[key] = typeof v[key] === 'string' ? v[key].slice(0, 2000) : '';
+    for (const key of ['titleQuery', 'locationQuery', 'query']) clean[key] = typeof v[key] === 'string' ? v[key].slice(0, 2000) : '';
     for (const key of ['createdAtFrom', 'createdAtTo', 'updatedAtFrom', 'updatedAtTo']) clean[key] = /^\d{4}-\d{2}-\d{2}$/.test(v[key]) && Number.isFinite(Date.parse(v[key])) ? v[key] : '';
     // A filtered column must be visible so its active filter can always be found.
     for (const [key, column] of Object.entries(columns)) if ((column.field && clean[column.field].length) || clean[key + 'Query'] || clean[key + 'From'] || clean[key + 'To']) if (!['title','open'].includes(key) && !clean.columns.includes(key)) clean.columns.push(key);
@@ -29,7 +29,7 @@ function createMemoryExplorer(api, createMemoryTable) {
   };
   let config = defaults(), facetCount = 100, newViewMode;
   let cachedIndex, cachedGraph, cachedEntries, entryById = new Map();
-  const names = { markdown: 'Markdown', google_sheet: 'Google Sheets', google_doc: 'Google Docs', linked_document: 'Document lié', source: 'Source', note: 'Note', task: 'Tâche', product: 'Produit', team: 'Équipe', person: 'Personne', feature: 'Fonctionnalité', feature_request: 'Demande', project: 'Projet', repository: 'Dépôt', decision: 'Décision', question: 'Question', risk: 'Risque' };
+  const names = { markdown: 'Markdown', google_sheet: 'Google Sheets', google_doc: 'Google Docs', linked_document: 'Document lié', source: 'Source', note: 'Note', task: 'Tâche', product: 'Produit', team: 'Équipe', person: 'Personne', feature: 'Fonctionnalité', feature_request: 'Demande', project: 'Projet', repository: 'Dépôt', decision: 'Décision', question: 'Question', risk: 'Risque', domain: 'Domaine', subdomain: 'Sous-domaine', initiative: 'Initiative', discovery: 'Discovery', practice: 'Pratique', mission: 'Mission', okr: 'OKR', kpi: 'KPI', insight: 'Insight', capture: 'Capture' };
   const label = kind => names[kind] || api.typeLabel(kind) || kind.replace(/_/g, ' ');
   const filterInput = $('#filter');
   const topbar = $('.topbar'), stage = $('[data-panel="map"]'), content = $('.content');
@@ -43,7 +43,7 @@ function createMemoryExplorer(api, createMemoryTable) {
   for (const [id, name] of Object.entries(actionNames)) { const button = $('#'+id); button.textContent = name; button.title = name; }
   const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'control'; cancel.id = 'memoryCancelChanges'; cancel.textContent = 'Rétablir la vue'; cancel.addEventListener('click', () => { api.restoreView(); closeMenus(); }); preset.append(cancel);
   $('.memory-search-slot', head).append($('.graph-search', oldTools));
-  $('#filter').placeholder = 'Rechercher un titre, une entité, un fichier ou un lien…'; $('#filter').setAttribute('aria-label', 'Rechercher dans la mémoire');
+  $('#filter').placeholder = 'Rechercher, ou combiner : tag:bcp équipe:1FF type:personne…'; $('#filter').setAttribute('aria-label', 'Rechercher dans la mémoire');
   const contextControls = $('[aria-label="Graph interaction mode"]', oldToolbar);
   $('.memory-view-actions', head).append(contextControls);
   $('[data-graph-select="navigate"]').textContent = 'Explorer'; $('[data-graph-select="context"]').textContent = 'Contexte';
@@ -58,7 +58,7 @@ function createMemoryExplorer(api, createMemoryTable) {
   $('#memoryResetAll').addEventListener('click', api.reset);
   $('#memoryResetFilters').addEventListener('click', () => {
     for (const field of ['types', 'refs', 'statuses']) config[field] = [];
-    for (const field of ['titleQuery', 'locationQuery', 'createdAtFrom', 'createdAtTo', 'updatedAtFrom', 'updatedAtTo']) config[field] = '';
+    for (const field of ['titleQuery', 'locationQuery', 'query', 'createdAtFrom', 'createdAtTo', 'updatedAtFrom', 'updatedAtTo']) config[field] = '';
     changed();
   });
   $('#memoryGraphFilters').addEventListener('click', () => { closeMenus(); api.graphFilters(); });
@@ -138,11 +138,18 @@ function createMemoryExplorer(api, createMemoryTable) {
     if (key === 'status') return statusLabels[entry.status] || entry.status || '';
     return entry[key] || '';
   }
-  function matches(entry, omit) {
-    const query = normalize(filterInput.value).split(/\s+/).filter(Boolean);
+  // Free words and criteria (tag:, type:, équipe:, source:…), see memory-query.js.
+  function queryIndex() { return api.query.index(api.state(), api.entityRef); }
+  function parseQuery(text) { return api.query.parse(text, queryIndex().kinds); }
+  function matchesText(entry, text) {
+    const query = parseQuery(text);
+    if (query.empty) return true;
     const haystack = normalize([entry.title, entry.description, entry.kind, columnValue(entry,'kind'), ...(entry.labels || []), ...(entry.refs || []), entry.file, entry.url, entry.searchText].filter(Boolean).join(' '));
+    return api.query.matches(query, entry, haystack, queryIndex(), label);
+  }
+  function matches(entry, omit) {
     const values = { types: entry.kinds || [entry.kind], refs: entry.refs.length ? entry.refs : ['__none__'], statuses: [entry.status || '__none__'] };
-    if (!query.every(word => haystack.includes(word))) return false;
+    if (!matchesText(entry, filterInput.value) || (omit !== 'query' && !matchesText(entry, config.query))) return false;
     for (const field of Object.keys(values)) if (omit !== field && config[field].length && !config[field].some(value => values[field].includes(value))) return false;
     for (const key of ['title', 'location']) if (omit !== key && !normalize(columnValue(entry,key)).includes(normalize(config[key+'Query']))) return false;
     for (const key of ['createdAt', 'updatedAt']) {
@@ -153,6 +160,10 @@ function createMemoryExplorer(api, createMemoryTable) {
       if ((from || to) && (!date || (from && date < from) || (to && date > to))) return false;
     }
     return true;
+  }
+  function nodeEntry(node) {
+    const ref = api.entityRef(node); entries();
+    return entryById.get(ref ? 'entity:'+ref : node.id) || { id: node.id, category: ref ? 'graph' : 'node', detailRef: ref, kind: node.type, refs: ref ? [ref] : [], labels: [], title: node.label, description: node.meta?.description || '' };
   }
   function filterOptions(field) {
     const counts = new Map(), all = entries();
@@ -195,11 +206,16 @@ function createMemoryExplorer(api, createMemoryTable) {
     $('#memoryResetAll').hidden = !api.views().activeId;
     $('#memoryFilterCount').textContent = config.types.length + config.refs.length || '';
     $('#memoryFilterChips').innerHTML = '';
+    const queryChip = config.query ? '<button type="button" class="memory-chip" data-field="query" data-value="'+esc(config.query)+'" title="Recherche enregistrée dans la vue">Recherche : '+esc(config.query)+' ×</button>' : '';
+    if (isTable && queryChip) {
+      $('#memoryFilterChips').innerHTML = queryChip;
+      $('#memoryFilterChips button').addEventListener('click', () => { config.query = ''; changed(); });
+    }
     if (!isTable) {
       const chips = [...config.types.map(value => ['types',value,label(value)]), ...config.refs.map(value => ['refs',value,filterOptions('refs').find(item => item.value === value)?.label || value])];
       chips.push(...config.statuses.map(value => ['statuses',value,statusLabels[value] || value]));
       for (const [field,title] of [['titleQuery','Titre'],['locationQuery','Emplacement'],['createdAtFrom','Création depuis'],['createdAtTo','Création jusqu’au'],['updatedAtFrom','Modification depuis'],['updatedAtTo','Modification jusqu’au']]) if (config[field]) chips.push([field,config[field],title+' : '+config[field]]);
-      $('#memoryFilterChips').innerHTML = chips.map(([field,value,title]) => '<button type="button" class="memory-chip" data-field="'+field+'" data-value="'+esc(value)+'">'+esc(title)+' ×</button>').join('');
+      $('#memoryFilterChips').innerHTML = queryChip + chips.map(([field,value,title]) => '<button type="button" class="memory-chip" data-field="'+field+'" data-value="'+esc(value)+'">'+esc(title)+' ×</button>').join('');
       $('#memoryFilterChips').querySelectorAll('button').forEach(button => button.addEventListener('click', () => { const field = button.dataset.field; config[field] = Array.isArray(config[field]) ? config[field].filter(value => value !== button.dataset.value) : ''; changed(); }));
       facets(); table.closeMenu();
     }
@@ -215,7 +231,16 @@ function createMemoryExplorer(api, createMemoryTable) {
   return { render, refreshViews, sanitize, createView, defaults, snapshot: () => sanitize(config), apply(value) { config=sanitize(value);table.reset(); },
     setActive(active) { content.classList.toggle('memory-active',active); if (!active) {  table.closeMenu(); } },
     isList: () => config.layout === 'list',
-    matchesNode(node) { const ref=api.entityRef(node); entries(); const entry=entryById.get(ref ? 'entity:'+ref : node.id) || { kind: node.type, refs: [], title: node.label }; return matches(entry); }
+    matchesNode(node) { return matches(nodeEntry(node)); },
+    /** Only the search typed in the bar, for the graph search results. */
+    matchesSearch(node, text) { return matchesText(nodeEntry(node), text); },
+    parseSearch: text => parseQuery(text),
+    describeSearch: text => api.query.describe(parseQuery(text), label),
+    suggestSearch: text => api.query.suggest(text, queryIndex(), label),
+    perimeterSearch: (kind, title) => api.query.perimeterQuery(kind, title),
+    /** Keeps a search in the view as a filter, combined with an existing one. */
+    pinSearch(text) { const value = String(text || '').trim(); if (!value) return; config.query = [config.query, value].filter(Boolean).join(' ').slice(0, 2000); changed(); },
+    pinnedSearch: () => config.query
   };
 }
 module.exports = { createMemoryExplorer };

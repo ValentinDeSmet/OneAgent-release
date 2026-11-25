@@ -2,6 +2,7 @@ const { createCareerPage } = require("./career-page.js");
 const { createTableColumns } = require("./table-columns.js");
 const { createMemoryTable } = require("./memory-table.js");
 const { createMemoryExplorer } = require("./memory-explorer.js");
+const { createMemoryQuery } = require("./memory-query.js");
 const memoryExplorerCss = ["memory-explorer.css", "table-view.css"].map(name => require("node:fs").readFileSync(require("node:path").join(__dirname, name), "utf8")).join("\n");
 const { prioritiesBootstrap } = require("./priorities-view.js");
 const { documentReviewBootstrap } = require("./inbox-documents.js");
@@ -106,6 +107,15 @@ ${VITAMIN_PLAY_TOKENS}
       }
       .graph-search-results[hidden] { display: none; }
       .graph-search-empty { padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-xs); color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .graph-search-head { display: grid; gap: var(--vp-semantic-spacing-2xs); padding: var(--vp-semantic-spacing-xs); border-bottom: 1px solid var(--border); }
+      .graph-search-criteria { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-3xs); }
+      .graph-search-criterion { padding: 1px var(--vp-semantic-spacing-xs); border: 1px solid var(--accent-soft-border); border-radius: var(--vp-semantic-border-radius-full); background: var(--accent-soft-bg); color: var(--text); font-size: var(--vp-typography-caption-font-size); }
+      .graph-search-criterion.negate { border-color: var(--border-strong); background: var(--negative-soft-bg); }
+      .graph-search-summary { display: flex; align-items: center; justify-content: space-between; gap: var(--vp-semantic-spacing-xs); color: var(--muted); }
+      .graph-search-pin { height: 24px; padding: 0 var(--vp-semantic-spacing-xs); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-main); background: var(--surface-2); color: var(--text); font-size: var(--vp-typography-caption-font-size); cursor: pointer; }
+      .graph-search-suggestions { border-bottom: 1px solid var(--border); }
+      .graph-search-hint { padding: var(--vp-semantic-spacing-xs); border-top: 1px solid var(--border); color: var(--muted); font-size: var(--vp-typography-caption-font-size); line-height: 1.6; }
+      .graph-search-hint code { padding: 0 3px; border-radius: 3px; background: var(--surface-2); font-size: inherit; }
       .graph-search-row {
         display: flex;
         align-items: center;
@@ -2539,20 +2549,39 @@ ${VITAMIN_PLAY_TOKENS}
         renderGraphFilterSurfaces();
       }
 
+      // Shows a whole search in the graph (perimeter, document): the full map,
+      // no focus depth, the search in the bar with its pin action.
+      function showGraphSearch(text) {
+        const input = document.querySelector("#filter");
+        if (!input) return;
+        if (focusedNodeId || graphPerspective !== "map" || graphDepth) {
+          focusedNodeId = undefined;
+          setGraphPerspective("map");
+          graphDepth = 0;
+          renderGraphFilterPanel();
+        }
+        input.value = text;
+        renderGraph();
+        input.focus();
+        renderGraphSearchResults();
+      }
+
       function renderGraphSearchResults() {
         if (memoryExplorer?.isList()) return;
         const container = document.querySelector("#graphSearchResults");
         const input = document.querySelector("#filter");
         if (!container || !input) return;
-        const query = input.value.trim().toLowerCase();
+        const text = input.value;
         const onGraphView = document.querySelector(".topbar")?.classList.contains("map-active");
-        if (!query || !onGraphView) {
+        if (!text.trim() || !onGraphView) {
           container.hidden = true;
           container.innerHTML = "";
           return;
         }
-        const matches = (state.graph.nodes || [])
-          .filter((node) => (node.label || "").toLowerCase().includes(query) || graphViewType(node).includes(query))
+        const search = memoryExplorer.parseSearch(text);
+        const structured = search.criteria.length > 0;
+        const all = search.empty ? [] : (state.graph.nodes || []).filter((node) => memoryExplorer.matchesSearch(node, text));
+        const matches = all
           .sort((left, right) => {
             const leftHidden = hiddenReasonForNode(left.id) ? 1 : 0;
             const rightHidden = hiddenReasonForNode(right.id) ? 1 : 0;
@@ -2560,12 +2589,18 @@ ${VITAMIN_PLAY_TOKENS}
             return (left.label || "").localeCompare(right.label || "");
           })
           .slice(0, 12);
-        if (!matches.length) {
-          container.innerHTML = '<div class="graph-search-empty">No node matches</div>';
-          container.hidden = false;
-          return;
-        }
-        container.innerHTML = matches.map((node) => {
+        const suggestions = memoryExplorer.suggestSearch(text);
+        const suggestionHtml = suggestions.length
+          ? '<div class="graph-search-suggestions" role="listbox" aria-label="Compléter la recherche">' + suggestions.map((item, index) =>
+            '<div class="graph-search-row graph-search-suggestion" role="option" tabindex="0" data-search-suggestion="' + index + '"><span class="graph-search-label">' + escapeHtml(item.label) + '</span><small>' + escapeHtml(item.hint || "") + '</small></div>').join("") + '</div>'
+          : "";
+        const chips = memoryExplorer.describeSearch(text);
+        const headHtml = !search.empty
+          ? '<div class="graph-search-head"><div class="graph-search-criteria">' + chips.map((chip) => '<span class="graph-search-criterion' + (chip.negate ? " negate" : "") + '">' + (chip.negate ? "Sauf " : "") + escapeHtml(chip.text) + '</span>').join("") + '</div>' +
+            '<div class="graph-search-summary"><small>' + all.length + (all.length > 1 ? " nœuds" : " nœud") + '</small><button type="button" class="graph-search-pin" data-search-pin title="Garder cette recherche comme filtre de la vue">Épingler dans la vue</button></div></div>'
+          : "";
+        const hint = '<div class="graph-search-hint">Combiner : <code>tag:</code> <code>type:</code> <code>équipe:</code> <code>projet:</code> <code>source:</code> · <code>-</code> pour exclure · <code>,</code> pour « ou »</div>';
+        const rowsHtml = matches.length ? matches.map((node) => {
           const reason = hiddenReasonForNode(node.id);
           const dot = '<i class="dot" style="background:' + (colors[graphViewType(node)] || "var(--muted)") + (reason ? ";opacity:0.35" : "") + '"></i>';
           const meta = '<small>' + escapeHtml(typeLabel(graphViewType(node))) + '</small>';
@@ -2573,12 +2608,34 @@ ${VITAMIN_PLAY_TOKENS}
             ? '<span class="graph-search-reason" title="' + escapeAttr(reason.label) + '">' + escapeHtml(reason.label) + '</span><button type="button" class="graph-search-reveal" data-search-reveal="' + escapeAttr(node.id) + '">Reveal</button>'
             : "";
           return '<div class="graph-search-row' + (reason ? " hidden-node" : "") + '" role="button" tabindex="0" data-search-node="' + escapeAttr(node.id) + '">' + dot + '<span class="graph-search-label">' + escapeHtml(compactLabel(node.label || node.id, 34)) + '</span>' + meta + status + '</div>';
-        }).join("");
+        }).join("") + (all.length > matches.length ? '<div class="graph-search-empty">… et ' + (all.length - matches.length) + ' autres, affichés dans le graphe</div>' : "")
+          : search.empty ? "" : '<div class="graph-search-empty">Aucun nœud ne correspond</div>';
+        container.innerHTML = suggestionHtml + headHtml + rowsHtml + (structured || suggestions.length || search.empty ? hint : "");
         container.hidden = false;
-        // Picking a result ends the search: the query must not linger as a text
-        // filter that hides the rest of the graph.
+        container.querySelectorAll("[data-search-suggestion]").forEach((row) => {
+          const pick = () => {
+            input.value = suggestions[Number(row.dataset.searchSuggestion)].text;
+            input.focus();
+            renderGraph();
+            renderGraphSearchResults();
+          };
+          row.addEventListener("mousedown", (event) => event.preventDefault());
+          row.addEventListener("click", pick);
+          row.addEventListener("keydown", (event) => { if (event.key === "Enter") pick(); });
+        });
+        container.querySelector("[data-search-pin]")?.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const value = input.value;
+          container.hidden = true;
+          input.value = "";
+          memoryExplorer.pinSearch(value);
+        });
+        // Picking a result ends a plain search: it must not linger as a text
+        // filter that hides the rest of the graph. A criteria search (a
+        // perimeter, a tag…) stays, so its nodes can be explored one by one.
         const clearSearch = () => {
           container.hidden = true;
+          if (structured) return;
           input.value = "";
           renderGraph();
         };
@@ -3202,6 +3259,8 @@ ${VITAMIN_PLAY_TOKENS}
           '<div class="graph-menu-title">' + escapeHtml(compactLabel(node.label || node.name || node.id, 26)) + '</div>' +
           (virtualTypeGroup ? "" : '<button type="button" class="graph-menu-item" data-graph-menu="focus"' + (isFocused ? " disabled" : "") + '>' + (isFocused ? "Current focus" : "Set as focus") + '</button>') +
           (!virtualTypeGroup && focusedNodeId ? '<button type="button" class="graph-menu-item" data-graph-menu="clear">Clear focus</button>' : "") +
+          (contextRef && !virtualTypeGroup ? '<button type="button" class="graph-menu-item" data-graph-menu="perimeter" title="Tout ce qui est rangé sous cette entité, à toute profondeur, et ce qui y est directement rattaché">Afficher le périmètre</button>' : "") +
+          (!contextRef && !virtualTypeGroup && ["capture", "source"].includes(node.type) ? '<button type="button" class="graph-menu-item" data-graph-menu="from-source">Afficher ce qui vient de ce document</button>' : "") +
           (contextRef ? '<button type="button" class="graph-menu-item" data-graph-menu="context">' + (inContext ? "Remove from context" : "Include in context") + '</button>' : "") +
           (contextRef ? '<button type="button" class="graph-menu-item" data-graph-menu="context-pin">Pin in context</button>' : "") +
           (contextRef ? '<button type="button" class="graph-menu-item" data-graph-menu="context-exclude">Exclude from context</button>' : "") +
@@ -3222,6 +3281,14 @@ ${VITAMIN_PLAY_TOKENS}
           (!virtualTypeGroup && node.path ? '<button type="button" class="graph-menu-item" data-graph-menu="open">Open source</button>' : "");
         menu.querySelector('[data-graph-menu="focus"]')?.addEventListener("click", () => setGraphFocusNode(node));
         menu.querySelector('[data-graph-menu="clear"]')?.addEventListener("click", clearGraphFocus);
+        menu.querySelector('[data-graph-menu="perimeter"]')?.addEventListener("click", () => {
+          closeGraphContextMenu();
+          showGraphSearch(memoryExplorer.perimeterSearch(contextRef.split(":")[0], node.label || node.name || contextRef.split(":").slice(1).join(":")));
+        });
+        menu.querySelector('[data-graph-menu="from-source"]')?.addEventListener("click", () => {
+          closeGraphContextMenu();
+          showGraphSearch('source:"' + String(node.label || node.id).replace(/"/g, "") + '"');
+        });
         menu.querySelector('[data-graph-menu="context"]')?.addEventListener("click", () => {
           closeGraphContextMenu();
           if (contextRef) contextScopeToggleRef(contextRef);
@@ -9311,7 +9378,7 @@ ${VITAMIN_PLAY_TOKENS}
       }
 
       memoryExplorer = (${createMemoryExplorer.toString()})({
-        state: () => state, typeLabel, entityRef: entityRefForNode,
+        state: () => state, typeLabel, entityRef: entityRefForNode, query: (${createMemoryQuery.toString()})(),
         refresh: () => document.querySelector("#refresh").click(),
         reset: resetMemoryView,
         viewLabel: memoryViewLabel,
