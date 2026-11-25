@@ -82,6 +82,10 @@ const VITAMIN_PLAY_TOKENS = `
          laid out, invisible, over the screen and swallow clicks (graph nodes).
          !important: this block may sit in a cascade layer below Vitamin Play. */
       dialog.vp-modal:not([open]) { display: none !important; }
+      /* VpModal body does not shrink (flex-shrink: 0): a long body pushed the
+         footer, its warnings and buttons out of view with no way to scroll. */
+      .vp-modal > .vp-modal__body { flex-shrink: 1 !important; min-height: 0 !important; }
+      .vp-modal > .vp-modal__header, .vp-modal > .vp-modal__footer, .vp-modal > header, .vp-modal > footer { flex-shrink: 0; }
 `;
 
 /** Node colours of the memory graph, per entity kind: data hues of the design system. */
@@ -152,7 +156,7 @@ function vitaminPlayEnhancerClient(config) {
   const labelIcons = config.labelIcons.map(([source, flags, name]) => [new RegExp(source, flags), name]);
   const VP = /(^|\s)vp-[a-z]/;
   const TABLISTS = '[role="tablist"], .scope-tabs, .memory-view-tabs, .view-tabs';
-  const skipButton = /(^|\s)(graph-menu-item|menu-option|note-card|help-guide|task-link-option|tax-swatch|visibility-cause|md-internal|md-external|chip-x|filter-toggle-caret|filter-section-state|ep-reldel|graph-search-reveal|today-alignment-chip|graph-visibility-chip|graph-context-close|sheet-pill|memory-view-item|filter-link|filter-preset|type-chip-main|type-chip-more|filter-back|filter-open-values|view-action|memory-filter-toggle|ec-ent|ec-linkish|ec-menu-item)(\s|$)/;
+  const skipButton = /(^|\s)(graph-menu-item|menu-option|note-card|help-guide|task-link-option|tax-swatch|visibility-cause|md-internal|md-external|chip-x|filter-toggle-caret|filter-section-state|ep-reldel|graph-search-reveal|today-alignment-chip|graph-visibility-chip|graph-context-close|sheet-pill|memory-view-item|filter-link|filter-preset|type-chip-main|type-chip-more|filter-back|filter-open-values|view-action|memory-filter-toggle|ec-ent|ec-linkish|ec-menu-item|lk-rel|lk-ent|lk-kind|lk-result|lk-relchip|lk-del)(\s|$)/;
   const linkButton = /(^|\s)(ep-linkish)(\s|$)/;
   const sectionToggle = /(^|\s)(filter-section-toggle|task-link-section-toggle)(\s|$)/;
   const stickerHost = /(^|\s)(badge|chip|pill|tag|status-pill|kind-pill)(\s|$)/;

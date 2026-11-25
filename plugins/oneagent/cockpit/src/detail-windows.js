@@ -8,7 +8,7 @@ function createDetailWindows({ document, onClose }) {
   let kind, key, origin, baseline = new Map(), pending, sequence = 0, lockedFields = new Map();
   function unlock() { for (const [el, disabled] of lockedFields) if (el.isConnected) el.disabled = disabled; lockedFields.clear(); }
   const value = el => ['checkbox', 'radio'].includes(el.type) ? el.checked : el.value;
-  const fields = () => kind ? [...panes[kind].querySelectorAll('input, textarea, select')].filter(el => !el.readOnly && !el.matches('[type="search"], [data-task-link-search], [data-task-link-kind-search]')) : [];
+  const fields = () => kind ? [...panes[kind].querySelectorAll('input, textarea, select')].filter(el => !el.readOnly && !el.matches('[type="search"], [data-task-link-search], [data-task-link-kind-search]') && !el.closest('[data-detail-transient]')) : [];
   const dirty = () => fields().some(el => baseline.has(el) && baseline.get(el) !== value(el));
   function clean() { baseline = new Map(fields().map(el => [el, value(el)])); notice.textContent = ''; discard.hidden = true; }
   function warn() {

@@ -75,9 +75,11 @@ Le bouton **Filtres** ouvre et referme un tiroir à droite du graphe (Échap ou
   (« personne ») propose de choisir parmi ses valeurs, une valeur (« OneFF ») liste
   directement **Équipes › OneFF**, **Produits › OneFF**… à cocher.
 - **Raccourcis** : **Tout** affiche tout, un second clic masque tout pour ne garder
-  ensuite que quelques types ; **Moi** garde ce qui te concerne (ton périmètre, ce
-  dont tu es responsable ou contributeur, ta mission, tes tâches et tes notes, comme
-  la recherche `moi:`) ; **Organisation**, **Produit & delivery**, **Pilotage** ;
+  ensuite que quelques types ; **Moi** garde ce qui te concerne (tes tâches, tes notes,
+  ta mission et ses OKR ; ton périmètre et ce dont tu es responsable ou contributeur
+  si ton identité est déclarée avec `wm me set`), coche les types correspondants et
+  retire le focus, comme la recherche `moi:`. Tes entretiens individuels et ton bilan
+  sont dans la fiche de ta mission (onglet Document) et dans le tableau ; **Organisation**, **Produit & delivery**, **Pilotage** ;
   **Sans le bruit** masque sources, questions, concepts et découvertes.
 - **Types** : en pastilles groupées. Un clic sur la pastille affiche ou masque le
   type ; **›** ouvre ses valeurs (recherche, tout cocher, tout décocher,
@@ -99,8 +101,15 @@ Toutes les fiches ont la même structure :
   produit, cycle d’une découverte…), sinon un extrait de la page ; puis **Lié à**,
   regroupé par sens de la relation, chaque entité ouvrant sa propre fiche ; puis
   **À faire**, **Points d’attention** et **Dernières décisions**.
-- **Liens**, **Activité** (observations et captures) et **Document** (la page
-  Markdown, sans son en-tête technique).
+- **Liens** : regroupés par sens (Fait partie de, Possède, Contributeurs…), chaque
+  nom ouvrant sa fiche, la suppression au survol. **＋ Ajouter un lien** se remplit
+  comme une phrase : « cette entité · lien · autre entité ». Cherche l’entité (par
+  nom ou rattachement, filtre par type, suggestions en tête), choisis un des liens
+  habituels entre ces deux types (ou « Autre type de lien »), **⇄** inverse le sens.
+  Le récapitulatif se lit en français et signale un lien qui existe déjà. **Créer et
+  en ajouter un autre** enchaîne ; un brouillon de lien n’empêche jamais de fermer.
+- **Activité** (observations et captures) et **Document** (la page Markdown, sans
+  son en-tête technique).
 - Les compteurs (liens, observations, captures, tâches) en bas de la fiche.
 
 You can add or edit entities and relationships from **Settings → Actions et diagnostics → Knowledge**. Deleting or merging can affect several linked items, so read the confirmation carefully.

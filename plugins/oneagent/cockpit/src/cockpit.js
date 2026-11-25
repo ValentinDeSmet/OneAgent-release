@@ -340,6 +340,7 @@ ${VITAMIN_PLAY_TOKENS}
       .filter-presets { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-2xs); }
       .filter-preset { height: 28px; padding: 0 var(--vp-semantic-spacing-s); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-full); background: var(--panel); color: var(--muted); font: inherit; font-size: var(--vp-typography-caption-font-size); cursor: pointer; }
       .filter-preset.active { border-color: var(--blue); background: var(--accent-soft-bg); color: var(--blue); font-weight: 700; }
+      .filter-preset-warn { display: inline-block; margin-top: var(--vp-semantic-spacing-2xs); color: var(--warning); }
       .filter-preset-help { margin: 0; padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-s); border-radius: var(--vp-semantic-border-radius-main); background: var(--accent-soft-bg); font-size: var(--vp-typography-caption-font-size); line-height: 1.5; }
       .filter-group { display: grid; gap: var(--vp-semantic-spacing-xs); }
       .filter-group-head { display: flex; justify-content: space-between; align-items: baseline; margin: 0; color: var(--muted); font-size: var(--vp-typography-caption-font-size); font-weight: 700; }
@@ -643,7 +644,7 @@ ${VITAMIN_PLAY_TOKENS}
       .side-head { display: flex; justify-content: space-between; align-items: center; min-height: 40px; padding: 0 var(--vp-semantic-spacing-s); border-bottom: 1px solid var(--border); }
       .side-head h2 { margin: 0; color: var(--muted); font-size: var(--vp-typography-caption-font-size); text-transform: uppercase; }
       .side-body { padding: var(--vp-semantic-spacing-s); }
-      .detail-window .side-card { border: 0; background: transparent; }
+      .detail-window .side-card { border: 0; background: transparent; overflow: visible; }
       .detail-window .side-head { padding: 0 0 var(--vp-semantic-spacing-s); }
       .detail-window .side-body { padding: var(--vp-semantic-spacing-m) 0 0; }
       .detail-window [data-detail-pane] > .side-head h2 { display: none; }
@@ -869,6 +870,53 @@ ${VITAMIN_PLAY_TOKENS}
       .ec-excerpt { padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-s); border-inline-start: 3px solid var(--border-strong); background: var(--surface); border-radius: 0 var(--vp-semantic-border-radius-s) var(--vp-semantic-border-radius-s) 0; }
       .ec-linkish { justify-self: start; padding: 0; border: 0; background: transparent; color: var(--blue); font: inherit; font-size: var(--vp-typography-caption-font-size); font-weight: 600; text-align: start; cursor: pointer; }
       .ec-linkish:hover { text-decoration: underline; }
+      /* Link composer and links list (Liens tab). */
+      .lk-composer { display: grid; gap: var(--vp-semantic-spacing-s); margin-bottom: var(--vp-semantic-spacing-s); padding: var(--vp-semantic-spacing-s); border: 1px solid var(--accent-soft-border); border-radius: var(--vp-semantic-border-radius-s); background: var(--panel); }
+      .lk-head { display: flex; align-items: center; justify-content: space-between; }
+      .lk-sentence { display: flex; flex-wrap: wrap; align-items: center; gap: var(--vp-semantic-spacing-2xs); padding: var(--vp-semantic-spacing-xs); border-radius: var(--vp-semantic-border-radius-s); background: var(--surface); }
+      .lk-ent { display: inline-flex; align-items: center; gap: var(--vp-semantic-spacing-2xs); max-width: 100%; min-height: 32px; padding: 0 var(--vp-semantic-spacing-s); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-full); background: var(--panel); color: var(--text); font: inherit; font-size: var(--vp-typography-caption-font-size); font-weight: 600; }
+      .lk-ent span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .lk-target { cursor: pointer; }
+      .lk-target.empty { border-style: dashed; color: var(--muted); font-weight: 500; }
+      .lk-rel { min-height: 32px; padding: 0 var(--vp-semantic-spacing-s); border: 1px dashed var(--accent-soft-border); border-radius: var(--vp-semantic-border-radius-full); background: var(--accent-soft-bg); color: var(--blue); font: inherit; font-size: var(--vp-typography-caption-font-size); font-weight: 700; cursor: pointer; }
+      .lk-rel.set { border-style: solid; }
+      .lk-rel:disabled { opacity: 0.5; cursor: default; }
+      .lk-swap { margin-inline-start: auto; }
+      .lk-picker, .lk-relpicker { display: grid; gap: var(--vp-semantic-spacing-xs); }
+      .lk-picker .control { width: 100%; }
+      .lk-picker .ep-sec-title, .lk-relpicker .ep-sec-title { margin: 0; }
+      .lk-kinds, .lk-relchips { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-2xs); }
+      .lk-kind { display: inline-flex; align-items: center; gap: var(--vp-semantic-spacing-2xs); min-height: 26px; padding: 0 var(--vp-semantic-spacing-xs); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-full); background: var(--panel); color: var(--text); font: inherit; font-size: var(--vp-typography-caption-font-size); cursor: pointer; }
+      .lk-kind.on { border-color: var(--blue); background: var(--accent-soft-bg); color: var(--blue); font-weight: 700; }
+      .lk-results { display: grid; gap: 2px; max-height: 280px; overflow: auto; overscroll-behavior: contain; }
+      .lk-result { display: flex; align-items: center; gap: var(--vp-semantic-spacing-xs); width: 100%; padding: var(--vp-semantic-spacing-xs); border: 0; border-radius: var(--vp-semantic-border-radius-main); background: transparent; color: var(--text); font: inherit; text-align: start; cursor: pointer; }
+      .lk-result:hover, .lk-result:focus-visible { background: var(--hover); }
+      .lk-result-main { flex: 1; min-width: 0; display: grid; }
+      .lk-result-main strong { font-size: var(--vp-typography-caption-font-size); }
+      .lk-result-main small, .lk-why { color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .lk-why { color: var(--blue); white-space: nowrap; }
+      .lk-result mark { background: var(--warning-soft-bg); color: inherit; border-radius: 2px; }
+      .lk-relchip { min-height: 32px; padding: 0 var(--vp-semantic-spacing-s); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-full); background: var(--panel); color: var(--text); font: inherit; font-size: var(--vp-typography-caption-font-size); cursor: pointer; }
+      .lk-relchip:hover { border-color: var(--blue); color: var(--blue); }
+      .lk-relchip.on { border-color: var(--blue); background: var(--blue); color: var(--active-fg); font-weight: 700; }
+      .lk-more > summary { cursor: pointer; color: var(--blue); font-size: var(--vp-typography-caption-font-size); font-weight: 600; }
+      .lk-relall { display: grid; gap: var(--vp-semantic-spacing-xs); margin-top: var(--vp-semantic-spacing-xs); }
+      .lk-relgroup { display: grid; gap: var(--vp-semantic-spacing-3xs); }
+      .lk-relgroup > span { color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .lk-recap { display: grid; gap: 2px; padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-s); border-radius: var(--vp-semantic-border-radius-s); background: var(--positive-soft-bg); font-size: var(--vp-typography-caption-font-size); line-height: 1.5; }
+      .lk-recap.warn { background: var(--warning-soft-bg); }
+      .lk-recap small { color: var(--muted); }
+      .lk-composer textarea { width: 100%; }
+      .lk-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--vp-semantic-spacing-xs); }
+      .lk-listhead { display: flex; align-items: center; justify-content: space-between; gap: var(--vp-semantic-spacing-xs); }
+      .lk-listhead .ep-sec-title { margin: 0; }
+      .lk-rows { display: grid; gap: 2px; }
+      .lk-row { display: flex; align-items: center; gap: var(--vp-semantic-spacing-xs); min-height: 30px; padding: 0 var(--vp-semantic-spacing-2xs); border-radius: var(--vp-semantic-border-radius-main); }
+      .lk-row:hover { background: var(--hover); }
+      .lk-row-name { color: var(--text); }
+      .lk-row small { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
+      .lk-del { padding: 0 var(--vp-semantic-spacing-2xs); border: 0; background: transparent; color: var(--muted); cursor: pointer; opacity: 0; }
+      .lk-row:hover .lk-del, .lk-del:focus-visible { opacity: 1; color: var(--red); }
       .ec-foot { display: flex; flex-wrap: wrap; gap: var(--vp-semantic-spacing-s); padding: var(--vp-semantic-spacing-xs) var(--vp-semantic-spacing-m); border-top: 1px solid var(--border); color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
       .ep-doc-wrap.clamped { max-height: 300px; }
       .ep-doc-wrap.clamped::after { content: ""; position: absolute; inset-inline-start: 0; inset-inline-end: 0; bottom: 0; height: 52px; background: linear-gradient(transparent, var(--panel)); pointer-events: none; }
@@ -4929,52 +4977,144 @@ ${VITAMIN_PLAY_TOKENS}
         }).join("") + '</div>';
       }
 
+      // Liens tab (prototypes/ui-proposals.html, screen 4): links grouped by
+      // meaning, and a composer that reads as the sentence it creates:
+      // « this entity · link · other entity », ⇄ to swap the direction.
+      const LINK_VERBS = { part_of: "fait partie de", contains: "contient", owns: "possède", owned_by: "est possédé par", scoped_to: "est rattaché à", depends_on: "dépend de", related_to: "est lié à", contributor_to: "est membre de", manager: "manage", contact_for: "est le contact de", requested_by: "est demandé par", reported_by: "est rapporté par", informs: "éclaire", informs_mission: "éclaire la mission", contributes_to: "contribue à", drives: "pilote", supports: "soutient", blocks: "bloque", impacts: "impacte", implements: "implémente", owner: "est responsable de", expert_on: "est expert de", stakeholder_of: "est partie prenante de", decision_maker_for: "décide pour", reviewer: "relit", has_okr: "a pour OKR", has_repository: "a pour dépôt", measured_by: "est mesuré par", validates: "valide", supersedes: "remplace", applies_practice: "applique", tracks_progress_for: "suit", discussed_in: "est discuté dans", development_area: "a pour axe de développement", subject: "a pour sujet" };
+      const linkVerb = (type) => LINK_VERBS[type] || String(type || "").replace(/_/g, " ");
+      const LINK_WORK_KINDS = ["project", "feature", "initiative", "discovery"];
+
+      /** Usual links between two kinds, from this entity's point of view: [label, predicate, this entity is the source]. */
+      function usualLinks(selfKind, targetKind) {
+        const links = [];
+        const add = (label, type, out) => { if (!links.some((link) => link[1] === type && link[2] === out)) links.push([label, type, out]); };
+        if (["domain", "subdomain"].includes(selfKind) && ["subdomain", "team", "product"].includes(targetKind)) add("contient", "contains", true);
+        if (["domain", "subdomain"].includes(targetKind)) add("fait partie de", "part_of", true);
+        if (targetKind === "person") {
+          if (selfKind === "team") { add("a pour membre", "contributor_to", false); add("a pour manager", "manager", false); }
+          if (selfKind === "feature_request") add("demandée par", "requested_by", true);
+          if (selfKind === "insight") add("rapporté par", "reported_by", true);
+          add("a pour responsable", "owner", false); add("a pour contact", "contact_for", false);
+        }
+        if (selfKind === "person") {
+          if (targetKind === "team") { add("membre de", "contributor_to", true); add("manage", "manager", true); }
+          if (targetKind === "feature_request") add("a demandé", "requested_by", false);
+          add("responsable de", "owner", true); add("contribue à", "contributor_to", true); add("expert de", "expert_on", true);
+        }
+        if (targetKind === "team" && ["product", "repository", ...LINK_WORK_KINDS].includes(selfKind)) add("porté par", "owns", false);
+        if (selfKind === "team" && ["product", "repository", ...LINK_WORK_KINDS, "feature_request"].includes(targetKind)) add(targetKind === "product" ? "possède" : "porte", "owns", true);
+        if (targetKind === "product" && ["feature", "repository"].includes(selfKind)) add("fait partie de", "part_of", true);
+        if (selfKind === "product" && ["feature", "repository"].includes(targetKind)) add("contient", "contains", true);
+        if (LINK_WORK_KINDS.includes(selfKind) && ["product", "team", "project", "initiative"].includes(targetKind)) add("rattaché à", "scoped_to", true);
+        if (selfKind === "feature" && targetKind === "feature_request") add("implémente", "implements", true);
+        if (selfKind === "feature_request" && targetKind === "feature") add("traitée par", "implements", false);
+        if (selfKind === "mission" && targetKind === "okr") add("a pour OKR", "has_okr", true);
+        if (selfKind === "okr" && targetKind === "mission") add("OKR de", "has_okr", false);
+        if (targetKind === "kpi") add("mesuré par", "measured_by", true);
+        if (["okr", "mission", "initiative"].includes(targetKind)) add("contribue à", "contributes_to", true);
+        if (targetKind === "practice") add("applique", "applies_practice", true);
+        if (targetKind === "insight") add("éclairé par", "informs", false);
+        if (selfKind === "insight") add("éclaire", "informs", true);
+        add("dépend de", "depends_on", true);
+        add("lié à", "related_to", true);
+        return links.slice(0, 5);
+      }
+
+      function linkCandidates(ref, ctx) {
+        const entities = new Map();
+        for (const entity of state.entities || []) entities.set(entity.kind + ":" + entity.id, { ref: entity.kind + ":" + entity.id, kind: entity.kind, label: entity.label || entity.id, parentId: entity.parentId });
+        for (const node of state.graph?.nodes || []) { const nodeRef = entityRefForNode(node); if (nodeRef && !entities.has(nodeRef)) entities.set(nodeRef, { ref: nodeRef, kind: nodeRef.split(":")[0], label: node.label || nodeRef, parentId: node.meta?.parentId }); }
+        entities.delete(ref);
+        const self = entities.get(ref) || (state.entities || []).find((entity) => entity.kind + ":" + entity.id === ref) || {};
+        const linked = new Set((Array.isArray(ctx?.relations) ? ctx.relations : []).flatMap((relation) => [relation.sourceKind + ":" + relation.sourceId, relation.targetKind + ":" + relation.targetId]));
+        const cited = new Set((Array.isArray(ctx?.relatedEntities) ? ctx.relatedEntities : []).filter((entry) => entry.direction === "capture").map((entry) => entry.kind + ":" + entry.id));
+        const recent = Object.keys(entityContextCache).slice(-8);
+        const selfId = ref.split(":").slice(1).join(":");
+        const parentOf = (entity) => { const parent = entity.parentId && [...entities.values()].find((candidate) => candidate.ref.split(":").slice(1).join(":") === entity.parentId); return parent ? parent.label : ""; };
+        return [...entities.values()].map((entity) => ({
+          ...entity,
+          parent: parentOf(entity),
+          linked: linked.has(entity.ref),
+          why: linked.has(entity.ref) ? "déjà lié" : cited.has(entity.ref) ? "cité dans une capture" : entity.parentId && (entity.parentId === self.parentId || entity.parentId === selfId) ? "même rattachement" : recent.includes(entity.ref) ? "consulté récemment" : ""
+        }));
+      }
+
+      function linkComposerHtml(ref, ctx) {
+        const link = entityPanelUi.link || (entityPanelUi.link = { query: "", kind: "", target: "", type: "", out: true, noteOpen: false, relOpen: false });
+        const selfKind = ref.split(":")[0];
+        const selfLabel = ctx?.entity?.label || ref;
+        const candidates = linkCandidates(ref, ctx);
+        const target = link.target ? candidates.find((entry) => entry.ref === link.target) || { ref: link.target, kind: link.target.split(":")[0], label: link.target } : null;
+        const chip = (entry) => '<i class="ep-dot" style="background:' + escapeAttr(entityKindColor(entry.kind)) + '"></i><span>' + escapeHtml(entry.label) + '</span>';
+        const usual = target ? usualLinks(selfKind, target.kind) : [];
+        const relLabel = link.type ? (usual.find((entry) => entry[1] === link.type && entry[2] === link.out) || [])[0] || (link.out ? linkVerb(link.type) : linkVerb(link.type) + " (inverse)") : "";
+        let html = '<div class="lk-composer" data-detail-transient>' +
+          '<div class="lk-head"><strong>Ajouter un lien</strong><button type="button" class="ec-icon" data-ec="toggleComposer" data-ref="' + escapeAttr(ref) + '" title="Annuler" aria-label="Annuler">✕</button></div>' +
+          '<div class="lk-sentence" aria-label="Lien à créer">' +
+            '<span class="lk-ent lk-self">' + chip({ kind: selfKind, label: selfLabel }) + '</span>' +
+            '<button type="button" class="lk-rel' + (link.type ? " set" : "") + '" data-lk="rel"' + (target ? "" : " disabled") + '>' + escapeHtml(link.type ? relLabel : "choisir un lien") + ' ▾</button>' +
+            '<button type="button" class="lk-ent lk-target' + (target ? "" : " empty") + '" data-lk="target">' + (target ? chip(target) : "choisir une entité ▾") + '</button>' +
+            '<button type="button" class="ec-icon lk-swap" data-lk="swap" title="Inverser le sens" aria-label="Inverser le sens"' + (link.type ? "" : " disabled") + '>⇄</button>' +
+          '</div>';
+        if (!target) {
+          const query = normalizeFilterText(link.query.trim());
+          const kinds = [...new Set(candidates.map((entry) => entry.kind))].sort((a, b) => cardKindLabel(a).localeCompare(cardKindLabel(b), "fr"));
+          let list = candidates.filter((entry) => (!link.kind || entry.kind === link.kind) && (!query || normalizeFilterText(entry.label).includes(query) || normalizeFilterText(entry.parent).includes(query)));
+          const suggesting = !query && !link.kind;
+          const suggested = suggesting ? list.filter((entry) => entry.why && !entry.linked) : [];
+          if (suggested.length) list = suggested;
+          list.sort((a, b) => (normalizeFilterText(a.label).indexOf(query) - normalizeFilterText(b.label).indexOf(query)) || a.label.localeCompare(b.label, "fr"));
+          html += '<div class="lk-picker">' +
+            '<input class="control" type="search" id="lkSearch" data-lk="search" placeholder="Chercher une équipe, un produit, une personne…" value="' + escapeAttr(link.query) + '" autocomplete="off" aria-label="Chercher une entité">' +
+            '<div class="lk-kinds">' + ['<button type="button" class="lk-kind' + (!link.kind ? " on" : "") + '" data-lk-kind="">Tous</button>'].concat(kinds.map((kind) => '<button type="button" class="lk-kind' + (link.kind === kind ? " on" : "") + '" data-lk-kind="' + escapeAttr(kind) + '"><i class="ep-dot" style="background:' + escapeAttr(entityKindColor(kind)) + '"></i>' + escapeHtml(cardKindLabel(kind)) + '</button>')).join("") + '</div>' +
+            '<p class="ep-sec-title">' + (suggested.length ? "Suggestions" : list.length + (list.length > 1 ? " entités" : " entité")) + '</p>' +
+            '<div class="lk-results">' + (list.slice(0, 40).map((entry) => '<button type="button" class="lk-result" data-lk-pick="' + escapeAttr(entry.ref) + '"><i class="ep-dot" style="background:' + escapeAttr(entityKindColor(entry.kind)) + '"></i><span class="lk-result-main"><strong>' + highlightFilterText(entry.label, query) + '</strong><small>' + escapeHtml(cardKindLabel(entry.kind) + (entry.parent ? " · " + entry.parent : "")) + '</small></span>' + (entry.why ? '<span class="lk-why">' + escapeHtml(entry.why) + '</span>' : "") + '</button>').join("") ||
+              '<p class="ec-note">Aucune entité ne correspond.</p>') +
+            (list.length > 40 ? '<p class="ec-note">… ' + (list.length - 40) + ' autres : affine la recherche</p>' : "") + '</div></div>';
+        } else if (!link.type || link.relOpen) {
+          const article = ["person", "feature", "feature_request", "discovery", "initiative", "mission", "practice"].includes(target.kind) ? "une " : "un ";
+          html += '<div class="lk-relpicker"><p class="ep-sec-title">Liens habituels avec ' + escapeHtml(article + cardKindLabel(target.kind).toLowerCase()) + '</p><div class="lk-relchips">' +
+            usual.map(([label, type, out]) => '<button type="button" class="lk-relchip' + (link.type === type && link.out === out ? " on" : "") + '" data-lk-type="' + escapeAttr(type) + '" data-lk-out="' + out + '">' + escapeHtml(label) + '</button>').join("") + '</div>' +
+            '<details class="lk-more"><summary>Autre type de lien</summary><div class="lk-relall">' + RELATION_TYPE_GROUPS.map(([group, types]) => '<div class="lk-relgroup"><span>' + escapeHtml({ Structure: "Structure", Work: "Travail", People: "Personnes", "Practice & mission": "Pratique et mission" }[group] || group) + '</span><div class="lk-relchips">' + types.map((type) => '<button type="button" class="lk-relchip" data-lk-type="' + escapeAttr(type) + '" data-lk-out="true">' + escapeHtml(linkVerb(type)) + '</button>').join("") + '</div></div>').join("") + '</div></details></div>';
+        }
+        if (target && link.type) {
+          const source = link.out ? ref : target.ref, destination = link.out ? target.ref : ref;
+          const sourceLabel = link.out ? selfLabel : target.label, destinationLabel = link.out ? target.label : selfLabel;
+          const existing = (Array.isArray(ctx?.relations) ? ctx.relations : []).find((relation) => {
+            const from = relation.sourceKind + ":" + relation.sourceId, to = relation.targetKind + ":" + relation.targetId;
+            return relation.relationType === link.type && ((from === source && to === destination) || (from === destination && to === source));
+          });
+          html += '<div class="lk-recap' + (existing ? " warn" : "") + '"><span>' + (existing ? "⚠ Ce lien existe déjà : " : "✓ ") + '<strong>' + escapeHtml(sourceLabel) + '</strong> <em>' + escapeHtml(linkVerb(link.type)) + '</em> <strong>' + escapeHtml(destinationLabel) + '</strong></span><small>' + escapeHtml(link.type) + '</small></div>' +
+            (link.noteOpen ? '<textarea id="ecLinkDescription" class="control" rows="2" maxlength="1000" placeholder="Pourquoi ce lien ? Ex. « membre de l’équipe depuis 2025 »">' + escapeHtml(link.note || "") + '</textarea>' : '<button type="button" class="ec-linkish" data-lk="note">＋ Ajouter une raison (facultatif)</button>') +
+            '<div class="lk-actions"><button type="button" class="action" data-ec="toggleComposer" data-ref="' + escapeAttr(ref) + '">Annuler</button><button type="button" class="action" data-ec="createRelation" data-more="1" data-ref="' + escapeAttr(ref) + '"' + (existing ? " disabled" : "") + '>Créer et en ajouter un autre</button><button type="button" class="action primary" data-ec="createRelation" data-ref="' + escapeAttr(ref) + '"' + (existing ? " disabled" : "") + '>Créer le lien</button></div>';
+        }
+        return html + '</div>';
+      }
+
       function entityPanelRelationsHtml(ref, relations) {
         const ui = entityPanelUi;
+        const ctx = entityContextCache[ref];
         const groups = new Map();
         for (const relation of relations) {
-          const list = groups.get(relation.relationType) || [];
-          list.push(relation);
-          groups.set(relation.relationType, list);
+          const source = relation.sourceKind + ":" + relation.sourceId;
+          const outgoing = source === ref;
+          const label = cardRelationLabel({ relation: relation.relationType, direction: outgoing ? "outgoing" : "incoming" });
+          if (!groups.has(label)) groups.set(label, []);
+          groups.get(label).push({ relation, outgoing, other: outgoing ? relation.targetKind + ":" + relation.targetId : source });
         }
-        const ordered = [...groups.entries()].sort((left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0]));
-        let html = '<div class="ep-sec"><div class="ep-sec-head"><p class="ep-sec-title">Explicit relations</p>' +
-          '<button class="ep-minibtn" data-ec="toggleComposer" data-ref="' + escapeAttr(ref) + '">' + (ui.composerOpen ? "Close" : "+ New") + '</button></div>';
-        if (!ordered.length) {
-          html += '<p class="summary" style="margin:0 0 4px">No explicit relations yet.</p>';
-        }
-        html += ordered.map(([type, list]) => {
-          const rows = list.map((relation) => {
-            const source = relation.sourceKind + ":" + relation.sourceId;
-            const target = relation.targetKind + ":" + relation.targetId;
-            const outgoing = source === ref;
-            const other = entityShortInfo(outgoing ? target : source);
-            const fullLabel = entityDisplayLabel(source) + " --" + relation.relationType + "--> " + entityDisplayLabel(target);
-            return '<div class="ep-relrow" title="' + escapeAttr(fullLabel + (relation.description ? " · " + relation.description : "")) + '">' +
-              '<span class="ep-reldir">' + (outgoing ? "→" : "←") + '</span>' +
-              '<span class="ep-rellabel"><i class="ep-dot" style="background:' + escapeAttr(entityKindColor(other.kind)) + '"></i><span>' + escapeHtml(other.label) + '</span></span>' +
-              '<button class="ep-reldel" data-ec="deleteRelation" data-ref="' + escapeAttr(ref) + '" data-relation-id="' + escapeAttr(relation.id) + '" data-label="' + escapeAttr(fullLabel) + '" title="Delete relation">✕</button>' +
-              '</div>';
-          }).join("");
-          const outCount = list.filter((relation) => relation.sourceKind + ":" + relation.sourceId === ref).length;
-          const inCount = list.length - outCount;
-          const directionNote = [outCount ? outCount + " outgoing" : "", inCount ? inCount + " incoming" : ""].filter(Boolean).join(", ");
-          return '<div class="ep-relgroup"><p class="ep-relgroup-h"><b>' + escapeHtml(type) + '</b><span>· ' + escapeHtml(directionNote || String(list.length)) + '</span></p>' + rows + '</div>';
-        }).join("");
-        if (ui.composerOpen) {
-          html += '<div class="ep-composer">' +
-            '<select id="ecLinkTarget" class="link-select"><option value="">Select an entity…</option>' + entityLinkTargetOptionsHtml(ref) + '</select>' +
-            '<div class="link-entity-row">' +
-              '<select id="ecLinkDir" class="link-select" title="Relation direction"><option value="out">This node is source</option><option value="in">This node is target</option></select>' +
-              '<select id="ecLinkType" class="link-select" title="Relation type">' + relationTypeOptionsHtml() + '</select>' +
-            '</div>' +
-            '<div class="field"><label>Why / note</label><textarea id="ecLinkDescription" maxlength="1000" placeholder="Optional reason or context for this relation."></textarea></div>' +
-            '<div id="ecLinkPreview" class="link-preview">Select a target to preview the relation direction.</div>' +
-            '<div class="detail-actions"><button class="action" data-ec="createRelation" data-ref="' + escapeAttr(ref) + '">Create relation</button></div>' +
-            '</div>';
-        }
-        html += '</div>';
-        return html;
+        const ordered = [...groups.entries()].sort((left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0], "fr"));
+        let html = '<div class="ec-sec">' + (ui.composerOpen ? linkComposerHtml(ref, ctx) : "") +
+          '<div class="lk-listhead"><p class="ep-sec-title">Liens · ' + relations.length + '</p>' + (ui.composerOpen ? "" : '<button type="button" class="action" data-ec="toggleComposer" data-ref="' + escapeAttr(ref) + '">＋ Ajouter un lien</button>') + '</div>';
+        if (!ordered.length) html += '<p class="ec-note">Aucun lien pour l’instant.</p>';
+        html += ordered.map(([label, rows]) => '<div class="ec-rel"><span>' + escapeHtml(label) + (rows.length > 1 ? " · " + rows.length : "") + '</span><div class="lk-rows">' + rows.map(({ relation, other }) => {
+          const info = entityShortInfo(other);
+          const fullLabel = entityDisplayLabel(relation.sourceKind + ":" + relation.sourceId) + " —" + relation.relationType + "→ " + entityDisplayLabel(relation.targetKind + ":" + relation.targetId);
+          return '<div class="lk-row"><i class="ep-dot" style="background:' + escapeAttr(entityKindColor(info.kind)) + '"></i>' +
+            '<button type="button" class="ec-linkish lk-row-name" data-ec="openEntity" data-target="' + escapeAttr(other) + '">' + escapeHtml(info.label) + '</button>' +
+            '<small>' + escapeHtml(cardKindLabel(info.kind) + (relation.description ? " · « " + relation.description + " »" : "")) + '</small>' +
+            '<button type="button" class="lk-del" data-ec="deleteRelation" data-ref="' + escapeAttr(ref) + '" data-relation-id="' + escapeAttr(relation.id) + '" data-label="' + escapeAttr(fullLabel) + '" title="Supprimer ce lien" aria-label="Supprimer le lien avec ' + escapeAttr(info.label) + '">✕</button></div>';
+        }).join("") + '</div></div>').join("");
+        return html + '</div>';
       }
 
       function entityPanelEditHtml(ref, ctx) {
@@ -5037,7 +5177,33 @@ ${VITAMIN_PLAY_TOKENS}
         }
       }
 
+      function bindLinkComposer(root) {
+        const composer = root.querySelector(".lk-composer");
+        if (!composer) return;
+        const ref = entityPanelUi.ref;
+        const link = entityPanelUi.link;
+        const rerender = (focusSearch) => {
+          renderEntityContext(ref);
+          if (!focusSearch) return;
+          const field = document.querySelector("#lkSearch");
+          field?.focus(); field?.setSelectionRange(field.value.length, field.value.length);
+        };
+        composer.querySelector("#lkSearch")?.addEventListener("input", (event) => { link.query = event.target.value; rerender(true); });
+        composer.querySelectorAll("[data-lk-kind]").forEach((button) => button.addEventListener("click", () => { link.kind = button.dataset.lkKind; rerender(true); }));
+        composer.querySelectorAll("[data-lk-pick]").forEach((button) => button.addEventListener("click", () => { link.target = button.dataset.lkPick; link.type = ""; link.relOpen = false; rerender(); }));
+        composer.querySelectorAll("[data-lk-type]").forEach((button) => button.addEventListener("click", () => { link.type = button.dataset.lkType; link.out = button.dataset.lkOut !== "false"; link.relOpen = false; rerender(); }));
+        composer.querySelector('[data-lk="target"]')?.addEventListener("click", () => { link.target = ""; link.type = ""; rerender(true); });
+        composer.querySelector('[data-lk="rel"]')?.addEventListener("click", () => { link.relOpen = !link.relOpen; rerender(); });
+        composer.querySelector('[data-lk="swap"]')?.addEventListener("click", () => { link.out = !link.out; rerender(); });
+        composer.querySelector('[data-lk="note"]')?.addEventListener("click", () => { link.noteOpen = true; rerender(); document.querySelector("#ecLinkDescription")?.focus(); });
+        composer.querySelector("#ecLinkDescription")?.addEventListener("input", (event) => { link.note = event.target.value; });
+        composer.querySelector("#lkSearch")?.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") { event.preventDefault(); composer.querySelector("[data-lk-pick]")?.click(); }
+        });
+      }
+
       function bindEntityContextActions(root) {
+        bindLinkComposer(root);
         root.querySelector("#ecDiscoveryPhase")?.addEventListener("change", (event) => {
           const outcome = root.querySelector("#ecDiscoveryOutcome");
           if (!outcome) return;
@@ -5082,7 +5248,9 @@ ${VITAMIN_PLAY_TOKENS}
             renderEntityContext(ref);
           } else if (button.dataset.ec === "toggleComposer") {
             entityPanelUi.composerOpen = !entityPanelUi.composerOpen;
+            entityPanelUi.link = undefined;
             renderEntityContext(ref);
+            if (entityPanelUi.composerOpen) document.querySelector("#lkSearch")?.focus();
           } else if (button.dataset.ec === "toggleDoc") {
             entityPanelUi.expandedDocs[button.dataset.doc] = !entityPanelUi.expandedDocs[button.dataset.doc];
             renderEntityContext(ref);
@@ -5109,21 +5277,16 @@ ${VITAMIN_PLAY_TOKENS}
           } else if (button.dataset.ec === "focusLevel") {
             vscode?.postMessage({ type: "updateEntityFocus", ref, focusLevel: button.dataset.focusLevel });
           } else if (button.dataset.ec === "createRelation") {
-            const targetSelect = document.querySelector("#ecLinkTarget");
-            const typeSelect = document.querySelector("#ecLinkType");
-            const dirSelect = document.querySelector("#ecLinkDir");
-            const descriptionField = document.querySelector("#ecLinkDescription");
-            const picked = targetSelect ? targetSelect.value : "";
-            const relationType = typeSelect ? typeSelect.value : "";
-            if (!picked || !relationType) return;
-            const inbound = dirSelect && dirSelect.value === "in";
-            submitDetail({
-              type: "createRelation",
-              source: inbound ? picked : ref,
-              target: inbound ? ref : picked,
-              relationType,
-              description: descriptionField ? descriptionField.value : ""
-            });
+            // Sent directly (not as a card edit): the card stays open and
+            // refreshes with the new link, so several links can follow.
+            const link = entityPanelUi.link || {};
+            if (!link.target || !link.type) return;
+            const note = document.querySelector("#ecLinkDescription")?.value ?? link.note ?? "";
+            vscode?.postMessage({ type: "createRelation", source: link.out ? ref : link.target, target: link.out ? link.target : ref, relationType: link.type, description: note });
+            entityPanelUi.link = undefined;
+            entityPanelUi.composerOpen = Boolean(button.dataset.more);
+            renderEntityContext(ref);
+            if (button.dataset.more) document.querySelector("#lkSearch")?.focus();
           } else if (button.dataset.ec === "deleteRelation") {
             vscode?.postMessage({ type: "deleteGraphRelation", relationId: button.dataset.relationId, label: button.dataset.label, ref });
           }
@@ -5451,6 +5614,22 @@ ${VITAMIN_PLAY_TOKENS}
         return escapeHtml(text.slice(0, at)) + "<mark>" + escapeHtml(text.slice(at, at + query.length)) + "</mark>" + escapeHtml(text.slice(at + query.length));
       }
 
+      function graphMineNodes() {
+        return (state.graph.nodes || []).filter((node) => memoryExplorer?.matchesSearch?.(node, "moi:"));
+      }
+
+      // What Moi found, by type, and whether the user's own person is known.
+      function graphMineHelp() {
+        const mine = graphMineNodes();
+        const counts = new Map();
+        for (const node of mine) counts.set(graphViewType(node), (counts.get(graphViewType(node)) || 0) + 1);
+        const found = [...counts].sort((a, b) => b[1] - a[1]).map(([type, count]) => count + " " + filterTypeLabel(type).toLowerCase()).join(", ");
+        const self = (state.graph.nodes || []).some((node) => node.meta?.self);
+        return '<p class="filter-preset-help"><strong>Ce qui me concerne</strong> : ' + (found ? escapeHtml(found) + "." : "rien dans ce graphe pour l’instant.") +
+          ' Tes tâches, tes notes, ta mission et ses OKR' + (self ? ", ton périmètre et ce dont tu es responsable ou contributeur" : "") + '. Tes entretiens individuels et ton bilan sont dans la fiche de ta mission (onglet Document) et dans le tableau. Même chose que la recherche <code>moi:</code>.' +
+          (self ? "" : '<br><span class="filter-preset-warn">Ton identité n’est pas déclarée dans cette mémoire : ton périmètre de personne n’est pas inclus. Déclare-la avec <code>wm me set &lt;ta fiche personne&gt;</code>.</span>') + '</p>';
+      }
+
       function graphFilterPresetState(types) {
         const pinned = memoryExplorer?.pinnedSearch?.() || "";
         const allOn = types.every((type) => activeGraphTypes.has(type) && !graphExcludedValues[type]?.size);
@@ -5469,8 +5648,21 @@ ${VITAMIN_PLAY_TOKENS}
         const state = graphFilterPresetState(types);
         const showOnly = (keep) => { for (const type of types) { delete graphExcludedValues[type]; keep(type) ? activeGraphTypes.add(type) : activeGraphTypes.delete(type); } };
         if (name === "me") {
-          memoryExplorer?.setPinnedSearch?.(state.me ? "" : "moi:");
-          renderGraphFilterPanel();
+          // Moi selects the types of what concerns the user, so the chips show
+          // it; a second click shows everything again.
+          if (state.me) {
+            showOnly(() => true);
+            memoryExplorer?.setPinnedSearch?.("");
+          } else {
+            // Like a perimeter, Moi covers the whole memory: no focus window.
+            focusedNodeId = undefined;
+            setGraphPerspective("map");
+            graphDepth = 0;
+            const mineTypes = new Set(graphMineNodes().map((node) => graphViewType(node)));
+            showOnly((type) => !mineTypes.size || mineTypes.has(type));
+            memoryExplorer?.setPinnedSearch?.("moi:");
+          }
+          renderGraphFilterSurfaces();
           return;
         }
         if (name === "all") showOnly(() => !state.all);
@@ -5540,7 +5732,7 @@ ${VITAMIN_PLAY_TOKENS}
         const valuesType = graphFilterValuesType && types.includes(graphFilterValuesType) ? graphFilterValuesType : "";
         const presetButtons = [["all", presets.all ? "Tout ✓" : "Tout"], ["me", "Moi"], ["org", "Organisation"], ["product", "Produit & delivery"], ["steer", "Pilotage"], ["calm", "Sans le bruit"]]
           .map(([id, label]) => '<button type="button" class="filter-preset' + (presets[id] && (id !== "all" || !Object.entries(presets).some(([key, on]) => key !== "all" && on)) ? " active" : "") + '" data-filter-preset="' + id + '" aria-pressed="' + Boolean(presets[id]) + '"' + (id === "all" ? ' title="Tout afficher ; un second clic masque tout"' : "") + '>' + label + '</button>').join("");
-        const presetHelp = presets.me ? '<p class="filter-preset-help"><strong>Ce qui me concerne</strong> : ton périmètre, ce dont tu es responsable ou contributeur, ta mission, tes tâches et tes notes. Même chose que la recherche <code>moi:</code>.</p>'
+        const presetHelp = presets.me ? graphMineHelp()
           : presets.calm ? '<p class="filter-preset-help">Masque les sources et captures, questions, concepts et découvertes.</p>' : "";
         const groups = graphFilterGroups(types).map(([group, members]) =>
           '<div class="filter-group"><p class="filter-group-head"><span>' + escapeHtml(group) + '</span><span class="filter-group-links"><button type="button" class="filter-link" data-filter-group-all="' + escapeAttr(group) + '">tout</button> · <button type="button" class="filter-link" data-filter-group-none="' + escapeAttr(group) + '">rien</button></span></p>' +

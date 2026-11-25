@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.159
+
+- Copilot 0.6.36 et VS Code 0.1.159 : fiche d'entité — une fiche longue défile de nouveau jusqu'à ses boutons, et la croix la ferme même quand un lien est en cours de saisie (l'avertissement des vraies modifications reste visible).
+- Création de lien en phrase : « cette entité · lien · autre entité », ⇄ pour inverser le sens. Recherche d'entité par nom ou rattachement, filtre par type, suggestions en tête ; liens habituels proposés selon les deux types (équipe et personne : « a pour membre », « a pour manager »…), liste complète en français. Le récapitulatif se lit en phrase et signale un lien existant. La fiche reste ouverte ; « Créer et en ajouter un autre » enchaîne.
+- Onglet Liens : liens regroupés par sens, en français, avec leur raison ; chaque nom ouvre sa fiche, suppression au survol.
+- Filtres du graphe : « Moi » coche les types de ce qui te concerne (tâches, mission, OKR…), retire le focus et indique ce qu'il a trouvé ; il signale une identité non déclarée.
+
 ## 0.1.158
 
 - Copilot 0.6.35 et VS Code 0.1.158 : écrans repensés pour un panneau étroit (la moitié de l'écran dans Copilot).
