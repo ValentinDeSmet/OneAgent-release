@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.161
+
+- Copilot 0.6.38 et VS Code 0.1.161 : quand l'accès de l'agent est limité à une sélection, ce que tu lui demandes d'ajouter dans le chat (entité, lien, note) est quand même enregistré, même hors de la sélection. La lecture, la modification et la suppression restent limitées.
+- Un bandeau « Accès de l'agent limité à … » reste en haut de toutes les pages du cockpit tant que l'accès est limité ; « Toute la mémoire » le rétablit. L'agent explique un blocage avec les noms des entités, sans jargon.
+- Fiche d'entité, ajout de lien : « choisir un lien » ouvre la liste de tous les liens même avant de choisir l'entité, le sens habituel est appliqué ensuite ; la recherche ne déborde plus de la fiche et garde le focus pendant la saisie.
+
 ## 0.1.160
 
 - Copilot 0.6.37 : dans l'application Copilot, « Curate » sur une capture confie la curation à l'agent de la conversation (un message est envoyé dans le chat) au lieu de la remettre silencieusement en attente ; la carte l'indique. Le badge « N to curate » envoie une seule demande pour toutes les captures en attente.

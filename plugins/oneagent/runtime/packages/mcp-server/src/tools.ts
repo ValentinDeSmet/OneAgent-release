@@ -26,7 +26,7 @@ export const mcpTools: Tool[] = [
   tool("list_tasks", "Read existing OneAgent tasks in the explicit portfolio scope, respecting the active strict context boundary. Native tasks return inPriorities and priorityRevision: use that revision with oneagent_promote_task_to_priority only when the user explicitly asks. Ordinary tasks do not appear in Priorities automatically. Inbox/concept proposals have no priorityRevision and cannot be promoted. Paginated; does not create, promote, finish or remove a task.", { scope: { type: "string", enum: ["portfolio"] }, limit, offset }, ["scope"]),
   tool("list_entities", "List private-memory entity metadata. Respects an explicitly active strict context; never changes it. Paginated; optionally filter by kind.", { kind: { ...text(80), pattern: "^[a-z][a-z0-9_-]*$" }, limit, offset }, []),
   tool("get_taxonomy", "Read the bound memory's available entity kinds and relation types, including workspace custom types and aliases. Use this vocabulary before creating entities or connecting them; does not edit the taxonomy or expose entity counts.", {}, []),
-  tool("create_entity", "Create a private-memory entity at the user's explicit request, optionally with its complete Markdown content. Reuse an existing entity instead of duplicating it. Refuses an existing kind:id; never overwrites it. Use upsert_relation to attach the new subject to its product. This is distinct from create_note and does not publish to BMAD or a product repository. Respects the active strict context; never widens it. After an uncertain write, inspect list_entities/get_entity_context instead of retrying.", {
+  tool("create_entity", "Create a private-memory entity at the user's explicit request, optionally with its complete Markdown content. Reuse an existing entity instead of duplicating it. Refuses an existing kind:id; never overwrites it. Use upsert_relation to attach the new subject to its product. This is distinct from create_note and does not publish to BMAD or a product repository. An active context limited to a selection does not block an addition the user asked for. After an uncertain write, inspect list_entities/get_entity_context instead of retrying.", {
     kind: { ...text(80), pattern: "^[a-z][a-z0-9_-]*$", description: "An available entity kind from get_taxonomy. OKR/KPI require their structured mission/outcome workflow." },
     id: { ...text(170), pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$", description: "Stable local ID for the requested subject, unique within its kind; no path or kind prefix." },
     label: text(300), description: text(4000), content: { type: "string", minLength: 1, maxLength: 500000 },
@@ -44,7 +44,7 @@ export const mcpTools: Tool[] = [
     entity, notes: { type: "string", enum: ["reassign_to_oneagent"], description: "Required when notes or captures reference the entity." }
   }, ["entity"], true, true),
   tool("list_relations", "List existing private-memory graph relations, optionally for an explicit kind:id. Respects the active strict context and relation policy. Paginated; does not modify the graph.", { entity, limit, offset }, []),
-  tool("upsert_relation", "At the user's explicit request, connect two existing private-memory entities with an available relation type from get_taxonomy. Use source/target as exact kind:id values; scoped_to goes from the study/discovery/feature to the product. Preserves existing provenance; repeated identical endpoints/type reuse the same relation. No entity is created implicitly. Respects the active strict context and never widens it.", {
+  tool("upsert_relation", "At the user's explicit request, connect two existing private-memory entities with an available relation type from get_taxonomy. Use source/target as exact kind:id values; scoped_to goes from the study/discovery/feature to the product. Preserves existing provenance; repeated identical endpoints/type reuse the same relation. No entity is created implicitly. An active context limited to a selection does not block a link the user asked for.", {
     source: entity, target: entity, type: { ...text(100), pattern: "^(?:[a-z][a-z0-9_-]*|custom:[a-z][a-z0-9_-]*)$" }, description: text(4000)
   }, ["source", "target", "type"], true),
   tool("memory_health", "Memory maintenance (lint): one read-only health report so the memory does not degrade over time. Returns likely duplicate entities (same or near-identical label, ID or alias, also across kinds), isolated entities (no relation and no parent), contradictions between observations, wiki findings (stale pages, broken references, orphan pages), captures waiting for curation, observations still waiting for the user's decision and stale KPIs, each with the tool that fixes it. Changes nothing: show the user the findings and a plan, then fix only what they approve.", { limit }, []),
@@ -104,6 +104,11 @@ function validate(definition: Tool, value: unknown): Arguments {
   return args as Arguments;
 }
 
+/** Additions the user asks for in the chat (entity, relation, note) are not
+ * limited by the active context: it restricts what the agent reads, not what
+ * the user adds. Changes and deletions of existing items stay inside it. */
+const ADDITION = ["--allow-boundary-change"];
+
 export async function callMemoryTool(configPath: string, name: string, raw: unknown): Promise<unknown> {
   const definition = mcpTools.find((candidate) => candidate.name === name);
   if (!definition) throw new Error(`Unknown OneAgent tool: ${name}`);
@@ -130,7 +135,7 @@ export async function callMemoryTool(configPath: string, name: string, raw: unkn
       return { entityKinds: vocabulary(model.entityKinds), relationTypes: vocabulary(model.relationTypes) };
     }
     case "oneagent_create_entity": {
-      const argv = ["entity", "upsert", String(args.id), "--kind", String(args.kind), "--label", String(args.label), "--fail-if-exists"];
+      const argv = ["entity", "upsert", String(args.id), "--kind", String(args.kind), "--label", String(args.label), "--fail-if-exists", ...ADDITION];
       for (const field of ["description", "status"]) if (args[field] !== undefined) argv.push(`--${field}`, String(args[field]));
       if (args.content !== undefined) argv.push("--stdin");
       return { created: true, entity: await run(argv, args.content === undefined ? undefined : String(args.content)) };
@@ -186,7 +191,7 @@ export async function callMemoryTool(configPath: string, name: string, raw: unkn
     }
     case "oneagent_delete_relation": return await run(["relation", "delete", String(args.relationId)]);
     case "oneagent_list_relations": return page(await run(["relation", "list", ...(args.entity ? ["--entity", String(args.entity)] : [])]));
-    case "oneagent_upsert_relation": return { relation: await run(["relation", "upsert", "--source", String(args.source), "--target", String(args.target), "--type", String(args.type), ...(args.description !== undefined ? ["--description", String(args.description)] : [])]) };
+    case "oneagent_upsert_relation": return { relation: await run(["relation", "upsert", "--source", String(args.source), "--target", String(args.target), "--type", String(args.type), ...ADDITION, ...(args.description !== undefined ? ["--description", String(args.description)] : [])]) };
     case "oneagent_search_memory": {
       if ((args.scope === "product") !== Boolean(args.productId)) throw new Error("Use product scope with productId, or portfolio scope without productId.");
       return run(["search", String(args.query), "--scope", String(args.scope), "--plane", String(args.plane ?? "sources"), "--limit", String(args.limit ?? 10), ...(args.productId ? ["--product", String(args.productId)] : [])]);
@@ -195,7 +200,7 @@ export async function callMemoryTool(configPath: string, name: string, raw: unkn
     case "oneagent_read_source": return run(["sources", "show", String(args.sourceId), ...sectionArgs]);
     case "oneagent_list_notes": return page(await run(["capture", "list", "--content-type", "note", ...(args.entity ? ["--entity", String(args.entity)] : [])]));
     case "oneagent_read_note": return run(["capture", "show", String(args.captureId), ...sectionArgs]);
-    case "oneagent_create_note": return run(["capture", "create", "--content-type", "note", "--title", String(args.title), "--source-kind", "copilot", "--source-origin", "copilot_tool", "--stdin", ...(args.primaryEntity ? ["--primary", String(args.primaryEntity)] : [])], String(args.body));
+    case "oneagent_create_note": return run(["capture", "create", "--content-type", "note", "--title", String(args.title), "--source-kind", "copilot", "--source-origin", "copilot_tool", "--stdin", ...ADDITION, ...(args.primaryEntity ? ["--primary", String(args.primaryEntity)] : [])], String(args.body));
     default: throw new Error("Unimplemented OneAgent tool.");
   }
 }

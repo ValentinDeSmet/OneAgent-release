@@ -16,7 +16,9 @@ If you change the draft after activation, activate it again. Until then, the pre
 ## Choose the right mode
 
 - **Toute la mémoire** (`guided`): the agent prefers the selected area. It may use relevant information outside it, but must identify that information as outside the context.
-- **Limiter à cette sélection** (`strict`): the selection is a hard boundary. Reads and changes outside it are blocked, and the agent must say when the permitted information is insufficient.
+- **Limiter à cette sélection** (`strict`): the selection is a hard boundary. Reads, changes and deletions outside it are blocked, and the agent must say when the permitted information is insufficient. What you ask the agent to add in the chat (an entity, a link, a note) is never blocked, even outside the selection.
+
+While the agent's access is limited, a banner « Accès de l’agent limité à … » stays at the top of every cockpit page. Its **Toute la mémoire** button gives the agent the whole memory back.
 
 Start with **guided** for exploration. Use **strict** when isolation matters, such as work limited to one customer, product, confidential topic, or approval boundary.
 

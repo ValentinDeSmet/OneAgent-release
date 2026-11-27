@@ -109,6 +109,10 @@ result and must not be retried automatically. Preserve the existing memory bindi
    errors distinguish a restricted scope from a transport/context-size limit.
    After the user clicks Tout/Reset, retry the read in this same conversation;
    never insist on a new chat based on stale context information.
+   When a limited access blocks something, say it in plain words and in the user's
+   language: "l'accès de l'agent est limité à <noms des entités> (indicateur « Accès
+   agent » du cockpit) ; **Tout** ou **Réinitialiser** le rend à toute la mémoire."
+   Never write "contexte strict", "boundary" or raw kind:id references to the user.
 2. For Markdown or a missing document, use `oneagent_list_memory` with an optional
    text query, then `oneagent_read_document` with its entry ID. These IDs are not
    file paths. Read the selected source with `oneagent_read_source` or the entity's context
@@ -165,10 +169,11 @@ documents; use a reviewable document proposal for a requested revision of an exi
 The user's explicit creation request authorizes these scoped private writes; no extra
 manual cockpit step is required. In contrast, discovering a possible new entity in
 retrieved evidence is not authorization to create it automatically. Keep that suggestion
-reviewable through the existing curation workflow. The active strict context still
-applies: new entities broaden it and are refused until the user changes the context
-(for example Tout/Reset). Never bypass that boundary, invent endpoints, create a second
-memory, write to BMAD's repository, or publish this private content implicitly.
+reviewable through the existing curation workflow. An agent access limited to a
+selection does not block what the user asks you to add: entities, relations and notes
+are created even outside it, so never ask the user to change the context for that.
+It still limits what you read, change and delete. Never invent endpoints, create a
+second memory, write to BMAD's repository, or publish this private content implicitly.
 
 ## Memory maintenance (lint)
 

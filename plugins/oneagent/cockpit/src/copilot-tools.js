@@ -1694,27 +1694,16 @@ async function createNote(cli, input) {
   const contentType = input.contentType === "question" ? "question" : "note";
   const contextScope = await readActiveContextScope(cli);
   const strict = contextScope?.active && contextScope.mode === "strict";
-  if (strict && contextScope.sourceAccess !== "full") {
-    throw new Error("Creating a note in a strict context requires full source access.");
-  }
+  // A note the user asks for is an addition: the active context does not block
+  // it. Without an explicit entity it goes to the only selected entity, if any.
   let primary = String(input.primaryEntity || "").trim();
   if (!primary) {
-    if (strict) {
-      if (contextScope.selectedEntities.length !== 1) {
-        throw new Error("Choose primaryEntity for this note: the strict context does not have exactly one selected entity.");
-      }
-      primary = contextScope.selectedEntities[0];
-    } else {
-      primary = "oneagent:oneagent";
-    }
-  }
-  if (strict && !contextScope.entities.includes(primary)) {
-    throw new Error(`The note's primary entity is outside the active strict context: ${primary}`);
+    primary = strict && contextScope.selectedEntities.length === 1 ? contextScope.selectedEntities[0] : "oneagent:oneagent";
   }
   const args = [
     "capture", "create", "--content-type", contentType, "--title", title,
     "--primary", primary, "--source-kind", "manual", "--source-origin", "copilot_tool",
-    "--context-scope", "active", "--stdin", "--json"
+    "--context-scope", "active", "--allow-boundary-change", "--stdin", "--json"
   ];
   pushOptional(args, "--tags", input.tags);
   const capture = JSON.parse(await cli.run(args, { input: content, logOutput: false }));
@@ -2300,14 +2289,19 @@ const ORG_ENTITY_KINDS = new Set(["domain", "subdomain", "team"]);
 async function manageOrganization(cli, input) {
   const action = String(input.action || "list").trim();
   const scoped = ["--context-scope", "active"];
-  const boundaryChange = input.allowBoundaryChange === true ? ["--allow-boundary-change"] : [];
+  // An addition the user asks for (entity, relation, link) is not limited by the
+  // active context: it restricts what the agent reads, not what the user adds.
+  // Changes and deletions of existing items stay inside it.
+  const addition = action === "create_entity" || action === "upsert_relation" || action === "upsert_link";
+  const allowed = input.allowBoundaryChange === true || addition;
+  const boundaryChange = allowed ? ["--allow-boundary-change"] : [];
   const contextScope = await readActiveContextScope(cli);
   const strictRefs = contextScope?.active && contextScope.mode === "strict"
     ? new Set(contextScope.entities || [])
     : undefined;
   const strictIds = strictRefs ? new Set([...strictRefs].map((ref) => ref.slice(ref.indexOf(":") + 1))) : undefined;
   const assertAllowedRef = (ref) => {
-    if (input.allowBoundaryChange !== true && strictRefs && !strictRefs.has(ref)) throw new Error(`Entity is outside the active strict context scope: ${ref}`);
+    if (!allowed && strictRefs && !strictRefs.has(ref)) throw new Error(`Entity is outside the active strict context scope: ${ref}`);
   };
   const filterLinks = (links) => !strictIds
     ? links
@@ -2368,7 +2362,8 @@ async function manageOrganization(cli, input) {
       throw new Error("OKR and KPI entities require their structured schema. Use workMemory_outcomes upsert_okr or upsert_kpi.");
     }
     assertAllowedRef(`${kind}:${id}`);
-    const existing = await cli.json(["entity", "list", "--kind", kind, "--json", ...scoped]);
+    // Unscoped: an entity hidden by the active context still exists.
+    const existing = await cli.json(["entity", "list", "--kind", kind, "--json"]);
     const exists = (existing || []).some((entity) => entity.id === id);
     if (action === "create_entity" && exists) throw new Error(`Entity already exists: ${kind}:${id}`);
     if (action !== "create_entity" && !exists) throw new Error(`Entity does not exist: ${kind}:${id}`);
@@ -2428,7 +2423,7 @@ async function manageOrganization(cli, input) {
     const sourceId = requireText(input.sourceId, "source id");
     const targetId = requireText(input.targetId, "target id");
     const type = requireText(input.type, "link type");
-    if (input.allowBoundaryChange !== true && strictIds && (!strictIds.has(sourceId) || !strictIds.has(targetId))) {
+    if (!allowed && strictIds && (!strictIds.has(sourceId) || !strictIds.has(targetId))) {
       throw new Error("Organization link is outside the active strict context scope.");
     }
     const args = ["link", "upsert", "--source", sourceId, "--target", targetId, "--type", type, ...scoped, ...boundaryChange];

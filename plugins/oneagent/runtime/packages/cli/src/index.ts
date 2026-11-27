@@ -2259,8 +2259,11 @@ async function captureCreateCommand(argv: string[]): Promise<void> {
   const relatedRefs = collectOptionValues(argv, "--related").map(parseCaptureRelated);
   try {
     const contextScope = activeResolvedContextScope(runtime, argv);
-    assertStrictSourceAccess(contextScope, "full", "Creating a capture");
+    // --allow-boundary-change: an addition the user explicitly asked for in a
+    // conversation. The active context limits what the agent reads, not what the
+    // user adds.
     if (contextScope?.scope.mode === "strict" && !hasFlag(argv, "--allow-boundary-change")) {
+      assertStrictSourceAccess(contextScope, "full", "Creating a capture");
       if (!primaryRef) {
         throw new Error("A capture created under a strict context must have an in-scope primary entity.");
       }

@@ -280,6 +280,19 @@ function vitaminPlayEnhancerClient(config) {
     return true;
   }
 
+  // Wrapping moves the field in the DOM, which drops its focus: a field
+  // re-rendered while the user types (a search) would lose every keystroke.
+  function moveInto(field, wrap) {
+    const root = field.getRootNode ? field.getRootNode() : document;
+    const focused = (root.activeElement || document.activeElement) === field;
+    let start = null, end = null;
+    try { start = field.selectionStart; end = field.selectionEnd; } catch (error) { start = null; }
+    wrap();
+    if (!focused) return;
+    field.focus({ preventScroll: true });
+    try { if (start !== null && start !== undefined) field.setSelectionRange(start, end); } catch (error) { /* not a text field */ }
+  }
+
   function enhanceSelect(select) {
     if (!rewrap(select, "vp-select-container")) return;
     select.dataset.vp = "1";
@@ -288,8 +301,7 @@ function vitaminPlayEnhancerClient(config) {
     wrappers.set(select, root);
     root.className = "vp-select-container vp-select-container--small";
     if (select.style.display === "none") root.style.display = "none";
-    select.replaceWith(root);
-    root.append(select);
+    moveInto(select, () => { select.replaceWith(root); root.append(select); });
     root.insertAdjacentHTML("beforeend", chevron);
   }
 
@@ -308,8 +320,7 @@ function vitaminPlayEnhancerClient(config) {
     root.className = "vp-input-container";
     root.setAttribute("data-part", "root");
     if (input.style.display === "none") root.style.display = "none";
-    input.replaceWith(root);
-    root.append(input);
+    moveInto(input, () => { input.replaceWith(root); root.append(input); });
   }
 
   function enhanceCheckbox(input) {
@@ -318,8 +329,7 @@ function vitaminPlayEnhancerClient(config) {
     let label = input.parentElement && input.parentElement.tagName === "LABEL" ? input.parentElement : undefined;
     if (!label) {
       label = document.createElement("label");
-      input.replaceWith(label);
-      label.append(input);
+      moveInto(input, () => { input.replaceWith(label); label.append(input); });
     }
     add(label, "vp-checkbox");
     const control = document.createElement("span");

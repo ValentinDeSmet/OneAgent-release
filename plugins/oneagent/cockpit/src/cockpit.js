@@ -66,6 +66,12 @@ ${VITAMIN_PLAY_TOKENS}
         color: var(--vp-semantic-color-content-brand);
       }
       .shell { display: grid; grid-template-rows: 58px minmax(0, 1fr); min-width: 0; min-height: 0; }
+      .shell:has(#agentAccessBanner:not([hidden])) { grid-template-rows: auto minmax(0, 1fr); }
+      .topbar:has(#agentAccessBanner:not([hidden])) { height: auto; }
+      .agent-access { grid-column: 1 / -1; order: -1; display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; min-width: 0; margin: 0 0 6px; padding: 6px 10px; border: 1px solid var(--warning); border-left-width: 4px; border-radius: 6px; background: color-mix(in srgb, var(--warning) 12%, transparent); font-size: 12px; line-height: 1.35; }
+      .agent-access[hidden] { display: none !important; }
+      .agent-access > span { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+      .agent-access strong { font-weight: 600; }
       .topbar {
         display: grid;
         grid-template-columns: minmax(150px, 0.7fr) minmax(0, auto) minmax(180px, 0.55fr);
@@ -856,6 +862,9 @@ ${VITAMIN_PLAY_TOKENS}
       .ec-facts:empty { display: none; }
       .ec-fact { padding: 2px var(--vp-semantic-spacing-xs); border: 1px solid var(--border); border-radius: var(--vp-semantic-border-radius-full); color: var(--muted); font-size: var(--vp-typography-caption-font-size); }
       .ec-tabs { padding-inline: var(--vp-semantic-spacing-m); }
+      .ec-body, .ec-sec, .lk-composer, .lk-picker, .lk-relpicker { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+      .lk-composer .vp-input-container, .lk-picker .control { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
+      .lk-result-main strong { overflow-wrap: anywhere; }
       .ec-body { flex: 1; display: grid; align-content: start; gap: var(--vp-semantic-spacing-m); padding: var(--vp-semantic-spacing-m); }
       .ec-body > .ep-sec { padding: 0; border: 0; }
       .ec-sec { display: grid; gap: var(--vp-semantic-spacing-xs); }
@@ -1360,6 +1369,7 @@ ${VITAMIN_PLAY_TOKENS}
       </aside>
       <section class="shell">
         <header class="topbar map-active">
+          <div id="agentAccessBanner" class="agent-access" role="status" hidden><span id="agentAccessText"></span><button type="button" class="memory-button" id="agentAccessReset" title="Effacer les filtres et rétablir l’accès de l’agent à toute la mémoire">Toute la mémoire</button></div>
           <div class="brand"><strong>OneAgent</strong><span id="scope"></span></div>
           <div class="toolbar map-toolbar">
             <div class="view-preset" id="graphViewControls">
@@ -1477,14 +1487,25 @@ ${VITAMIN_PLAY_TOKENS}
         vscode?.postMessage({ type: "selectMemoryView", id: id || undefined, requestId: memoryViewRequest });
       }
       function resetMemoryView() { selectMemoryView(undefined, "list"); }
+      document.querySelector("#agentAccessReset")?.addEventListener("click", () => resetMemoryView());
       function renderMemoryAccessStatus() {
+        const scope = state.contextScope?.scope;
+        // Limited access must be visible on every page, not only in the view menu.
+        const banner = document.querySelector("#agentAccessBanner");
+        if (banner) {
+          const limited = !memoryViewPending && scope?.mode === "strict";
+          banner.hidden = !limited;
+          if (limited) {
+            const names = (scope.selectedEntities || []).map(ref => (state.entities || []).find(entity => entity.kind === ref.kind && entity.id === ref.id)?.label || refLabel(ref.kind + ":" + ref.id));
+            banner.querySelector("#agentAccessText").innerHTML = "<strong>Accès de l’agent limité à " + escapeHtml(names.join(", ") || "une sélection") + ".</strong> Dans le chat, il ne lit et ne modifie que cette sélection et ce qui y est relié ; ce que tu lui demandes d’ajouter est toujours enregistré.";
+          }
+        }
         const label = document.querySelector("#memoryAccessStatus");
         if (!label) return;
-        const scope = state.contextScope?.scope;
         label.textContent = memoryViewPending ? "Accès agent : mise à jour…" : scope?.mode === "strict" ? "Accès agent : limité à " + (scope.selectedEntities || []).map(ref => refLabel(ref.kind + ":" + ref.id)).join(", ") : "Accès agent : toute la mémoire";
         label.title = label.textContent;
         label.dataset.restricted = String(scope?.mode === "strict");
-        document.querySelectorAll("[data-memory-view], #graphViewPreset, #memoryResetAll, #memoryNewView").forEach(button => { button.disabled = Boolean(memoryViewPending); });
+        document.querySelectorAll("[data-memory-view], #graphViewPreset, #memoryResetAll, #memoryNewView, #agentAccessReset").forEach(button => { button.disabled = Boolean(memoryViewPending); });
       }
       const defaultContextTokenBudget = Math.max(0, Number(state.contextTokenBudget) || 0);
       function contextTokenBudgetOrDefault(value) {
@@ -5066,14 +5087,18 @@ ${VITAMIN_PLAY_TOKENS}
         const chip = (entry) => '<i class="ep-dot" style="background:' + escapeAttr(entityKindColor(entry.kind)) + '"></i><span>' + escapeHtml(entry.label) + '</span>';
         const usual = target ? usualLinks(selfKind, target.kind) : [];
         const relLabel = link.type ? (usual.find((entry) => entry[1] === link.type && entry[2] === link.out) || [])[0] || (link.out ? linkVerb(link.type) : linkVerb(link.type) + " (inverse)") : "";
+        const allLinksHtml = '<div class="lk-relall">' + RELATION_TYPE_GROUPS.map(([group, types]) => '<div class="lk-relgroup"><span>' + escapeHtml({ Structure: "Structure", Work: "Travail", People: "Personnes", "Practice & mission": "Pratique et mission" }[group] || group) + '</span><div class="lk-relchips">' + types.map((type) => '<button type="button" class="lk-relchip' + (link.type === type ? " on" : "") + '" data-lk-type="' + escapeAttr(type) + '" data-lk-out="true">' + escapeHtml(linkVerb(type)) + '</button>').join("") + '</div></div>').join("") + '</div>';
         let html = '<div class="lk-composer" data-detail-transient>' +
           '<div class="lk-head"><strong>Ajouter un lien</strong><button type="button" class="ec-icon" data-ec="toggleComposer" data-ref="' + escapeAttr(ref) + '" title="Annuler" aria-label="Annuler">✕</button></div>' +
           '<div class="lk-sentence" aria-label="Lien à créer">' +
             '<span class="lk-ent lk-self">' + chip({ kind: selfKind, label: selfLabel }) + '</span>' +
-            '<button type="button" class="lk-rel' + (link.type ? " set" : "") + '" data-lk="rel"' + (target ? "" : " disabled") + '>' + escapeHtml(link.type ? relLabel : "choisir un lien") + ' ▾</button>' +
+            '<button type="button" class="lk-rel' + (link.type ? " set" : "") + '" data-lk="rel" aria-expanded="' + Boolean(link.relOpen || (target && !link.type)) + '">' + escapeHtml(link.type ? relLabel : "choisir un lien") + ' ▾</button>' +
             '<button type="button" class="lk-ent lk-target' + (target ? "" : " empty") + '" data-lk="target">' + (target ? chip(target) : "choisir une entité ▾") + '</button>' +
             '<button type="button" class="ec-icon lk-swap" data-lk="swap" title="Inverser le sens" aria-label="Inverser le sens"' + (link.type ? "" : " disabled") + '>⇄</button>' +
           '</div>';
+        if (!target && link.relOpen) {
+          html += '<div class="lk-relpicker"><p class="ep-sec-title">Type de lien</p>' + allLinksHtml + '<p class="ec-note">Choisis ensuite l’entité à relier ; les liens habituels entre les deux types seront proposés.</p></div>';
+        }
         if (!target) {
           const query = normalizeFilterText(link.query.trim());
           const kinds = [...new Set(candidates.map((entry) => entry.kind))].sort((a, b) => cardKindLabel(a).localeCompare(cardKindLabel(b), "fr"));
@@ -5093,7 +5118,7 @@ ${VITAMIN_PLAY_TOKENS}
           const article = ["person", "feature", "feature_request", "discovery", "initiative", "mission", "practice"].includes(target.kind) ? "une " : "un ";
           html += '<div class="lk-relpicker"><p class="ep-sec-title">Liens habituels avec ' + escapeHtml(article + cardKindLabel(target.kind).toLowerCase()) + '</p><div class="lk-relchips">' +
             usual.map(([label, type, out]) => '<button type="button" class="lk-relchip' + (link.type === type && link.out === out ? " on" : "") + '" data-lk-type="' + escapeAttr(type) + '" data-lk-out="' + out + '">' + escapeHtml(label) + '</button>').join("") + '</div>' +
-            '<details class="lk-more"><summary>Autre type de lien</summary><div class="lk-relall">' + RELATION_TYPE_GROUPS.map(([group, types]) => '<div class="lk-relgroup"><span>' + escapeHtml({ Structure: "Structure", Work: "Travail", People: "Personnes", "Practice & mission": "Pratique et mission" }[group] || group) + '</span><div class="lk-relchips">' + types.map((type) => '<button type="button" class="lk-relchip" data-lk-type="' + escapeAttr(type) + '" data-lk-out="true">' + escapeHtml(linkVerb(type)) + '</button>').join("") + '</div></div>').join("") + '</div></details></div>';
+            '<details class="lk-more"' + (link.type && !usual.some((entry) => entry[1] === link.type) ? " open" : "") + '><summary>Autre type de lien</summary>' + allLinksHtml + '</details></div>';
         }
         if (target && link.type) {
           const source = link.out ? ref : target.ref, destination = link.out ? target.ref : ref;
@@ -5208,9 +5233,16 @@ ${VITAMIN_PLAY_TOKENS}
         };
         composer.querySelector("#lkSearch")?.addEventListener("input", (event) => { link.query = event.target.value; rerender(true); });
         composer.querySelectorAll("[data-lk-kind]").forEach((button) => button.addEventListener("click", () => { link.kind = button.dataset.lkKind; rerender(true); }));
-        composer.querySelectorAll("[data-lk-pick]").forEach((button) => button.addEventListener("click", () => { link.target = button.dataset.lkPick; link.type = ""; link.relOpen = false; rerender(); }));
+        composer.querySelectorAll("[data-lk-pick]").forEach((button) => button.addEventListener("click", () => {
+          link.target = button.dataset.lkPick;
+          link.relOpen = false;
+          // A link chosen before the entity takes its usual direction between the two kinds.
+          const usual = link.type ? usualLinks(ref.split(":")[0], link.target.split(":")[0]).find((entry) => entry[1] === link.type) : undefined;
+          if (usual) link.out = usual[2];
+          rerender();
+        }));
         composer.querySelectorAll("[data-lk-type]").forEach((button) => button.addEventListener("click", () => { link.type = button.dataset.lkType; link.out = button.dataset.lkOut !== "false"; link.relOpen = false; rerender(); }));
-        composer.querySelector('[data-lk="target"]')?.addEventListener("click", () => { link.target = ""; link.type = ""; rerender(true); });
+        composer.querySelector('[data-lk="target"]')?.addEventListener("click", () => { link.target = ""; link.relOpen = false; rerender(true); });
         composer.querySelector('[data-lk="rel"]')?.addEventListener("click", () => { link.relOpen = !link.relOpen; rerender(); });
         composer.querySelector('[data-lk="swap"]')?.addEventListener("click", () => { link.out = !link.out; rerender(); });
         composer.querySelector('[data-lk="note"]')?.addEventListener("click", () => { link.noteOpen = true; rerender(); document.querySelector("#ecLinkDescription")?.focus(); });
